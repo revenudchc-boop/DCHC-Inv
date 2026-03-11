@@ -1,0 +1,908 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>شاشة الاتصال - نظام الفواتير</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Cairo', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        .navbar {
+            background: white;
+            border-radius: 15px;
+            padding: 15px 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo i {
+            font-size: 30px;
+            color: #667eea;
+        }
+
+        .logo h1 {
+            font-size: 24px;
+            color: #333;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 15px;
+        }
+
+        .nav-links a {
+            text-decoration: none;
+            color: #666;
+            padding: 8px 15px;
+            border-radius: 8px;
+            transition: all 0.3s;
+        }
+
+        .nav-links a:hover {
+            background: #f0f0f0;
+        }
+
+        .nav-links a.active {
+            background: #667eea;
+            color: white;
+        }
+
+        .card {
+            background: white;
+            border-radius: 15px;
+            padding: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .card-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .card-title i {
+            color: #667eea;
+            font-size: 24px;
+        }
+
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #666;
+            font-weight: 600;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #eee;
+            border-radius: 10px;
+            font-size: 16px;
+            font-family: 'Cairo', sans-serif;
+            transition: all 0.3s;
+            direction: ltr;
+            text-align: left;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .btn {
+            padding: 12px 30px;
+            border: none;
+            border-radius: 10px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            font-family: 'Cairo', sans-serif;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-info:hover {
+            background: #138496;
+            transform: translateY(-2px);
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .btn-warning:hover {
+            background: #e0a800;
+            transform: translateY(-2px);
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-danger:hover {
+            background: #c82333;
+            transform: translateY(-2px);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+            transform: none;
+        }
+
+        .button-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+        }
+
+        .status-box {
+            background: #f8f9fa;
+            border-radius: 10px;
+            padding: 20px;
+            margin-bottom: 20px;
+            border-right: 4px solid #667eea;
+        }
+
+        .status-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            margin-bottom: 10px;
+        }
+
+        .status-label {
+            font-weight: 600;
+            color: #666;
+            min-width: 120px;
+        }
+
+        .status-value {
+            color: #333;
+        }
+
+        .status-value.success {
+            color: #28a745;
+            font-weight: 600;
+        }
+
+        .status-value.error {
+            color: #dc3545;
+        }
+
+        .alert {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border-right: 4px solid #28a745;
+        }
+
+        .alert-danger {
+            background: #f8d7da;
+            color: #721c24;
+            border-right: 4px solid #dc3545;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border-right: 4px solid #ffc107;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-right: 4px solid #17a2b8;
+        }
+
+        .code-block {
+            background: #272822;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 10px;
+            font-family: monospace;
+            direction: ltr;
+            text-align: left;
+            overflow-x: auto;
+            margin: 10px 0;
+        }
+
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 32px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        .loader {
+            text-align: center;
+            padding: 30px;
+        }
+
+        .loader i {
+            font-size: 40px;
+            color: #667eea;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .tab-container {
+            margin-bottom: 20px;
+        }
+
+        .tab-buttons {
+            display: flex;
+            gap: 10px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 10px;
+            margin-bottom: 20px;
+        }
+
+        .tab-button {
+            padding: 10px 20px;
+            background: none;
+            border: none;
+            cursor: pointer;
+            font-size: 16px;
+            color: #666;
+            border-radius: 8px 8px 0 0;
+        }
+
+        .tab-button.active {
+            color: #667eea;
+            font-weight: 600;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .tab-pane {
+            display: none;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
+
+        .file-upload {
+            border: 2px dashed #ddd;
+            padding: 30px;
+            text-align: center;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .file-upload:hover {
+            border-color: #667eea;
+            background: #f8f9fa;
+        }
+
+        .file-upload i {
+            font-size: 48px;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .file-upload input {
+            display: none;
+        }
+
+        .url-example {
+            background: #f0f0f0;
+            padding: 10px;
+            border-radius: 5px;
+            direction: ltr;
+            text-align: left;
+            font-size: 14px;
+            margin-top: 5px;
+            color: #666;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- الشريط العلوي -->
+        <div class="navbar">
+            <div class="logo">
+                <i class="fas fa-plug"></i>
+                <h1>شاشة الاتصال - نظام الفواتير</h1>
+            </div>
+            <div class="nav-links">
+                <a href="/" class="active">
+                    <i class="fas fa-file-invoice"></i> لوحة الفواتير
+                </a>
+                <a href="/connector" class="active">
+                    <i class="fas fa-plug"></i> شاشة الاتصال
+                </a>
+            </div>
+        </div>
+
+        <!-- حالة الاتصال الحالية -->
+        <div class="card">
+            <div class="card-title">
+                <i class="fas fa-info-circle"></i>
+                حالة الاتصال الحالية
+            </div>
+            <div class="status-box" id="connectionStatus">
+                <div class="loader" id="statusLoader">
+                    <i class="fas fa-spinner"></i>
+                    <p>جاري تحميل حالة الاتصال...</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- التبويبات -->
+        <div class="card">
+            <div class="tab-container">
+                <div class="tab-buttons">
+                    <button class="tab-button active" onclick="switchTab('api')">
+                        <i class="fas fa-cloud"></i> الاتصال بـ API
+                    </button>
+                    <button class="tab-button" onclick="switchTab('file')">
+                        <i class="fas fa-file-upload"></i> رفع ملف XML
+                    </button>
+                    <button class="tab-button" onclick="switchTab('manual')">
+                        <i class="fas fa-keyboard"></i> إدخال يدوي
+                    </button>
+                </div>
+
+                <!-- تبويب API -->
+                <div class="tab-pane active" id="tab-api">
+                    <div class="card-title">
+                        <i class="fas fa-cloud-download-alt"></i>
+                        الاتصال بـ API الخارجي
+                    </div>
+
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        أدخل بيانات الاتصال بالـ API الخاص بك
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-link"></i> رابط API</label>
+                        <input type="text" class="form-control" id="apiUrl" 
+                               placeholder="http://10.0.10.235:11080/billing/api/query?filtername=inv_int&operatorId=ISFP&complexId=EGDAM&facilityId=DPA&yardId=DPA"
+                               value="http://10.0.10.235:11080/billing/api/query?filtername=inv_int&operatorId=ISFP&complexId=EGDAM&facilityId=DPA&yardId=DPA">
+                        <div class="url-example">
+                            <i class="fas fa-info-circle"></i> مثال: http://10.0.10.235:11080/billing/api/query?filtername=inv_int&operatorId=ISFP&complexId=EGDAM&facilityId=DPA&yardId=DPA
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-user"></i> اسم المستخدم</label>
+                        <input type="text" class="form-control" id="apiUsername" 
+                               placeholder="n4billapi" value="n4billapi">
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-lock"></i> كلمة المرور</label>
+                        <input type="password" class="form-control" id="apiPassword" 
+                               placeholder="lookitup35" value="lookitup35">
+                    </div>
+
+                    <div class="button-group">
+                        <button class="btn btn-info" onclick="testConnection()">
+                            <i class="fas fa-vial"></i> اختبار الاتصال
+                        </button>
+                        <button class="btn btn-primary" onclick="saveConnection()">
+                            <i class="fas fa-save"></i> حفظ الإعدادات
+                        </button>
+                        <button class="btn btn-success" onclick="fetchData()">
+                            <i class="fas fa-cloud-download-alt"></i> جلب البيانات
+                        </button>
+                    </div>
+                </div>
+
+                <!-- تبويب رفع ملف -->
+                <div class="tab-pane" id="tab-file">
+                    <div class="card-title">
+                        <i class="fas fa-file-upload"></i>
+                        رفع ملف XML
+                    </div>
+
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        يمكنك رفع ملف XML مباشرة من جهازك
+                    </div>
+
+                    <div class="file-upload" onclick="document.getElementById('xmlFile').click()">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <h3>اضغط هنا لاختيار ملف XML</h3>
+                        <p>أو اسحب الملف وأفلته هنا</p>
+                        <input type="file" id="xmlFile" accept=".xml" onchange="uploadXMLFile(this.files[0])">
+                    </div>
+
+                    <div id="fileInfo" style="margin-top: 20px; display: none;">
+                        <div class="alert alert-success" id="fileSuccess"></div>
+                        <pre class="code-block" id="filePreview"></pre>
+                    </div>
+                </div>
+
+                <!-- تبويب إدخال يدوي -->
+                <div class="tab-pane" id="tab-manual">
+                    <div class="card-title">
+                        <i class="fas fa-pen"></i>
+                        إدخال بيانات XML يدوياً
+                    </div>
+
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        الصق محتوى ملف XML في الحقل أدناه
+                    </div>
+
+                    <div class="form-group">
+                        <textarea class="form-control" id="manualXML" rows="10" 
+                                  placeholder="<query-response> ... </query-response>"></textarea>
+                    </div>
+
+                    <button class="btn btn-primary" onclick="processManualXML()">
+                        <i class="fas fa-play"></i> معالجة البيانات
+                    </button>
+                </div>
+            </div>
+        </div>
+
+        <!-- نتائج المعالجة -->
+        <div class="card" id="resultsCard" style="display: none;">
+            <div class="card-title">
+                <i class="fas fa-chart-bar"></i>
+                نتائج المعالجة
+            </div>
+
+            <div class="stats-grid" id="resultStats">
+                <!-- تملأ بالجافاسكربت -->
+            </div>
+
+            <div class="alert alert-success" id="resultMessage"></div>
+
+            <div class="button-group">
+                <button class="btn btn-primary" onclick="window.location.href='/'">
+                    <i class="fas fa-eye"></i> عرض الفواتير
+                </button>
+                <button class="btn btn-info" onclick="viewRawData()">
+                    <i class="fas fa-code"></i> عرض البيانات الخام
+                </button>
+            </div>
+        </div>
+
+        <!-- نافذة عرض البيانات الخام -->
+        <div class="modal" id="rawDataModal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.5); z-index: 1000;">
+            <div style="background: white; width: 90%; max-width: 800px; margin: 50px auto; border-radius: 15px; padding: 20px; max-height: 80vh; overflow-y: auto;">
+                <div style="display: flex; justify-content: space-between; margin-bottom: 20px;">
+                    <h3><i class="fas fa-code"></i> البيانات الخام</h3>
+                    <button onclick="document.getElementById('rawDataModal').style.display='none'" style="border: none; background: none; font-size: 24px; cursor: pointer;">&times;</button>
+                </div>
+                <pre class="code-block" id="rawDataContent" style="max-height: 60vh; overflow-y: auto;"></pre>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // حالة التطبيق
+        let currentInvoices = [];
+        
+        // بدء التطبيق
+        document.addEventListener('DOMContentLoaded', () => {
+            loadConnectionStatus();
+        });
+
+        // تبديل التبويبات
+        function switchTab(tab) {
+            // تحديث الأزرار
+            document.querySelectorAll('.tab-button').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            // تحديث المحتوى
+            document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+            document.getElementById(`tab-${tab}`).classList.add('active');
+        }
+
+        // تحميل حالة الاتصال
+        async function loadConnectionStatus() {
+            const statusDiv = document.getElementById('connectionStatus');
+            
+            try {
+                const response = await fetch('/api/connection/status');
+                const data = await response.json();
+                
+                if (data.success) {
+                    statusDiv.innerHTML = `
+                        <div class="status-item">
+                            <span class="status-label">حالة الاتصال:</span>
+                            <span class="status-value ${data.connected ? 'success' : 'error'}">
+                                ${data.connected ? '✅ متصل' : '❌ غير متصل'}
+                            </span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">رابط API:</span>
+                            <span class="status-value">${data.config.url}</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">اسم المستخدم:</span>
+                            <span class="status-value">${data.config.username}</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">آخر مزامنة:</span>
+                            <span class="status-value">${data.config.lastSync || 'لم يتم'}</span>
+                        </div>
+                        <div class="status-item">
+                            <span class="status-label">البيانات المحلية:</span>
+                            <span class="status-value success">${data.localData.count} فاتورة</span>
+                        </div>
+                    `;
+                }
+            } catch (error) {
+                statusDiv.innerHTML = `
+                    <div class="alert alert-danger">
+                        <i class="fas fa-exclamation-circle"></i>
+                        فشل تحميل حالة الاتصال: ${error.message}
+                    </div>
+                `;
+            }
+        }
+
+        // اختبار الاتصال
+        async function testConnection() {
+            const url = document.getElementById('apiUrl').value.trim();
+            const username = document.getElementById('apiUsername').value.trim();
+            const password = document.getElementById('apiPassword').value.trim();
+            
+            if (!url || !username || !password) {
+                showAlert('الرجاء إدخال جميع البيانات', 'danger');
+                return;
+            }
+            
+            showLoader('جاري اختبار الاتصال...');
+            
+            try {
+                const response = await fetch('/api/connection/test', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url, username, password })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert(result.message, 'success');
+                } else {
+                    showAlert(result.error || 'فشل الاتصال', 'danger');
+                }
+            } catch (error) {
+                showAlert('خطأ في الاتصال: ' + error.message, 'danger');
+            } finally {
+                hideLoader();
+            }
+        }
+
+        // حفظ الإعدادات
+        async function saveConnection() {
+            const url = document.getElementById('apiUrl').value.trim();
+            const username = document.getElementById('apiUsername').value.trim();
+            const password = document.getElementById('apiPassword').value.trim();
+            
+            if (!url || !username || !password) {
+                showAlert('الرجاء إدخال جميع البيانات', 'danger');
+                return;
+            }
+            
+            try {
+                const response = await fetch('/api/connection/save', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url, username, password })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    showAlert(result.message, 'success');
+                    loadConnectionStatus();
+                } else {
+                    showAlert(result.error, 'danger');
+                }
+            } catch (error) {
+                showAlert('خطأ في حفظ الإعدادات: ' + error.message, 'danger');
+            }
+        }
+
+        // جلب البيانات
+        async function fetchData() {
+            const url = document.getElementById('apiUrl').value.trim();
+            const username = document.getElementById('apiUsername').value.trim();
+            const password = document.getElementById('apiPassword').value.trim();
+            
+            if (!url || !username || !password) {
+                showAlert('الرجاء إدخال جميع البيانات', 'danger');
+                return;
+            }
+            
+            showLoader('جاري جلب البيانات... قد يستغرق هذا بعض الوقت');
+            
+            try {
+                const response = await fetch('/api/connection/fetch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url, username, password })
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentInvoices = result.invoices;
+                    showResults(result);
+                } else {
+                    showAlert(result.error || 'فشل جلب البيانات', 'danger');
+                }
+            } catch (error) {
+                showAlert('خطأ في جلب البيانات: ' + error.message, 'danger');
+            } finally {
+                hideLoader();
+            }
+        }
+
+        // رفع ملف XML
+        async function uploadXMLFile(file) {
+            if (!file) return;
+            
+            showLoader('جاري رفع وتحليل الملف...');
+            
+            const reader = new FileReader();
+            reader.onload = async function(e) {
+                try {
+                    const response = await fetch('/api/connection/upload-xml', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/xml' },
+                        body: e.target.result
+                    });
+                    
+                    const result = await response.json();
+                    
+                    if (result.success) {
+                        currentInvoices = result.invoices;
+                        
+                        // عرض معلومات الملف
+                        document.getElementById('fileInfo').style.display = 'block';
+                        document.getElementById('fileSuccess').innerHTML = `
+                            <i class="fas fa-check-circle"></i>
+                            تم رفع وتحليل ${result.count} فاتورة بنجاح
+                        `;
+                        
+                        // عرض معاينة
+                        const preview = result.invoices.slice(0, 3);
+                        document.getElementById('filePreview').textContent = 
+                            JSON.stringify(preview, null, 2);
+                        
+                        showResults(result);
+                    } else {
+                        showAlert(result.error, 'danger');
+                    }
+                } catch (error) {
+                    showAlert('خطأ في رفع الملف: ' + error.message, 'danger');
+                } finally {
+                    hideLoader();
+                }
+            };
+            
+            reader.readAsText(file);
+        }
+
+        // معالجة XML يدوي
+        async function processManualXML() {
+            const xmlData = document.getElementById('manualXML').value.trim();
+            
+            if (!xmlData) {
+                showAlert('الرجاء إدخال بيانات XML', 'danger');
+                return;
+            }
+            
+            showLoader('جاري معالجة البيانات...');
+            
+            try {
+                const response = await fetch('/api/connection/upload-xml', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/xml' },
+                    body: xmlData
+                });
+                
+                const result = await response.json();
+                
+                if (result.success) {
+                    currentInvoices = result.invoices;
+                    showResults(result);
+                } else {
+                    showAlert(result.error, 'danger');
+                }
+            } catch (error) {
+                showAlert('خطأ في معالجة البيانات: ' + error.message, 'danger');
+            } finally {
+                hideLoader();
+            }
+        }
+
+        // عرض النتائج
+        function showResults(result) {
+            document.getElementById('resultsCard').style.display = 'block';
+            
+            // حساب إحصائيات إضافية
+            let paid = 0;
+            let total = 0;
+            
+            result.invoices.forEach(inv => {
+                const amount = parseFloat(inv.data['Invoice Total'] || inv.data.Owed || 0);
+                if (!isNaN(amount)) total += amount;
+                if (inv.data.PaidInFull === 'true') paid++;
+            });
+            
+            document.getElementById('resultStats').innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-value">${result.count}</div>
+                    <div class="stat-label">إجمالي الفواتير</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${paid}</div>
+                    <div class="stat-label">فواتير مدفوعة</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${result.count - paid}</div>
+                    <div class="stat-label">غير مدفوعة</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${total.toFixed(2)}</div>
+                    <div class="stat-label">إجمالي المبالغ</div>
+                </div>
+            `;
+            
+            document.getElementById('resultMessage').innerHTML = `
+                <i class="fas fa-check-circle"></i>
+                ${result.message || 'تم جلب البيانات بنجاح'}
+            `;
+            
+            // تحديث حالة الاتصال
+            loadConnectionStatus();
+        }
+
+        // عرض البيانات الخام
+        function viewRawData() {
+            if (currentInvoices.length === 0) {
+                showAlert('لا توجد بيانات للعرض', 'warning');
+                return;
+            }
+            
+            document.getElementById('rawDataContent').textContent = 
+                JSON.stringify(currentInvoices, null, 2);
+            document.getElementById('rawDataModal').style.display = 'block';
+        }
+
+        // دوال مساعدة
+        function showLoader(message) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = 'alert alert-info';
+            alertDiv.id = 'loadingAlert';
+            alertDiv.innerHTML = `
+                <i class="fas fa-spinner fa-spin"></i>
+                ${message}
+            `;
+            document.querySelector('.container').insertBefore(alertDiv, document.querySelector('.card'));
+        }
+
+        function hideLoader() {
+            const alert = document.getElementById('loadingAlert');
+            if (alert) alert.remove();
+        }
+
+        function showAlert(message, type) {
+            const alertDiv = document.createElement('div');
+            alertDiv.className = `alert alert-${type}`;
+            alertDiv.innerHTML = `
+                <i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>
+                ${message}
+            `;
+            
+            const container = document.querySelector('.container');
+            container.insertBefore(alertDiv, document.querySelector('.card'));
+            
+            setTimeout(() => alertDiv.remove(), 5000);
+        }
+
+        // إغلاق المودال عند الضغط على ESC
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                document.getElementById('rawDataModal').style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

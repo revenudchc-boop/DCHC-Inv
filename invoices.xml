@@ -1,0 +1,282 @@
+<query-response>
+<data-table filter="INV_INT" count="4499">
+<columns>
+<column>Draft Nbr</column>
+<column>Final Nbr</column>
+<column>Status</column>
+<column>Payee</column>
+<column>Contract Customer</column>
+<column>Invoice Type</column>
+<column>Currency</column>
+<column>Total Charges</column>
+<column>Taxes</column>
+<column>Credits</column>
+<column>Paid</column>
+<column>Owed</column>
+<column>PaidInFull</column>
+<column>Contract Customer Name</column>
+<column>Key Word 1</column>
+<column>Key Word 2</column>
+<column>Key Word 3</column>
+<column>Vessel ATA</column>
+<column>Final_Date</column>
+<column>Work Order</column>
+<column>رقم الامانة</column>
+<column>Vessel Name</column>
+<column>Final_User</column>
+<column>Exchange Rate</column>
+<column>Totaltotalusad</column>
+<column>TotalChargesusad</column>
+<column>Debit Code</column>
+<column>Taxesusad</column>
+<column>Invoice Total</column>
+</columns>
+<rows>
+<row primary-key="380991">
+<field>265498</field>
+<field>C25-23715</field>
+<field>Final</field>
+<field>WESSAM MASR</field>
+<field>569605350</field>
+<field>CUSTMER-CASH تحصيل نقدى عملاء بالجنيه</field>
+<field>EGP</field>
+<field>8722.4775</field>
+<field>1221.1469</field>
+<field>0.0</field>
+<field>0.0</field>
+<field>9943.6244</field>
+<field>false</field>
+<field>العربى للاستيرادوالتصدير العربى منيرالاد</field>
+<field>YM WELLNESS</field>
+<field>ISTF82144500</field>
+<field>HMM</field>
+<field>26-Feb-24 0000</field>
+<field>26-Mar-10 1353</field>
+<field/>
+<field>*11/3*</field>
+<field>YM WELLNESS</field>
+<field>mmosaad</field>
+<field>52.8635</field>
+<field/>
+<field/>
+<field>01000700010004200900010000</field>
+<field/>
+<field>165.0</field>
+</row>
+<row primary-key="380990">
+<field>265497</field>
+<field>C25-23714</field>
+<field>Final</field>
+<field>ELMOASASA FOR CUSTOMS</field>
+<field>652973612</field>
+<field>CUSTMER-CASH تحصيل نقدى عملاء بالجنيه</field>
+<field>EGP</field>
+<field>8458.16</field>
+<field>1184.1424</field>
+<field>0.0</field>
+<field>0.0</field>
+<field>9642.3024</field>
+<field>false</field>
+<field>روبلس للتوريدات العموميه</field>
+<field>YM WONDROUS</field>
+<field>ISTF15163700</field>
+<field>HMM</field>
+<field>26-Mar-03 0000</field>
+<field>26-Mar-10 1335</field>
+<field/>
+<field>*14/3*</field>
+<field>YM WONDROUS</field>
+<field>mmosaad</field>
+<field>52.8635</field>
+<field/>
+<field/>
+<field>01000700010004203900010000</field>
+<field/>
+<field>160.0</field>
+</row>
+<row primary-key="380989">
+<field>265496</field>
+<field>C25-23712</field>
+<field>Final</field>
+<field>ELAMANY FOR TRANSPORT</field>
+<field>611372975</field>
+<field>CUSTMER-CASH تحصيل نقدى عملاء بالجنيه</field>
+<field>EGP</field>
+<field>15753.323</field>
+<field>2205.4652</field>
+<field>0.0</field>
+<field>0.0</field>
+<field>17958.7882</field>
+<field>false</field>
+<field>رافت سمير منشاه المصريه للصناعات المغذيه للسيارات</field>
+<field>EGY SKY</field>
+<field>HLCUHAM260101590</field>
+<field>HLC</field>
+<field>26-Feb-26 0000</field>
+<field>26-Mar-10 1313</field>
+<field/>
+<field>*31/3*</field>
+<field>EGY SKY</field>
+<field>mmosaad</field>
+<field>52.8635</field>
+<field/>
+<field/>
+<field>01000700010004202500010000</field>
+<field/>
+<field>298.0</field>
+</row>
+<row primary-key="380988">
+<field>265495</field>
+<field>C25-23713</field>
+<field>Final</field>
+<field>ALMANAR FOR IMP & EXP AND CUSTOMS CLEARANCE</field>
+<field>728283719</field>
+<field>CUSTMER-CASH تحصيل نقدى عملاء بالجنيه</field>
+<field>EGP</field>
+<field>12105.7415</field>
+<field>1694.8038</field>
+<field>0.0</field>
+<field>0.0</field>
+<field>13800.5453</field>
+<field>false</field>
+<field>العربيه للتجاره والتوريدات العموميه/محمد عبدالعظيم حسن</field>
+<field>YM WONDROUS</field>
+<field>M490360803</field>
+<field>YML</field>
+<field>26-Feb-12 0000</field>
+<field>26-Mar-10 1315</field>
+<field/>
+<field>*11/3*</field>
+<field>YM WONDROUS</field>
+<field>mmosaad</field>
+<field>52.8635</field>
+<field/>
+<field/>
+<field>01000700010004207500010000</field>
+<field/>
+<field>229.0</field>
+</row>
+<row primary-key="380987">
+<field>265494</field>
+<field>C25-23711</field>
+<field>Final</field>
+<field>CASH CUSTOMER</field>
+<field>232961352</field>
+<field>CUSTMER-CASH تحصيل نقدى عملاء بالجنيه</field>
+<field>EGP</field>
+<field>2114.54</field>
+<field>296.0356</field>
+<field>0.0</field>
+<field>0.0</field>
+<field>2410.5756</field>
+<field>false</field>
+<field>الصباح سعيده عبد الرحمن ضيف وشركاها</field>
+<field>NORDLUCHS</field>
+<field>COSU6455099290</field>
+<field>COS</field>
+<field>26-Mar-07 0000</field>
+<field>26-Mar-10 1259</field>
+<field/>
+<field>*17/3*</field>
+<field>NORDLUCHS</field>
+<field>mmosaad</field>
+<field>52.8635</field>
+<field/>
+<field/>
+<field>01000700010004001400020000</field>
+<field/>
+<field>40.0</field>
+</row>
+<row primary-key="380986">
+<field>265493</field>
+<field>P25-10370</field>
+<field>Final</field>
+<field>HAPAG-LLOYD (EGYPT) SHIPPING (USAD)</field>
+<field>HLC</field>
+<field>VSL EXPORT UNIT_STORAGE_FINALOUT</field>
+<field>USAD</field>
+<field>36026.9</field>
+<field>0.0</field>
+<field>0.0</field>
+<field>0.0</field>
+<field>36026.9</field>
+<field>false</field>
+<field>HAPAGLLOYED</field>
+<field/>
+<field>FINALOUT20260102</field>
+<field>HLC</field>
+<field/>
+<field>26-Mar-10 1316</field>
+<field/>
+<field>4</field>
+<field/>
+<field>yasser</field>
+<field>48.685</field>
+<field>740.0</field>
+<field>740.0</field>
+<field>01000700010004097300010000</field>
+<field>0.0</field>
+<field>740.0</field>
+</row>
+<row primary-key="380985">
+<field>265492</field>
+<field>C25-23710</field>
+<field>Final</field>
+<field>HOURAS</field>
+<field>526174420</field>
+<field>CUSTMER-CASH تحصيل نقدى عملاء بالجنيه</field>
+<field>EGP</field>
+<field>29286.379</field>
+<field>4100.0931</field>
+<field>0.0</field>
+<field>0.0</field>
+<field>33386.4721</field>
+<field>false</field>
+<field>اشرف ظروف لمعى وشركاه الشركه الوطنيه للاستيراد</field>
+<field>YM WORLD</field>
+<field>IZMF33966900</field>
+<field>HMM</field>
+<field>26-Feb-17 0000</field>
+<field>26-Mar-10 1251</field>
+<field/>
+<field>*11/3*</field>
+<field>YM WORLD</field>
+<field>mmosaad</field>
+<field>52.8635</field>
+<field/>
+<field/>
+<field>01000700010004201200010000</field>
+<field/>
+<field>554.0</field>
+</row>
+<row primary-key="380984">
+<field>265491</field>
+<field>C25-23709</field>
+<field>Final</field>
+<field>CASH CUSTOMER</field>
+<field>377063088</field>
+<field>CUSTMER-CASH تحصيل نقدى عملاء بالجنيه</field>
+<field>EGP</field>
+<field>3541.8545</field>
+<field>495.8596</field>
+<field>0.0</field>
+<field>0.0</field>
+<field>4037.7141</field>
+<field>false</field>
+<field>الهدى للاستيرادوالتصدير والتخليص الجمركى</field>
+<field>YM WONDROUS</field>
+<field>ISTF66066400</field>
+<field>HMM</field>
+<field>26-Mar-03 0000</field>
+<field>26-Mar-10 1235</field>
+<field/>
+<field>*12/3*</field>
+<field>YM WONDROUS</field>
+<field>mmosaad</field>
+<field>52.8635</field>
+<field/>
+<field/>
+<field>01000700010004001400020000</field>
+<field/>
+<field>67.0</field>
+</row>

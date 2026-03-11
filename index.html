@@ -3,544 +3,1707 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>نظام الفواتير المتقدم | DCHC</title>
+    <title>نظام الفواتير المتكامل - مع الربط بالـ API</title>
     
     <!-- Font Awesome -->
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     
-    <!-- PDF Libraries -->
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <!-- Google Fonts -->
+    <link href="https://fonts.googleapis.com/css2?family=Cairo:wght@300;400;600;700&display=swap" rel="stylesheet">
     
-    <!-- Excel Library -->
-    <script src="https://cdn.sheetjs.com/xlsx-0.20.2/package/dist/xlsx.full.min.js"></script>
-    
-    <!-- QR Code Library -->
-    <script src="https://cdn.jsdelivr.net/npm/qrcode@1.5.1/build/qrcode.min.js"></script>
-    
-    <!-- CSS File -->
-    <link rel="stylesheet" href="style.css">
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Cairo', sans-serif;
+        }
+
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        /* ===== الشريط العلوي ===== */
+        .navbar {
+            background: white;
+            border-radius: 15px;
+            padding: 15px 30px;
+            margin-bottom: 30px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .logo i {
+            font-size: 30px;
+            color: #667eea;
+        }
+
+        .logo h1 {
+            font-size: 24px;
+            color: #333;
+        }
+
+        /* ===== تبويبات التنقل ===== */
+        .nav-tabs {
+            display: flex;
+            gap: 10px;
+            background: #f0f0f0;
+            padding: 5px;
+            border-radius: 10px;
+        }
+
+        .nav-tab {
+            padding: 10px 25px;
+            border: none;
+            background: transparent;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            color: #666;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .nav-tab:hover {
+            background: rgba(102, 126, 234, 0.1);
+            color: #667eea;
+        }
+
+        .nav-tab.active {
+            background: #667eea;
+            color: white;
+        }
+
+        /* ===== الإحصائيات ===== */
+        .stats {
+            display: flex;
+            gap: 15px;
+            flex-wrap: wrap;
+        }
+
+        .stat-item {
+            background: #f8f9fa;
+            padding: 8px 15px;
+            border-radius: 10px;
+            text-align: center;
+            min-width: 100px;
+        }
+
+        .stat-value {
+            font-size: 20px;
+            font-weight: bold;
+            color: #667eea;
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: #666;
+        }
+
+        /* ===== المحتوى الرئيسي ===== */
+        .tab-content {
+            background: white;
+            border-radius: 15px;
+            padding: 25px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+
+        .tab-pane {
+            display: none;
+        }
+
+        .tab-pane.active {
+            display: block;
+        }
+
+        /* ===== شاشة الاتصال ===== */
+        .connector-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+            gap: 15px;
+        }
+
+        .connector-title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 20px;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .connector-tabs {
+            display: flex;
+            gap: 10px;
+            border-bottom: 2px solid #eee;
+            padding-bottom: 15px;
+            margin-bottom: 25px;
+            flex-wrap: wrap;
+        }
+
+        .connector-tab {
+            padding: 10px 25px;
+            border: none;
+            background: transparent;
+            border-radius: 8px 8px 0 0;
+            font-size: 16px;
+            font-weight: 600;
+            cursor: pointer;
+            color: #666;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+
+        .connector-tab:hover {
+            color: #667eea;
+        }
+
+        .connector-tab.active {
+            color: #667eea;
+            border-bottom: 3px solid #667eea;
+        }
+
+        .connector-pane {
+            display: none;
+            padding: 20px 0;
+        }
+
+        .connector-pane.active {
+            display: block;
+        }
+
+        /* ===== النماذج ===== */
+        .form-group {
+            margin-bottom: 20px;
+        }
+
+        .form-group label {
+            display: block;
+            margin-bottom: 8px;
+            color: #666;
+            font-weight: 600;
+        }
+
+        .form-control {
+            width: 100%;
+            padding: 12px 15px;
+            border: 2px solid #eee;
+            border-radius: 10px;
+            font-size: 16px;
+            transition: all 0.3s;
+            direction: ltr;
+            text-align: left;
+        }
+
+        .form-control:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        textarea.form-control {
+            direction: rtl;
+            text-align: right;
+            min-height: 150px;
+            font-family: monospace;
+        }
+
+        /* ===== الأزرار ===== */
+        .btn {
+            padding: 12px 25px;
+            border: none;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            margin: 5px;
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5a67d8;
+            transform: translateY(-2px);
+        }
+
+        .btn-success {
+            background: #28a745;
+            color: white;
+        }
+
+        .btn-success:hover {
+            background: #218838;
+            transform: translateY(-2px);
+        }
+
+        .btn-info {
+            background: #17a2b8;
+            color: white;
+        }
+
+        .btn-info:hover {
+            background: #138496;
+        }
+
+        .btn-warning {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .btn-danger {
+            background: #dc3545;
+            color: white;
+        }
+
+        .btn-group {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 20px;
+        }
+
+        /* ===== منطقة رفع الملفات ===== */
+        .upload-area {
+            border: 3px dashed #667eea;
+            background: #f8f9fa;
+            padding: 40px;
+            text-align: center;
+            border-radius: 15px;
+            cursor: pointer;
+            transition: all 0.3s;
+            margin-bottom: 20px;
+        }
+
+        .upload-area:hover {
+            background: #e8eaf6;
+            border-color: #5a67d8;
+        }
+
+        .upload-area i {
+            font-size: 64px;
+            color: #667eea;
+            margin-bottom: 15px;
+        }
+
+        .upload-area h3 {
+            color: #333;
+            margin-bottom: 10px;
+        }
+
+        .upload-area p {
+            color: #666;
+        }
+
+        .file-input {
+            display: none;
+        }
+
+        /* ===== شريط التقدم ===== */
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #eee;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 20px 0;
+            display: none;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: #667eea;
+            width: 0%;
+            transition: width 0.3s;
+        }
+
+        /* ===== التنبيهات ===== */
+        .alert {
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 20px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .alert-success {
+            background: #d4edda;
+            color: #155724;
+            border-right: 4px solid #28a745;
+        }
+
+        .alert-danger {
+            background: #f8d7da;
+            color: #721c24;
+            border-right: 4px solid #dc3545;
+        }
+
+        .alert-info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border-right: 4px solid #17a2b8;
+        }
+
+        .alert-warning {
+            background: #fff3cd;
+            color: #856404;
+            border-right: 4px solid #ffc107;
+        }
+
+        /* ===== إحصائيات ===== */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+            gap: 15px;
+            margin: 20px 0;
+        }
+
+        .stat-card {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 20px;
+            border-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.4);
+        }
+
+        .stat-card .value {
+            font-size: 28px;
+            font-weight: bold;
+            margin-bottom: 5px;
+        }
+
+        .stat-card .label {
+            font-size: 14px;
+            opacity: 0.9;
+        }
+
+        /* ===== شبكة الفواتير ===== */
+        .invoices-section {
+            margin-top: 30px;
+        }
+
+        .search-box {
+            display: flex;
+            gap: 10px;
+            margin-bottom: 20px;
+        }
+
+        .search-box input {
+            flex: 1;
+            padding: 12px 20px;
+            border: 2px solid #eee;
+            border-radius: 10px;
+            font-size: 16px;
+        }
+
+        .search-box input:focus {
+            outline: none;
+            border-color: #667eea;
+        }
+
+        .filters {
+            display: flex;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .filter-select {
+            padding: 10px 20px;
+            border: 2px solid #eee;
+            border-radius: 10px;
+            font-size: 14px;
+            cursor: pointer;
+            min-width: 150px;
+            flex: 1;
+        }
+
+        .invoices-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(350px, 1fr));
+            gap: 20px;
+        }
+
+        .invoice-card {
+            background: white;
+            border: 1px solid #eee;
+            border-radius: 10px;
+            padding: 20px;
+            transition: all 0.3s;
+            cursor: pointer;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .invoice-card:hover {
+            transform: translateY(-3px);
+            box-shadow: 0 10px 20px rgba(102, 126, 234, 0.2);
+            border-color: #667eea;
+        }
+
+        .invoice-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 5px;
+            height: 100%;
+            background: #667eea;
+        }
+
+        .invoice-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+        }
+
+        .invoice-number {
+            font-size: 18px;
+            font-weight: bold;
+            color: #333;
+        }
+
+        .invoice-badge {
+            padding: 4px 10px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .badge-final {
+            background: #28a745;
+            color: white;
+        }
+
+        .badge-draft {
+            background: #ffc107;
+            color: #333;
+        }
+
+        .invoice-payee {
+            font-size: 16px;
+            color: #667eea;
+            font-weight: 600;
+            margin-bottom: 10px;
+        }
+
+        .invoice-details {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 10px;
+            margin: 15px 0;
+            padding: 15px 0;
+            border-top: 1px solid #eee;
+            border-bottom: 1px solid #eee;
+        }
+
+        .detail-item {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 14px;
+        }
+
+        .detail-item i {
+            color: #667eea;
+            width: 20px;
+        }
+
+        .amount-section {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 15px;
+        }
+
+        .amount {
+            font-size: 20px;
+            font-weight: bold;
+            color: #28a745;
+        }
+
+        .status-badge {
+            padding: 4px 12px;
+            border-radius: 20px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+
+        .status-paid {
+            background: #28a745;
+            color: white;
+        }
+
+        .status-unpaid {
+            background: #dc3545;
+            color: white;
+        }
+
+        .pagination {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            gap: 15px;
+            margin-top: 30px;
+        }
+
+        .pagination button {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 5px;
+            background: #f8f9fa;
+            cursor: pointer;
+            transition: all 0.3s;
+        }
+
+        .pagination button:hover:not(:disabled) {
+            background: #667eea;
+            color: white;
+        }
+
+        .pagination button:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* ===== نافذة التفاصيل ===== */
+        .modal {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(0,0,0,0.5);
+            z-index: 1000;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal.active {
+            display: flex;
+        }
+
+        .modal-content {
+            background: white;
+            border-radius: 15px;
+            width: 90%;
+            max-width: 800px;
+            max-height: 80vh;
+            overflow-y: auto;
+            padding: 30px;
+            position: relative;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 15px;
+            left: 15px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .modal-close:hover {
+            color: #333;
+        }
+
+        .detail-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 20px;
+        }
+
+        .detail-table tr {
+            border-bottom: 1px solid #eee;
+        }
+
+        .detail-table td {
+            padding: 12px;
+        }
+
+        .detail-table td:first-child {
+            font-weight: 600;
+            color: #666;
+            width: 40%;
+        }
+
+        /* ===== كود العرض ===== */
+        .code-block {
+            background: #272822;
+            color: #f8f8f2;
+            padding: 15px;
+            border-radius: 10px;
+            font-family: monospace;
+            direction: ltr;
+            text-align: left;
+            overflow-x: auto;
+            max-height: 400px;
+            margin: 10px 0;
+        }
+
+        .loader {
+            text-align: center;
+            padding: 40px;
+        }
+
+        .loader i {
+            font-size: 40px;
+            color: #667eea;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            from { transform: rotate(0deg); }
+            to { transform: rotate(360deg); }
+        }
+
+        .footer {
+            text-align: center;
+            color: white;
+            margin-top: 30px;
+            padding: 20px;
+        }
+
+        /* ===== تحسينات للعربية ===== */
+        .ltr {
+            direction: ltr;
+            text-align: left;
+        }
+    </style>
 </head>
 <body>
-    <!-- شاشة تسجيل الدخول -->
-    <div id="loginScreen" class="login-screen">
-        <div class="login-container">
-            <div class="login-header">
-                <div class="logo">
-                    <i class="fas fa-ship"></i>
-                </div>
-                <h2>نظام الفواتير المتقدم</h2>
-                <p>شركة دمياط لتداول الحاويات و البضائع</p>
+    <div class="container">
+        <!-- الشريط العلوي -->
+        <div class="navbar">
+            <div class="logo">
+                <i class="fas fa-file-invoice"></i>
+                <h1>نظام الفواتير المتكامل</h1>
             </div>
             
-            <div class="login-tabs">
-                <button class="tab-btn active" onclick="switchLoginTab('login')">تسجيل الدخول</button>
-                <button class="tab-btn" onclick="switchLoginTab('guest')">دخول زائر</button>
-            </div>
-            
-            <!-- نموذج تسجيل الدخول -->
-            <div id="loginForm" class="login-form active">
-                <div class="form-group">
-                    <label><i class="fas fa-user"></i> اسم المستخدم أو البريد الإلكتروني</label>
-                    <input type="text" id="loginUsername" placeholder="أدخل اسم المستخدم أو البريد الإلكتروني">
-                </div>
-                <div class="form-group">
-                    <label><i class="fas fa-lock"></i> كلمة المرور</label>
-                    <input type="password" id="loginPassword" placeholder="أدخل كلمة المرور">
-                </div>
-                <button class="login-btn" onclick="handleLogin()">
-                    <i class="fas fa-sign-in-alt"></i> دخول
+            <div class="nav-tabs">
+                <button class="nav-tab active" onclick="switchMainTab('connector')">
+                    <i class="fas fa-plug"></i> شاشة الاتصال
+                </button>
+                <button class="nav-tab" onclick="switchMainTab('invoices')">
+                    <i class="fas fa-list"></i> عرض الفواتير
+                </button>
+                <button class="nav-tab" onclick="switchMainTab('stats')">
+                    <i class="fas fa-chart-bar"></i> إحصائيات
                 </button>
             </div>
             
-            <!-- نموذج دخول الزائر -->
-            <div id="guestForm" class="login-form">
-                <div class="form-group">
-                    <label><i class="fas fa-building"></i> الرقم الضريبي</label>
-                    <input type="text" id="guestTaxNumber" placeholder="أدخل الرقم الضريبي">
-                    <small class="form-text">اختياري - للبحث عن فواتيرك النقدية</small>
+            <div class="stats" id="quickStats">
+                <div class="stat-item">
+                    <div class="stat-value" id="totalInvoices">0</div>
+                    <div class="stat-label">فواتير</div>
                 </div>
-                <div class="form-group">
-                    <label><i class="fas fa-barcode"></i> رقم البوليصة</label>
-                    <input type="text" id="guestBlNumber" placeholder="أدخل رقم البوليصة">
-                    <small class="form-text">اختياري - للبحث عن فاتورة محددة</small>
+                <div class="stat-item">
+                    <div class="stat-value" id="totalAmount">0.00</div>
+                    <div class="stat-label">المبلغ</div>
                 </div>
-                <button class="login-btn" onclick="handleGuestLogin()">
-                    <i class="fas fa-user-guest"></i> دخول كزائر
-                </button>
-                <small class="form-text">ملاحظة: الزائر لا يرى الفواتير الآجلة</small>
-            </div>
-            
-            <div id="loginMessage" class="login-message"></div>
-        </div>
-    </div>
-
-    <!-- التطبيق الرئيسي -->
-    <div id="mainApp" style="display: none;">
-        
-        <!-- شريط المستخدم -->
-        <div class="user-bar">
-            <div class="user-info">
-                <i class="fas fa-user-circle"></i>
-                <span id="currentUserDisplay"></span>
-                <span class="user-badge" id="userTypeBadge"></span>
-                <span class="user-tax" id="userTaxDisplay"></span>
-            </div>
-            <div class="user-actions">
-                <button class="user-btn drive-settings-btn" id="driveSettingsBtn" onclick="openDriveSettings()" title="إعدادات Google Drive">
-                    <i class="fab fa-google-drive"></i>
-                </button>
-                <button class="user-btn" onclick="showChangePassword()" title="تغيير كلمة المرور">
-                    <i class="fas fa-key"></i>
-                </button>
-                <button class="user-btn" id="adminPanelBtn" onclick="showUserManagement()" style="display: none;" title="إدارة المستخدمين">
-                    <i class="fas fa-users-cog"></i>
-                </button>
-                <button class="user-btn logout-btn" onclick="logout()" title="تسجيل الخروج">
-                    <i class="fas fa-sign-out-alt"></i>
-                </button>
             </div>
         </div>
 
-        <!-- شريط بيانات الشركة -->
-        <div class="company-bar">
-            <div class="company-info">
-                <div class="company-logo">
-                    <i class="fas fa-ship"></i>
-                </div>
-                <div class="company-details">
-                    <h2>شركة دمياط لتداول الحاويات و البضائع</h2>
-                    <p>Damietta Container & Cargo Handling Company</p>
-                    <div class="company-meta">
-                        <span><i class="fas fa-map-marker-alt"></i> دمياط - المنطقة الحرة - ميناء دمياط</span>
-                        <span><i class="fas fa-phone"></i> 0572290103</span>
-                        <span><i class="fas fa-envelope"></i> revenue@dchc-egdam.com</span>
-                        <span><i class="fas fa-building"></i> الرقم الضريبي: 100/221/823</span>
+        <!-- المحتوى الرئيسي -->
+        <div class="tab-content">
+            <!-- ===== تبويب شاشة الاتصال ===== -->
+            <div class="tab-pane active" id="tab-connector">
+                <div class="connector-header">
+                    <div class="connector-title">
+                        <i class="fas fa-plug"></i>
+                        <span>شاشة الاتصال - جلب البيانات من مصادر متعددة</span>
                     </div>
                 </div>
-            </div>
-        </div>
 
-        <!-- الحاوية الرئيسية -->
-        <div class="container">
-            <header>
-                <div class="header-content">
-                    <h1><i class="fas fa-file-invoice"></i> نظام إدارة الفواتير المتقدم</h1>
-                    <p>عرض وتحليل وطباعة الفواتير من ملفات XML/SNX</p>
-                </div>
-                <div class="header-stats" id="headerStats">
-                    <span><i class="fas fa-file"></i> <span id="totalInvoicesHeader">0</span> فاتورة</span>
-                    <span><i class="fas fa-users"></i> <span id="totalCustomers">0</span> عميل</span>
-                    <span><i class="fas fa-ship"></i> <span id="totalVessels">0</span> سفينة</span>
-                </div>
-            </header>
-
-            <!-- شريط الأدوات الرئيسي -->
-            <div class="toolbar">
-                <div class="toolbar-section">
-                    <label for="fileInput" class="btn btn-primary">
-                        <i class="fas fa-upload"></i> تحميل ملف XML
-                        <input type="file" id="fileInput" accept=".xml, .snx, .txt" hidden>
-                    </label>
-                    
-                    <button class="btn btn-drive" onclick="updateFromDrive()">
-                        <i class="fab fa-google-drive"></i> تحديث من Drive
+                <!-- تبويبات شاشة الاتصال -->
+                <div class="connector-tabs">
+                    <button class="connector-tab active" onclick="switchConnectorTab('api')">
+                        <i class="fas fa-cloud"></i> API خارجي
                     </button>
-                    
-                    <button class="btn btn-secondary" onclick="location.reload()">
-                        <i class="fas fa-sync-alt"></i> إعادة تعيين
+                    <button class="connector-tab" onclick="switchConnectorTab('file')">
+                        <i class="fas fa-file-upload"></i> رفع ملف XML
+                    </button>
+                    <button class="connector-tab" onclick="switchConnectorTab('manual')">
+                        <i class="fas fa-keyboard"></i> إدخال يدوي
+                    </button>
+                    <button class="connector-tab" onclick="switchConnectorTab('preview')">
+                        <i class="fas fa-eye"></i> معاينة البيانات
+                    </button>
+                    <button class="connector-tab" onclick="switchConnectorTab('export')">
+                        <i class="fas fa-download"></i> تصدير
                     </button>
                 </div>
 
-                <div class="db-controls" id="dbControls"></div>
-
-                <div class="file-status" id="fileStatus">
-                    <i class="fas fa-info-circle"></i> <span id="dataSource">لم يتم تحميل ملف بعد</span>
-                </div>
-            </div>
-
-            <!-- تبويبات أنواع الفواتير -->
-            <div class="invoice-type-tabs">
-                <button class="type-tab active" onclick="switchInvoiceType('cash')">الفواتير النقدية</button>
-                <button class="type-tab" onclick="switchInvoiceType('postponed')">الفواتير الآجلة</button>
-            </div>
-
-            <!-- تبويبات التقارير -->
-            <div class="reports-tabs">
-                <button class="report-tab" onclick="showReports('daily')">التقارير اليومية</button>
-                <button class="report-tab" onclick="showReports('monthly')">التقارير الشهرية</button>
-                <button class="report-tab" onclick="showReports('customer')">تقارير العملاء</button>
-                <button class="report-tab" onclick="showReports('vessel')">تقارير السفن</button>
-            </div>
-
-            <!-- منطقة عرض التقارير -->
-            <div id="reportsContainer" class="reports-container" style="display: none;">
-                <div class="reports-header">
-                    <h2 id="reportTitle">التقارير</h2>
-                    <div class="report-actions">
-                        <button class="btn btn-primary" onclick="exportReportPDF()">
-                            <i class="fas fa-file-pdf"></i> تصدير PDF
-                        </button>
-                        <button class="btn btn-success" onclick="exportReportExcel()">
-                            <i class="fas fa-file-excel"></i> تصدير Excel
-                        </button>
-                        <button class="btn btn-secondary" onclick="closeReports()">
-                            <i class="fas fa-times"></i> إغلاق
-                        </button>
+                <!-- ===== API خارجي ===== -->
+                <div class="connector-pane active" id="connector-api">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        الاتصال المباشر بـ API مع المصادقة الأساسية (Basic Auth)
                     </div>
-                </div>
-                <div id="reportContent" class="report-content"></div>
-            </div>
 
-            <!-- البحث المتقدم -->
-            <div class="advanced-search">
-                <div class="search-header" onclick="toggleAdvancedSearch()">
-                    <h3><i class="fas fa-search"></i> بحث متقدم <i class="fas fa-chevron-down" id="searchToggleIcon"></i></h3>
-                </div>
-                <div class="search-body" id="advancedSearchBody">
-                    <div class="search-grid">
-                        <div class="search-field">
-                            <label><i class="fas fa-hashtag"></i> رقم الفاتورة النهائي</label>
-                            <input type="text" id="searchFinalNumber" placeholder="مثال: C25-22491">
-                        </div>
-                        <div class="search-field">
-                            <label><i class="fas fa-file-signature"></i> رقم المسودة</label>
-                            <input type="text" id="searchDraftNumber" placeholder="مثال: 263531">
-                        </div>
-                        <div class="search-field">
-                            <label><i class="fas fa-user-tie"></i> اسم العميل</label>
-                            <input type="text" id="searchCustomer" placeholder="اسم العميل...">
-                        </div>
-                        <div class="search-field">
-                            <label><i class="fas fa-ship"></i> اسم السفينة</label>
-                            <input type="text" id="searchVessel" placeholder="اسم السفينة...">
-                        </div>
-                        <div class="search-field">
-                            <label><i class="fas fa-barcode"></i> رقم البوليصة</label>
-                            <input type="text" id="searchBlNumber" placeholder="رقم البوليصة...">
-                        </div>
-                        <div class="search-field">
-                            <label><i class="fas fa-container-storage"></i> رقم الحاوية</label>
-                            <input type="text" id="searchContainer" placeholder="رقم الحاوية...">
-                        </div>
-                        <div class="search-field">
-                            <label><i class="fas fa-tag"></i> الحالة</label>
-                            <select id="searchStatus">
-                                <option value="">الكل</option>
-                                <option value="FINAL">نهائية (FINAL)</option>
-                                <option value="DRAFT">مسودة (DRAFT)</option>
-                            </select>
-                        </div>
-                        <div class="search-field">
-                            <label><i class="fas fa-calendar"></i> من تاريخ</label>
-                            <input type="date" id="searchDateFrom">
-                        </div>
-                        <div class="search-field">
-                            <label><i class="fas fa-calendar"></i> إلى تاريخ</label>
-                            <input type="date" id="searchDateTo">
-                        </div>
-                        <div class="search-field">
-                            <label><i class="fas fa-tag"></i> نوع الفاتورة</label>
-                            <select id="searchInvoiceType">
-                                <option value="">الكل</option>
-                                <option value="cash">نقدي</option>
-                                <option value="postponed">أجل</option>
-                            </select>
-                        </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-link"></i> رابط API</label>
+                        <input type="text" class="form-control" id="apiUrl" 
+                               value="http://10.0.10.235:11080/billing/api/query?filtername=inv_int&operatorId=ISFP&complexId=EGDAM&facilityId=DPA&yardId=DPA"
+                               placeholder="أدخل رابط API">
                     </div>
-                    <div class="search-actions">
-                        <button class="btn btn-primary" onclick="applyAdvancedSearch()"><i class="fas fa-filter"></i> تطبيق البحث</button>
-                        <button class="btn btn-secondary" onclick="resetAdvancedSearch()"><i class="fas fa-undo"></i> إعادة ضبط</button>
-                    </div>
-                </div>
-            </div>
 
-            <!-- شريط التحكم في العرض -->
-            <div class="view-controls">
-                <div class="view-options">
-                    <label><i class="fas fa-eye"></i> عرض:</label>
+                    <div class="form-group">
+                        <label><i class="fas fa-user"></i> اسم المستخدم</label>
+                        <input type="text" class="form-control" id="apiUsername" 
+                               value="n4billapi" placeholder="أدخل اسم المستخدم">
+                    </div>
+
+                    <div class="form-group">
+                        <label><i class="fas fa-lock"></i> كلمة المرور</label>
+                        <input type="password" class="form-control" id="apiPassword" 
+                               value="lookitup35" placeholder="أدخل كلمة المرور">
+                    </div>
+
                     <div class="btn-group">
-                        <button class="btn-view" onclick="setViewMode('table')"><i class="fas fa-table"></i> جدول</button>
-                        <button class="btn-view active" onclick="setViewMode('cards')"><i class="fas fa-th-large"></i> بطاقات</button>
+                        <button class="btn btn-info" onclick="testAPIConnection()">
+                            <i class="fas fa-vial"></i> اختبار الاتصال
+                        </button>
+                        <button class="btn btn-primary" onclick="saveAPICredentials()">
+                            <i class="fas fa-save"></i> حفظ البيانات
+                        </button>
+                        <button class="btn btn-success" onclick="fetchFromAPI()">
+                            <i class="fas fa-cloud-download-alt"></i> جلب البيانات
+                        </button>
                     </div>
-                </div>
-                
-                <div class="items-per-page">
-                    <label><i class="fas fa-list"></i> عدد العناصر:</label>
-                    <select id="itemsPerPage" onchange="changeItemsPerPage()">
-                        <option value="10">10</option>
-                        <option value="25" selected>25</option>
-                        <option value="50">50</option>
-                        <option value="100">100</option>
-                        <option value="all">الكل</option>
-                    </select>
+
+                    <div id="apiStatus" class="alert" style="display: none; margin-top: 20px;"></div>
                 </div>
 
-                <div class="sort-controls">
-                    <label><i class="fas fa-sort"></i> ترتيب حسب:</label>
-                    <select id="sortSelect">
-                        <option value="final-number">الرقم النهائي</option>
-                        <option value="total-total">الإجمالي</option>
-                        <option value="payee-customer-id">اسم العميل</option>
-                        <option value="key-word1">اسم السفينة</option>
-                        <option value="created">تاريخ الإنشاء</option>
-                        <option value="total-owed">المبلغ المتبقي</option>
-                        <option value="flex-date-02">تاريخ الرحله</option>
-                    </select>
-                    <button class="btn-sort" id="sortToggle" onclick="toggleSortOrder()">
-                        <i class="fas fa-sort-amount-down-alt"></i>
+                <!-- ===== رفع ملف ===== -->
+                <div class="connector-pane" id="connector-file">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        يمكن رفع ملفات XML حتى 100 ميجابايت
+                    </div>
+
+                    <div class="upload-area" id="uploadArea">
+                        <i class="fas fa-cloud-upload-alt"></i>
+                        <h3>اضغط هنا لاختيار ملف XML</h3>
+                        <p>أو اسحب الملف وأفلته هنا</p>
+                        <input type="file" id="fileInput" class="file-input" accept=".xml" onchange="handleFileSelect(this.files[0])">
+                        <button class="btn btn-primary" onclick="document.getElementById('fileInput').click()">
+                            <i class="fas fa-folder-open"></i> اختيار ملف
+                        </button>
+                    </div>
+
+                    <!-- شريط التقدم -->
+                    <div class="progress-bar" id="progressBar">
+                        <div class="progress-fill" id="progressFill"></div>
+                    </div>
+
+                    <!-- رسالة الحالة -->
+                    <div id="uploadStatus" class="alert" style="display: none;"></div>
+
+                    <!-- معلومات الملف -->
+                    <div id="fileDetails" class="stats-grid" style="display: none;">
+                        <div class="stat-card">
+                            <div class="value" id="fileName">-</div>
+                            <div class="label">اسم الملف</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="value" id="fileSize">-</div>
+                            <div class="label">الحجم</div>
+                        </div>
+                        <div class="stat-card">
+                            <div class="value" id="fileCount">-</div>
+                            <div class="label">عدد الفواتير</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- ===== إدخال يدوي ===== -->
+                <div class="connector-pane" id="connector-manual">
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i>
+                        الصق محتوى ملف XML في الحقل أدناه
+                    </div>
+
+                    <div class="form-group">
+                        <textarea class="form-control" id="manualXML" rows="10" 
+                                  placeholder="<query-response> ... </query-response>"></textarea>
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="processManualXML()">
+                            <i class="fas fa-play"></i> معالجة البيانات
+                        </button>
+                        <button class="btn btn-info" onclick="clearManualXML()">
+                            <i class="fas fa-eraser"></i> مسح
+                        </button>
+                    </div>
+                </div>
+
+                <!-- ===== معاينة البيانات ===== -->
+                <div class="connector-pane" id="connector-preview">
+                    <div class="alert alert-info">
+                        <i class="fas fa-info-circle"></i>
+                        معاينة البيانات المحملة
+                    </div>
+
+                    <div class="btn-group">
+                        <button class="btn btn-primary" onclick="previewData('json')">
+                            <i class="fas fa-code"></i> عرض JSON
+                        </button>
+                        <button class="btn btn-success" onclick="previewData('xml')">
+                            <i class="fas fa-file-code"></i> عرض XML
+                        </button>
+                    </div>
+
+                    <pre class="code-block" id="previewContent">لا توجد بيانات للعرض</pre>
+                </div>
+
+                <!-- ===== تصدير ===== -->
+                <div class="connector-pane" id="connector-export">
+                    <div class="alert alert-success">
+                        <i class="fas fa-download"></i>
+                        تصدير البيانات بعدة صيغ
+                    </div>
+
+                    <div class="stats-grid" style="grid-template-columns: repeat(3, 1fr);">
+                        <div class="stat-card" onclick="exportData('json')">
+                            <i class="fas fa-file-code" style="font-size: 40px; margin-bottom: 10px;"></i>
+                            <div class="value">JSON</div>
+                            <div class="label">تصدير كـ JSON</div>
+                        </div>
+                        <div class="stat-card" onclick="exportData('csv')">
+                            <i class="fas fa-file-csv" style="font-size: 40px; margin-bottom: 10px;"></i>
+                            <div class="value">CSV</div>
+                            <div class="label">تصدير كـ CSV</div>
+                        </div>
+                        <div class="stat-card" onclick="exportData('html')">
+                            <i class="fas fa-file-code" style="font-size: 40px; margin-bottom: 10px;"></i>
+                            <div class="value">HTML</div>
+                            <div class="label">تصدير كـ HTML</div>
+                        </div>
+                    </div>
+
+                    <div id="exportStatus" class="alert" style="display: none; margin-top: 20px;"></div>
+                </div>
+            </div>
+
+            <!-- ===== تبويب عرض الفواتير ===== -->
+            <div class="tab-pane" id="tab-invoices">
+                <div class="search-box">
+                    <input type="text" id="searchInput" placeholder="بحث باسم المستفيد، رقم الفاتورة، اسم السفينة...">
+                    <button class="btn btn-primary" onclick="searchInvoices()">
+                        <i class="fas fa-search"></i> بحث
                     </button>
                 </div>
+
+                <div class="filters">
+                    <select class="filter-select" id="currencyFilter" onchange="applyFilters()">
+                        <option value="">كل العملات</option>
+                        <option value="EGP">جنيه مصري</option>
+                        <option value="USAD">دولار أمريكي</option>
+                    </select>
+                    <select class="filter-select" id="statusFilter" onchange="applyFilters()">
+                        <option value="">كل الحالات</option>
+                        <option value="Final">نهائية</option>
+                        <option value="Draft">مسودة</option>
+                    </select>
+                    <select class="filter-select" id="paidFilter" onchange="applyFilters()">
+                        <option value="">كل الفواتير</option>
+                        <option value="paid">مدفوعة</option>
+                        <option value="unpaid">غير مدفوعة</option>
+                    </select>
+                </div>
+
+                <div id="invoicesGrid" class="invoices-grid"></div>
+                <div id="pagination" class="pagination"></div>
             </div>
 
-            <!-- بطاقات الملخص -->
-            <div class="summary-cards">
-                <div class="summary-card gradient-blue">
-                    <div class="card-icon"><i class="fas fa-file-invoice"></i></div>
-                    <div class="card-content">
-                        <h3>إجمالي الفواتير</h3>
-                        <p id="invoiceCount">0</p>
+            <!-- ===== تبويب الإحصائيات ===== -->
+            <div class="tab-pane" id="tab-stats">
+                <h2 style="margin-bottom: 20px;">إحصائيات متقدمة</h2>
+
+                <div class="stats-grid">
+                    <div class="stat-card">
+                        <div class="value" id="statTotal">0</div>
+                        <div class="label">إجمالي الفواتير</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="value" id="statPaid">0</div>
+                        <div class="label">مدفوعة</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="value" id="statUnpaid">0</div>
+                        <div class="label">غير مدفوعة</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="value" id="statEGP">0</div>
+                        <div class="label">عملة EGP</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="value" id="statUSD">0</div>
+                        <div class="label">عملة USD</div>
+                    </div>
+                    <div class="stat-card">
+                        <div class="value" id="statAmount">0.00</div>
+                        <div class="label">إجمالي المبالغ</div>
                     </div>
                 </div>
-                <div class="summary-card gradient-green">
-                    <div class="card-icon"><i class="fas fa-coins"></i></div>
-                    <div class="card-content">
-                        <h3>إجمالي المبالغ (EGP)</h3>
-                        <p id="totalSum">0.00 <small>جنيه</small></p>
-                    </div>
-                </div>
-                <div class="summary-card gradient-orange">
-                    <div class="card-icon"><i class="fas fa-percent"></i></div>
-                    <div class="card-content">
-                        <h3>إجمالي الضرائب (EGP)</h3>
-                        <p id="taxSum">0.00 <small>جنيه</small></p>
-                    </div>
-                </div>
-                <div class="summary-card gradient-teal">
-                    <div class="card-icon"><i class="fas fa-file-invoice-dollar"></i></div>
-                    <div class="card-content">
-                        <h3>إجمالي بدون ضريبة (EGP)</h3>
-                        <p id="totalEGPWithoutTax">0.00 <small>جنيه</small></p>
-                    </div>
-                </div>
-                <div class="summary-card gradient-purple">
-                    <div class="card-icon"><i class="fas fa-dollar-sign"></i></div>
-                    <div class="card-content">
-                        <h3>إجمالي الدولار</h3>
-                        <p id="totalUSD">0.00 <small>دولار</small></p>
-                    </div>
-                </div>
-                <div class="summary-card gradient-martyr">
-                    <div class="card-icon"><i class="fas fa-stamp"></i></div>
-                    <div class="card-content">
-                        <h3>طابع الشهيد</h3>
-                        <p id="totalMartyr">0.00 <small>جنيه</small></p>
-                    </div>
-                </div>
+
+                <h3 style="margin: 30px 0 20px;">توزيع الفواتير حسب الشهر</h3>
+                <div id="monthlyStats" class="stats-grid" style="grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));"></div>
+
+                <h3 style="margin: 30px 0 20px;">أكثر السفن استخداماً</h3>
+                <div id="vesselStats" class="stats-grid" style="grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));"></div>
             </div>
+        </div>
 
-            <!-- عرض البيانات -->
-            <div id="dataViewContainer"></div>
-
-            <!-- أزرار الترقيم -->
-            <div class="pagination" id="pagination"></div>
+        <!-- تذييل -->
+        <div class="footer">
+            <p>نظام إدارة الفواتير المتكامل - الإصدار 4.0 مع دعم API الخارجي</p>
         </div>
     </div>
 
     <!-- نافذة تفاصيل الفاتورة -->
-    <div id="invoiceModal" class="modal">
-        <div class="modal-content modal-lg">
-            <div class="modal-header">
-                <h2 id="modalTitle">فاتورة رقم: <span id="modalInvoiceNumber"></span></h2>
-                <div class="modal-actions">
-                    <button class="btn-icon" onclick="navigateInvoice('prev')" title="الفاتورة السابقة"><i class="fas fa-chevron-right"></i></button>
-                    <button class="btn-icon" onclick="navigateInvoice('next')" title="الفاتورة التالية"><i class="fas fa-chevron-left"></i></button>
-                    <button class="btn-icon" onclick="printInvoice()" title="طباعة"><i class="fas fa-print"></i></button>
-                    <button class="btn-icon" onclick="exportInvoicePDF()" title="تصدير PDF"><i class="fas fa-file-pdf"></i></button>
-                    <button class="btn-icon" onclick="exportInvoiceExcel()" title="تصدير Excel"><i class="fas fa-file-excel"></i></button>
-                    <span class="close-button" onclick="closeModal()">&times;</span>
-                </div>
-            </div>
-            <div class="modal-body" id="modalBody"></div>
+    <div class="modal" id="invoiceModal">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeModal()">&times;</span>
+            <h2 style="margin-bottom: 20px;">تفاصيل الفاتورة</h2>
+            <div id="modalContent"></div>
         </div>
     </div>
 
-    <!-- نافذة تغيير كلمة المرور -->
-    <div id="changePasswordModal" class="modal">
-        <div class="modal-content" style="max-width: 400px;">
-            <div class="modal-header">
-                <h2>تغيير كلمة المرور</h2>
-                <span class="close-button" onclick="closeChangePasswordModal()">&times;</span>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label>كلمة المرور الحالية</label>
-                    <input type="password" id="currentPassword" placeholder="أدخل كلمة المرور الحالية">
-                </div>
-                <div class="form-group">
-                    <label>كلمة المرور الجديدة</label>
-                    <input type="password" id="newPassword" placeholder="أدخل كلمة المرور الجديدة">
-                </div>
-                <div class="form-group">
-                    <label>تأكيد كلمة المرور الجديدة</label>
-                    <input type="password" id="confirmNewPassword" placeholder="أعد إدخال كلمة المرور">
-                </div>
-                <button class="login-btn" onclick="updatePassword()">
-                    <i class="fas fa-save"></i> حفظ التغييرات
+    <script>
+        // ===============================================
+        // المتغيرات العامة
+        // ===============================================
+        let allInvoices = [];
+        let filteredInvoices = [];
+        let currentPage = 1;
+        const itemsPerPage = 12;
+        let rawXMLData = '';
+        let savedCredentials = {};
+
+        // محاولة تحميل البيانات المحفوظة
+        try {
+            const saved = localStorage.getItem('apiCredentials');
+            if (saved) {
+                savedCredentials = JSON.parse(saved);
+            }
+        } catch (e) {
+            console.log('لا توجد بيانات محفوظة');
+        }
+
+        // ===============================================
+        // دوال التبويبات
+        // ===============================================
+        function switchMainTab(tab) {
+            document.querySelectorAll('.nav-tab').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            document.querySelectorAll('.tab-pane').forEach(pane => pane.classList.remove('active'));
+            document.getElementById(`tab-${tab}`).classList.add('active');
+            
+            if (tab === 'invoices') displayInvoices();
+            if (tab === 'stats') displayStatistics();
+        }
+
+        function switchConnectorTab(tab) {
+            document.querySelectorAll('.connector-tab').forEach(btn => btn.classList.remove('active'));
+            event.target.classList.add('active');
+            
+            document.querySelectorAll('.connector-pane').forEach(pane => pane.classList.remove('active'));
+            document.getElementById(`connector-${tab}`).classList.add('active');
+        }
+
+        // ===============================================
+        // دوال API الخارجي
+        // ===============================================
+        function showAPIStatus(message, type) {
+            const status = document.getElementById('apiStatus');
+            status.style.display = 'flex';
+            status.className = `alert alert-${type}`;
+            status.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : type === 'danger' ? 'exclamation-circle' : 'info-circle'}"></i>${message}`;
+            
+            if (type === 'success') {
+                setTimeout(() => status.style.display = 'none', 5000);
+            }
+        }
+
+        function saveAPICredentials() {
+            const url = document.getElementById('apiUrl').value.trim();
+            const username = document.getElementById('apiUsername').value.trim();
+            const password = document.getElementById('apiPassword').value.trim();
+            
+            if (!url || !username || !password) {
+                showAPIStatus('الرجاء إدخال جميع البيانات', 'warning');
+                return;
+            }
+            
+            const credentials = { url, username, password };
+            localStorage.setItem('apiCredentials', JSON.stringify(credentials));
+            savedCredentials = credentials;
+            
+            showAPIStatus('✅ تم حفظ بيانات الاتصال بنجاح', 'success');
+        }
+
+        async function testAPIConnection() {
+            const url = document.getElementById('apiUrl').value.trim();
+            const username = document.getElementById('apiUsername').value.trim();
+            const password = document.getElementById('apiPassword').value.trim();
+            
+            if (!url || !username || !password) {
+                showAPIStatus('الرجاء إدخال جميع البيانات', 'warning');
+                return;
+            }
+
+            showAPIStatus('جاري اختبار الاتصال...', 'info');
+            
+            try {
+                // إنشاء رأس المصادقة الأساسية
+                const auth = btoa(`${username}:${password}`);
+                
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Basic ${auth}`,
+                        'Accept': 'application/xml, text/xml, */*'
+                    }
+                });
+                
+                if (response.ok) {
+                    showAPIStatus('✅ الاتصال ناجح!', 'success');
+                } else {
+                    showAPIStatus(`❌ فشل الاتصال - الحالة: ${response.status}`, 'danger');
+                }
+            } catch (error) {
+                showAPIStatus(`❌ خطأ في الاتصال: ${error.message}`, 'danger');
+            }
+        }
+
+        async function fetchFromAPI() {
+            const url = document.getElementById('apiUrl').value.trim();
+            const username = document.getElementById('apiUsername').value.trim();
+            const password = document.getElementById('apiPassword').value.trim();
+            
+            if (!url || !username || !password) {
+                showAPIStatus('الرجاء إدخال جميع البيانات', 'warning');
+                return;
+            }
+
+            showAPIStatus('جاري جلب البيانات... قد يستغرق ذلك بعض الوقت', 'info');
+            showProgress();
+            
+            try {
+                const auth = btoa(`${username}:${password}`);
+                
+                const response = await fetch(url, {
+                    method: 'GET',
+                    headers: {
+                        'Authorization': `Basic ${auth}`,
+                        'Accept': 'application/xml, text/xml, */*'
+                    }
+                });
+                
+                updateProgress(50);
+                
+                if (!response.ok) {
+                    throw new Error(`HTTP Error: ${response.status}`);
+                }
+                
+                const xmlData = await response.text();
+                updateProgress(75);
+                
+                rawXMLData = xmlData;
+                const invoices = parseXML(xmlData);
+                updateProgress(100);
+                
+                if (invoices.length > 0) {
+                    allInvoices = invoices;
+                    filteredInvoices = [...invoices];
+                    
+                    showAPIStatus(`✅ تم جلب ${invoices.length} فاتورة بنجاح`, 'success');
+                    updateQuickStats();
+                    displayStatistics();
+                    
+                    // عرض معلومات في شاشة الملف
+                    document.getElementById('fileDetails').style.display = 'grid';
+                    document.getElementById('fileName').textContent = 'API Source';
+                    document.getElementById('fileSize').textContent = (xmlData.length / 1024).toFixed(2) + ' KB';
+                    document.getElementById('fileCount').textContent = invoices.length;
+                    
+                } else {
+                    showAPIStatus('لم يتم العثور على فواتير في البيانات', 'warning');
+                }
+                
+            } catch (error) {
+                showAPIStatus(`❌ خطأ في جلب البيانات: ${error.message}`, 'danger');
+            } finally {
+                hideProgress();
+            }
+        }
+
+        // ===============================================
+        // دوال رفع الملفات (كما هي)
+        // ===============================================
+        const uploadArea = document.getElementById('uploadArea');
+        
+        uploadArea.addEventListener('dragover', (e) => {
+            e.preventDefault();
+            uploadArea.style.background = '#e8eaf6';
+        });
+
+        uploadArea.addEventListener('dragleave', (e) => {
+            e.preventDefault();
+            uploadArea.style.background = '#f8f9fa';
+        });
+
+        uploadArea.addEventListener('drop', (e) => {
+            e.preventDefault();
+            uploadArea.style.background = '#f8f9fa';
+            const file = e.dataTransfer.files[0];
+            if (file) handleFileSelect(file);
+        });
+
+        function handleFileSelect(file) {
+            if (!file) return;
+            
+            if (!file.name.toLowerCase().endsWith('.xml')) {
+                showUploadStatus('الرجاء اختيار ملف XML فقط', 'danger');
+                return;
+            }
+
+            showProgress();
+            showUploadStatus('جاري تحميل الملف...', 'info');
+
+            const reader = new FileReader();
+            
+            reader.onload = function(e) {
+                try {
+                    rawXMLData = e.target.result;
+                    updateProgress(50);
+                    
+                    const invoices = parseXML(rawXMLData);
+                    updateProgress(100);
+                    
+                    if (invoices.length > 0) {
+                        allInvoices = invoices;
+                        filteredInvoices = [...invoices];
+                        
+                        document.getElementById('fileDetails').style.display = 'grid';
+                        document.getElementById('fileName').textContent = file.name;
+                        document.getElementById('fileSize').textContent = (file.size / 1024).toFixed(2) + ' KB';
+                        document.getElementById('fileCount').textContent = invoices.length;
+                        
+                        showUploadStatus(`✅ تم تحميل ${invoices.length} فاتورة بنجاح`, 'success');
+                        
+                        updateQuickStats();
+                        displayStatistics();
+                        
+                    } else {
+                        showUploadStatus('لم يتم العثور على فواتير في الملف', 'warning');
+                    }
+                    
+                } catch (error) {
+                    showUploadStatus('خطأ في تحليل الملف: ' + error.message, 'danger');
+                }
+                
+                hideProgress();
+            };
+            
+            reader.readAsText(file);
+        }
+
+        // ===============================================
+        // تحليل XML (الحل الناجح)
+        // ===============================================
+        function parseXML(xmlData) {
+            try {
+                const invoices = [];
+                
+                // استخراج أسماء الأعمدة
+                const columnsMatch = xmlData.match(/<columns>([\s\S]*?)<\/columns>/);
+                if (!columnsMatch) return [];
+                
+                const columnNames = [];
+                const colRegex = /<column>(.*?)<\/column>/g;
+                let colMatch;
+                
+                while ((colMatch = colRegex.exec(columnsMatch[1])) !== null) {
+                    columnNames.push(colMatch[1]);
+                }
+                
+                // استخراج الصفوف
+                const rowRegex = /<row[^>]*>([\s\S]*?)<\/row>/g;
+                let rowMatch;
+                
+                while ((rowMatch = rowRegex.exec(xmlData)) !== null) {
+                    try {
+                        const fullRow = rowMatch[0];
+                        const rowContent = rowMatch[1];
+                        
+                        const pkMatch = fullRow.match(/primary-key="(\d+)"/);
+                        const primaryKey = pkMatch ? pkMatch[1] : `row-${invoices.length}`;
+                        
+                        const fields = [];
+                        const fieldRegex = /<field>([\s\S]*?)<\/field>/g;
+                        let fieldMatch;
+                        
+                        while ((fieldMatch = fieldRegex.exec(rowContent)) !== null) {
+                            let fieldValue = fieldMatch[1]
+                                .replace(/&amp;/g, '&')
+                                .replace(/&lt;/g, '<')
+                                .replace(/&gt;/g, '>')
+                                .replace(/&quot;/g, '"')
+                                .replace(/&#39;/g, "'");
+                            fields.push(fieldValue);
+                        }
+                        
+                        if (fields.length > 0) {
+                            const invoice = { id: primaryKey, data: {} };
+                            columnNames.forEach((name, i) => {
+                                if (i < fields.length) invoice.data[name] = fields[i];
+                            });
+                            invoices.push(invoice);
+                        }
+                    } catch (e) {
+                        console.log('تخطي فاتورة بها مشكلة');
+                    }
+                }
+                
+                return invoices;
+            } catch (error) {
+                console.error('خطأ:', error);
+                return [];
+            }
+        }
+
+        // ===============================================
+        // معالجة الإدخال اليدوي
+        // ===============================================
+        function processManualXML() {
+            const xmlData = document.getElementById('manualXML').value.trim();
+            
+            if (!xmlData) {
+                showUploadStatus('الرجاء إدخال بيانات XML', 'warning');
+                return;
+            }
+            
+            try {
+                rawXMLData = xmlData;
+                const invoices = parseXML(xmlData);
+                
+                if (invoices.length > 0) {
+                    allInvoices = invoices;
+                    filteredInvoices = [...invoices];
+                    
+                    showUploadStatus(`✅ تمت معالجة ${invoices.length} فاتورة بنجاح`, 'success');
+                    updateQuickStats();
+                    displayStatistics();
+                    
+                    // التبديل لعرض الفواتير
+                    setTimeout(() => switchMainTab('invoices'), 1000);
+                } else {
+                    showUploadStatus('لم يتم العثور على فواتير', 'warning');
+                }
+            } catch (error) {
+                showUploadStatus('خطأ في المعالجة: ' + error.message, 'danger');
+            }
+        }
+
+        function clearManualXML() {
+            document.getElementById('manualXML').value = '';
+        }
+
+        // ===============================================
+        // المعاينة
+        // ===============================================
+        function previewData(type) {
+            const previewDiv = document.getElementById('previewContent');
+            
+            if (type === 'json') {
+                if (allInvoices.length > 0) {
+                    previewDiv.textContent = JSON.stringify(allInvoices.slice(0, 5), null, 2);
+                } else {
+                    previewDiv.textContent = 'لا توجد بيانات';
+                }
+            } else {
+                if (rawXMLData) {
+                    previewDiv.textContent = rawXMLData.substring(0, 2000) + (rawXMLData.length > 2000 ? '\n\n... (تم اقتطاع الباقي)' : '');
+                } else {
+                    previewDiv.textContent = 'لا توجد بيانات XML';
+                }
+            }
+        }
+
+        // ===============================================
+        // التصدير
+        // ===============================================
+        function exportData(type) {
+            if (allInvoices.length === 0) {
+                showExportStatus('لا توجد بيانات للتصدير', 'warning');
+                return;
+            }
+
+            let content = '';
+            let filename = '';
+            let mimeType = '';
+
+            if (type === 'json') {
+                content = JSON.stringify(allInvoices, null, 2);
+                filename = 'invoices.json';
+                mimeType = 'application/json';
+            } else if (type === 'csv') {
+                const headers = Object.keys(allInvoices[0].data);
+                const csvRows = [];
+                csvRows.push(headers.join(','));
+                
+                allInvoices.forEach(inv => {
+                    const values = headers.map(h => `"${(inv.data[h] || '').replace(/"/g, '""')}"`);
+                    csvRows.push(values.join(','));
+                });
+                
+                content = csvRows.join('\n');
+                filename = 'invoices.csv';
+                mimeType = 'text/csv';
+            } else if (type === 'html') {
+                let html = `
+                    <!DOCTYPE html>
+                    <html>
+                    <head><title>الفواتير</title>
+                    <style>
+                        body { font-family: Arial; padding: 20px; }
+                        table { border-collapse: collapse; width: 100%; }
+                        th, td { border: 1px solid #ddd; padding: 8px; text-align: right; }
+                        th { background: #667eea; color: white; }
+                    </style>
+                    </head>
+                    <body>
+                    <h2>الفواتير</h2>
+                    <table>
+                `;
+                
+                if (allInvoices.length > 0) {
+                    const headers = Object.keys(allInvoices[0].data);
+                    html += '<tr>' + headers.map(h => `<th>${h}</th>`).join('') + '</tr>';
+                    
+                    allInvoices.forEach(inv => {
+                        html += '<tr>' + headers.map(h => `<td>${inv.data[h] || ''}</td>`).join('') + '</tr>';
+                    });
+                }
+                
+                html += '</table></body></html>';
+                content = html;
+                filename = 'invoices.html';
+                mimeType = 'text/html';
+            }
+
+            // تحميل الملف
+            const blob = new Blob([content], { type: mimeType });
+            const url = URL.createObjectURL(blob);
+            const a = document.createElement('a');
+            a.href = url;
+            a.download = filename;
+            a.click();
+            URL.revokeObjectURL(url);
+            
+            showExportStatus(`✅ تم تصدير ${allInvoices.length} فاتورة كـ ${type.toUpperCase()}`, 'success');
+        }
+
+        // ===============================================
+        // عرض الفواتير
+        // ===============================================
+        function displayInvoices() {
+            const grid = document.getElementById('invoicesGrid');
+            const start = (currentPage - 1) * itemsPerPage;
+            const end = start + itemsPerPage;
+            const paginated = filteredInvoices.slice(start, end);
+            
+            if (paginated.length === 0) {
+                grid.innerHTML = '<div style="text-align: center; padding: 40px;">لا توجد فواتير</div>';
+                return;
+            }
+
+            let html = '';
+            paginated.forEach(invoice => {
+                const data = invoice.data;
+                const isPaid = data.PaidInFull === 'true';
+                const amount = data['Invoice Total'] || data.Owed || '0';
+                
+                html += `
+                    <div class="invoice-card" onclick="showInvoiceDetails('${invoice.id}')">
+                        <div class="invoice-header">
+                            <span class="invoice-number">${data['Final Nbr'] || data['Draft Nbr'] || 'N/A'}</span>
+                            <span class="invoice-badge ${data.Status === 'Final' ? 'badge-final' : 'badge-draft'}">
+                                ${data.Status === 'Final' ? 'نهائية' : 'مسودة'}
+                            </span>
+                        </div>
+                        <div class="invoice-payee">${data.Payee || 'غير محدد'}</div>
+                        <div class="invoice-details">
+                            <div class="detail-item">
+                                <i class="fas fa-ship"></i>
+                                <span>${data['Vessel Name'] || data['Key Word 1'] || 'N/A'}</span>
+                            </div>
+                            <div class="detail-item">
+                                <i class="fas fa-calendar"></i>
+                                <span>${data.Final_Date ? data.Final_Date.split(' ')[0] : 'N/A'}</span>
+                            </div>
+                        </div>
+                        <div class="amount-section">
+                            <span class="amount">${parseFloat(amount).toFixed(2)} ${data.Currency || ''}</span>
+                            <span class="status-badge ${isPaid ? 'status-paid' : 'status-unpaid'}">
+                                ${isPaid ? 'مدفوعة' : 'غير مدفوعة'}
+                            </span>
+                        </div>
+                    </div>
+                `;
+            });
+            
+            grid.innerHTML = html;
+            updatePagination();
+        }
+
+        function showInvoiceDetails(id) {
+            const invoice = allInvoices.find(inv => inv.id === id);
+            if (!invoice) return;
+
+            let html = '<table class="detail-table">';
+            Object.keys(invoice.data).forEach(key => {
+                if (invoice.data[key]) {
+                    html += `<tr><td>${key}</td><td>${invoice.data[key]}</td></tr>`;
+                }
+            });
+            html += '</table>';
+            
+            document.getElementById('modalContent').innerHTML = html;
+            document.getElementById('invoiceModal').classList.add('active');
+        }
+
+        function closeModal() {
+            document.getElementById('invoiceModal').classList.remove('active');
+        }
+
+        // ===============================================
+        // البحث والتصفية
+        // ===============================================
+        function searchInvoices() {
+            const term = document.getElementById('searchInput').value.toLowerCase();
+            filteredInvoices = allInvoices.filter(inv => 
+                JSON.stringify(inv).toLowerCase().includes(term)
+            );
+            currentPage = 1;
+            displayInvoices();
+        }
+
+        function applyFilters() {
+            const currency = document.getElementById('currencyFilter').value;
+            const status = document.getElementById('statusFilter').value;
+            const paid = document.getElementById('paidFilter').value;
+            
+            filteredInvoices = allInvoices.filter(inv => {
+                const data = inv.data;
+                if (currency && data.Currency !== currency) return false;
+                if (status && data.Status !== status) return false;
+                if (paid === 'paid' && data.PaidInFull !== 'true') return false;
+                if (paid === 'unpaid' && data.PaidInFull === 'true') return false;
+                return true;
+            });
+            
+            currentPage = 1;
+            displayInvoices();
+        }
+
+        // ===============================================
+        // الإحصائيات
+        // ===============================================
+        function updateQuickStats() {
+            document.getElementById('totalInvoices').textContent = allInvoices.length;
+            
+            let total = 0;
+            allInvoices.forEach(inv => {
+                const amount = parseFloat(inv.data['Invoice Total'] || inv.data.Owed || 0);
+                if (!isNaN(amount)) total += amount;
+            });
+            document.getElementById('totalAmount').textContent = total.toFixed(2);
+        }
+
+        function displayStatistics() {
+            let paid = 0, unpaid = 0, egp = 0, usd = 0, totalAmount = 0;
+            const monthly = {};
+            const vessels = {};
+            
+            allInvoices.forEach(inv => {
+                const data = inv.data;
+                
+                if (data.PaidInFull === 'true') paid++; else unpaid++;
+                if (data.Currency === 'EGP') egp++;
+                if (data.Currency === 'USAD') usd++;
+                
+                const amount = parseFloat(data['Invoice Total'] || data.Owed || 0);
+                if (!isNaN(amount)) totalAmount += amount;
+                
+                const date = data.Final_Date;
+                if (date) {
+                    const month = date.substring(0, 7);
+                    monthly[month] = (monthly[month] || 0) + 1;
+                }
+                
+                const vessel = data['Vessel Name'] || data['Key Word 1'];
+                if (vessel) {
+                    vessels[vessel] = (vessels[vessel] || 0) + 1;
+                }
+            });
+            
+            document.getElementById('statTotal').textContent = allInvoices.length;
+            document.getElementById('statPaid').textContent = paid;
+            document.getElementById('statUnpaid').textContent = unpaid;
+            document.getElementById('statEGP').textContent = egp;
+            document.getElementById('statUSD').textContent = usd;
+            document.getElementById('statAmount').textContent = totalAmount.toFixed(2);
+            
+            let monthlyHtml = '';
+            Object.keys(monthly).sort().reverse().forEach(month => {
+                monthlyHtml += `
+                    <div class="stat-card">
+                        <div class="value">${monthly[month]}</div>
+                        <div class="label">${month}</div>
+                    </div>
+                `;
+            });
+            document.getElementById('monthlyStats').innerHTML = monthlyHtml || '<div class="stat-card"><div class="value">0</div><div class="label">لا توجد بيانات</div></div>';
+            
+            let vesselHtml = '';
+            Object.keys(vessels)
+                .sort((a, b) => vessels[b] - vessels[a])
+                .slice(0, 10)
+                .forEach(vessel => {
+                    vesselHtml += `
+                        <div class="stat-card">
+                            <div class="value">${vessels[vessel]}</div>
+                            <div class="label">${vessel}</div>
+                        </div>
+                    `;
+                });
+            document.getElementById('vesselStats').innerHTML = vesselHtml || '<div class="stat-card"><div class="value">0</div><div class="label">لا توجد بيانات</div></div>';
+        }
+
+        // ===============================================
+        // دوال مساعدة
+        // ===============================================
+        function showProgress() {
+            document.getElementById('progressBar').style.display = 'block';
+        }
+
+        function hideProgress() {
+            document.getElementById('progressBar').style.display = 'none';
+        }
+
+        function updateProgress(percent) {
+            document.getElementById('progressFill').style.width = percent + '%';
+        }
+
+        function showUploadStatus(message, type) {
+            const status = document.getElementById('uploadStatus');
+            status.style.display = 'flex';
+            status.className = `alert alert-${type}`;
+            status.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>${message}`;
+            
+            if (type === 'success') {
+                setTimeout(() => status.style.display = 'none', 3000);
+            }
+        }
+
+        function showExportStatus(message, type) {
+            const status = document.getElementById('exportStatus');
+            status.style.display = 'flex';
+            status.className = `alert alert-${type}`;
+            status.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : 'exclamation-circle'}"></i>${message}`;
+            
+            if (type === 'success') {
+                setTimeout(() => status.style.display = 'none', 3000);
+            }
+        }
+
+        function updatePagination() {
+            const totalPages = Math.ceil(filteredInvoices.length / itemsPerPage);
+            const pagination = document.getElementById('pagination');
+            
+            if (totalPages <= 1) {
+                pagination.innerHTML = '';
+                return;
+            }
+            
+            pagination.innerHTML = `
+                <button onclick="changePage(${currentPage - 1})" ${currentPage === 1 ? 'disabled' : ''}>
+                    <i class="fas fa-chevron-right"></i> السابق
                 </button>
-                <div id="changePasswordMessage" class="login-message"></div>
-            </div>
-        </div>
-    </div>
+                <span>صفحة ${currentPage} من ${totalPages}</span>
+                <button onclick="changePage(${currentPage + 1})" ${currentPage === totalPages ? 'disabled' : ''}>
+                    التالي <i class="fas fa-chevron-left"></i>
+                </button>
+            `;
+        }
 
-    <!-- نافذة إدارة المستخدمين -->
-    <div id="userManagementModal" class="modal">
-        <div class="modal-content" style="max-width: 1100px;">
-            <div class="modal-header">
-                <h2>إدارة المستخدمين</h2>
-                <span class="close-button" onclick="closeUserManagementModal()">&times;</span>
-            </div>
-            <div class="modal-body">
-                <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button class="btn btn-primary" onclick="showAddUserForm()"><i class="fas fa-user-plus"></i> إضافة مستخدم</button>
-                    <button class="btn btn-success" onclick="saveUsersManually()"><i class="fab fa-google-drive"></i> حفظ في Drive</button>
-                </div>
-                <div class="users-table-container">
-                    <table class="users-table">
-                        <thead>
-                            <tr>
-                                <th>اسم المستخدم</th>
-                                <th>البريد الإلكتروني</th>
-                                <th>الرقم الضريبي</th>
-                                <th>رقم العقد</th>
-                                <th>نوع المستخدم</th>
-                                <th>الحالة</th>
-                                <th>آخر دخول</th>
-                                <th>الإجراءات</th>
-                            </tr>
-                        </thead>
-                        <tbody id="usersTableBody"></tbody>
-                    </table>
-                </div>
-                <!-- نموذج إضافة/تعديل مستخدم -->
-                <div id="userForm" style="display: none; margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 10px;">
-                    <h3 id="userFormTitle">إضافة مستخدم جديد</h3>
-                    <div class="form-group">
-                        <label>اسم المستخدم</label>
-                        <input type="text" id="editUsername" placeholder="أدخل اسم المستخدم">
-                    </div>
-                    <div class="form-group">
-                        <label>البريد الإلكتروني</label>
-                        <input type="email" id="editEmail" placeholder="أدخل البريد الإلكتروني">
-                    </div>
-                    <div class="form-group">
-                        <label><i class="fas fa-building"></i> الرقم الضريبي (للفواتير النقدية)</label>
-                        <input type="text" id="editTaxNumber" placeholder="أدخل الرقم الضريبي">
-                    </div>
-                    <div class="form-group">
-                        <label><i class="fas fa-file-contract"></i> رقم العقد (للفواتير الآجلة)</label>
-                        <input type="text" id="editContractCustomerId" placeholder="أدخل رقم العقد">
-                        <small class="form-text">هذا الرقم يربط الفواتير الآجلة بالمستخدم</small>
-                    </div>
-                    <div class="form-group">
-                        <label>نوع المستخدم</label>
-                        <select id="editUserType">
-                            <option value="admin">مدير</option>
-                            <option value="accountant">محاسب</option>
-                            <option value="customer">عميل</option>
-                        </select>
-                    </div>
-                    <div class="form-group">
-                        <label>كلمة المرور</label>
-                        <input type="password" id="editPassword" placeholder="أدخل كلمة المرور">
-                        <small class="form-text">اتركها فارغة إذا لم ترد التغيير (في حالة التعديل)</small>
-                    </div>
-                    <div class="form-group">
-                        <label>الحالة</label>
-                        <select id="editStatus">
-                            <option value="active">نشط</option>
-                            <option value="inactive">غير نشط</option>
-                        </select>
-                    </div>
-                    <div style="display: flex; gap: 10px;">
-                        <button class="btn btn-primary" onclick="saveUserFromForm()"><i class="fas fa-save"></i> حفظ</button>
-                        <button class="btn btn-secondary" onclick="cancelUserForm()"><i class="fas fa-times"></i> إلغاء</button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
+        function changePage(page) {
+            currentPage = page;
+            displayInvoices();
+        }
 
-    <!-- نافذة إعدادات Google Drive -->
-    <div id="driveSettingsModal" class="modal">
-        <div class="modal-content" style="max-width: 650px;">
-            <div class="modal-header">
-                <h2><i class="fab fa-google-drive"></i> إعدادات Google Drive</h2>
-                <span class="close-button" onclick="closeDriveSettings()">&times;</span>
-            </div>
-            <div class="modal-body">
-                <div class="form-group">
-                    <label><i class="fas fa-key"></i> مفتاح API</label>
-                    <input type="text" id="driveApiKey" placeholder="أدخل مفتاح API" value="AIzaSyBy4WRI3zkUwlCvbrXpB8o9ZbFMuH4AdGA">
-                    <small class="form-text">المفتاح: AIzaSyBy4WRI3zkUwlCvbrXpB8o9ZbFMuH4AdGA</small>
-                </div>
-                <div class="form-group">
-                    <label><i class="fas fa-folder"></i> معرف المجلد</label>
-                    <input type="text" id="driveFolderId" placeholder="أدخل معرف المجلد" value="1FlBXLupfXCICs6xt7xxEE02wr_cjAapC">
-                    <small class="form-text">معرف المجلد: 1FlBXLupfXCICs6xt7xxEE02wr_cjAapC</small>
-                </div>
-                
-                <hr>
-                <h3><i class="fas fa-file-alt"></i> ملف البيانات (XML)</h3>
-                <div class="form-group">
-                    <label><i class="fas fa-file"></i> اسم ملف البيانات</label>
-                    <input type="text" id="driveFileName" placeholder="أدخل اسم ملف البيانات" value="datatxt.txt">
-                </div>
-                <div class="form-group">
-                    <label><i class="fas fa-id-card"></i> معرف ملف البيانات</label>
-                    <input type="text" id="driveFileId" placeholder="معرف ملف البيانات" value="1xZSobMThbWKcZ53OmZEWlbn6mzz5Nsnr">
-                    <small class="form-text">المعرف: 1xZSobMThbWKcZ53OmZEWlbn6mzz5Nsnr</small>
-                </div>
-                
-                <hr>
-                <h3><i class="fas fa-users"></i> ملف المستخدمين</h3>
-                <div class="form-group">
-                    <label><i class="fas fa-file"></i> اسم ملف المستخدمين</label>
-                    <input type="text" id="driveUsersFileName" placeholder="أدخل اسم ملف المستخدمين" value="users.json">
-                </div>
-                <div class="form-group">
-                    <label><i class="fas fa-id-card"></i> معرف ملف المستخدمين</label>
-                    <input type="text" id="driveUsersFileId" placeholder="معرف ملف المستخدمين" value="1-ktLLXz1Febs44lB-aqfuNmTRs1GNB0w">
-                    <small class="form-text">المعرف: 1-ktLLXz1Febs44lB-aqfuNmTRs1GNB0w</small>
-                </div>
-                
-                <div style="display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;">
-                    <button class="btn btn-secondary" onclick="testDriveConnection()" style="flex: 1;">
-                        <i class="fas fa-plug"></i> اختبار الاتصال
-                    </button>
-                    <button class="btn btn-info" onclick="findDataFileId()" style="flex: 1;">
-                        <i class="fas fa-search"></i> بحث عن ملف البيانات
-                    </button>
-                    <button class="btn btn-info" onclick="findUsersFileId()" style="flex: 1;">
-                        <i class="fas fa-search"></i> بحث عن ملف المستخدمين
-                    </button>
-                    <button class="btn btn-primary" onclick="saveDriveSettings()" style="flex: 1;">
-                        <i class="fas fa-save"></i> حفظ الإعدادات
-                    </button>
-                </div>
-                <div id="driveTestResult" class="drive-result-box" style="margin-top: 15px; padding: 15px; background: #1e293b; color: #e2e8f0; border-radius: 10px; display: none; white-space: pre-wrap; font-family: monospace; max-height: 300px; overflow-y: auto;"></div>
-                <div id="driveMessage" class="login-message" style="margin-top: 15px;"></div>
-            </div>
-        </div>
-    </div>
+        // إغلاق النافذة بالضغط على ESC
+        document.addEventListener('keydown', (e) => {
+            if (e.key === 'Escape') {
+                closeModal();
+            }
+        });
 
-    <!-- شريط التقدم -->
-    <div id="progressBarContainer" class="progress-bar-container" style="display: none;">
-        <div id="progressBar" class="progress-bar"></div>
-    </div>
-    <div id="progressMessage" class="progress-message" style="display: none;"></div>
-
-    <!-- JavaScript File -->
-    <script src="script.js"></script>
+        // تحميل البيانات المحفوظة عند بدء التشغيل
+        document.addEventListener('DOMContentLoaded', () => {
+            if (savedCredentials.url) {
+                document.getElementById('apiUrl').value = savedCredentials.url;
+                document.getElementById('apiUsername').value = savedCredentials.username;
+                document.getElementById('apiPassword').value = savedCredentials.password;
+            }
+        });
+    </script>
 </body>
 </html>
