@@ -61,7 +61,7 @@ let driveConfig = {
     usersFileName: 'users.json',
     usersFileId: '1-ktLLXz1Febs44lB-aqfuNmTRs1GNB0w',
     logoFileId: '1DugYxs9a21e6J0ynTu6pE0yHXM2wRXSP',
-    creditFileName: 'credit_data.txt',   // ← جديد
+    creditFileName: 'creditdata.txt',   // ← جديد
     creditFileId: ''                     // ← جديد
 };
 
@@ -254,7 +254,7 @@ async function findUsersFileIdAuto() {
 
 async function findCreditFileIdAuto() {
     if (!driveConfig.apiKey || !driveConfig.folderId) return false;
-    const fileName = driveConfig.creditFileName || 'credit_data.txt';
+    const fileName = driveConfig.creditFileName || 'creditdata.txt';
     try {
         const query = encodeURIComponent(`'${driveConfig.folderId}' in parents and name='${fileName}' and trashed=false`);
         const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&key=${driveConfig.apiKey}&fields=files(id,name)`);
@@ -3635,7 +3635,7 @@ window.saveDriveSettings = function() {
         usersFileName: document.getElementById('driveUsersFileName').value.trim() || 'users.json',
         usersFileId: document.getElementById('driveUsersFileId').value.trim(),
         logoFileId: document.getElementById('logoFileId').value.trim() || '1DugYxs9a21e6J0ynTu6pE0yHXM2wRXSP',
-        creditFileName: document.getElementById('driveCreditFileName').value.trim() || 'credit_data.txt',
+        creditFileName: document.getElementById('driveCreditFileName').value.trim() || 'creditdata.txt',
         creditFileId: document.getElementById('driveCreditFileId').value.trim()
     };
     saveDriveSettingsToStorage();
@@ -5173,7 +5173,7 @@ async function testCreditFileLoad() {
     
     // تحديد معرف الملف (من الإعدادات)
     let fileId = driveConfig.creditFileId;
-    const fileName = driveConfig.creditFileName || 'credit_data.txt';
+    const fileName = driveConfig.creditFileName || 'creditdata.txt';
     
     // إذا لم يكن هناك معرف، حاول البحث عنه
     if (!fileId) {
