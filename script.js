@@ -36,7 +36,9 @@ let exchangeRate = 48.0215;
 let expandedContainers = new Set();
 let db = null;
 let autoSaveEnabled = true;
-let currentCreditSerial = null;
+// أضف هذه الأسطر مع باقي المتغيرات العامة
+let currentDisplayType = 'invoice'; // 'invoice' أو 'credit'
+let currentCreditData = null; // تخزين بيانات إشعار الخصم الحالي
 // بيانات إشعارات الخصم
 let creditData = [];
 let filteredCreditData = [];
@@ -61,7 +63,7 @@ let driveConfig = {
     usersFileName: 'users.json',
     usersFileId: '1-ktLLXz1Febs44lB-aqfuNmTRs1GNB0w',
     logoFileId: '1DugYxs9a21e6J0ynTu6pE0yHXM2wRXSP',
-    creditFileName: 'creditdata.txt',   // ← جديد
+    creditFileName: 'credit_data.txt',   // ← جديد
     creditFileId: ''                     // ← جديد
 };
 
@@ -254,7 +256,7 @@ async function findUsersFileIdAuto() {
 
 async function findCreditFileIdAuto() {
     if (!driveConfig.apiKey || !driveConfig.folderId) return false;
-    const fileName = driveConfig.creditFileName || 'creditdata.txt';
+    const fileName = driveConfig.creditFileName || 'credit_data.txt';
     try {
         const query = encodeURIComponent(`'${driveConfig.folderId}' in parents and name='${fileName}' and trashed=false`);
         const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&key=${driveConfig.apiKey}&fields=files(id,name)`);
@@ -742,10 +744,17 @@ function updateDataSource() {
 // ============================================
 // دوال التبديل بين أنواع الفواتير
 // ============================================
+// ============================================
+// دوال التبديل بين أنواع الفواتير
+// ============================================
+// ============================================
+// دوال التبديل بين أنواع الفواتير
+// ============================================
 window.switchInvoiceType = async function(type) {
     console.log('التبويب المحدد:', type);
     currentInvoiceType = type;
     
+    // تحديث مظهر الأزرار
     document.querySelectorAll('.type-tab').forEach((btn, i) => {
         if (type === INVOICE_TYPES.CASH && i === 0) btn.classList.add('active');
         else if (type === INVOICE_TYPES.POSTPONED && i === 1) btn.classList.add('active');
@@ -753,18 +762,27 @@ window.switchInvoiceType = async function(type) {
         else btn.classList.remove('active');
     });
 
+    // ========== حالة إشعارات الخصم ==========
     if (type === INVOICE_TYPES.CREDIT) {
         // إخفاء عناصر الفواتير
         const advancedSearch = document.querySelector('.advanced-search');
-        if (advancedSearch) advancedSearch.style.display = 'none';
+        if (advancedSearch) advancedSearch.style.display = 'block'; // نجعله مرئياً لكن نغير محتواه
         const fileLabel = document.querySelector('label[for="fileInput"]');
         const driveBtn = document.querySelector('.btn-drive');
         if (fileLabel) fileLabel.style.display = 'none';
         if (driveBtn) driveBtn.style.display = 'none';
         
+        // بناء واجهة البحث الخاصة بإشعارات الخصم
+        buildCreditSearchUI();
+        
+        // مزامنة وضع العرض
+        viewModeCredit = viewMode;
+        
+        // عرض رسالة تحميل
         document.getElementById('dataViewContainer').innerHTML = '<div class="no-data"><i class="fas fa-spinner fa-spin"></i><p>جاري تحميل إشعارات الخصم...</p></div>';
         document.getElementById('pagination').innerHTML = '';
         
+        // تحميل البيانات إذا لزم الأمر
         if (creditData.length === 0) {
             const success = await loadCreditDataFromDrive();
             if (success) {
@@ -776,11 +794,17 @@ window.switchInvoiceType = async function(type) {
         } else {
             filterCreditData();
         }
-    } else {
+    } 
+    // ========== حالة الفواتير (نقدي/آجل) ==========
+    else {
         // إظهار عناصر الفواتير
         const advancedSearch = document.querySelector('.advanced-search');
         if (advancedSearch) advancedSearch.style.display = 'block';
         
+        // بناء واجهة البحث الخاصة بالفواتير
+        buildInvoiceSearchUI();
+        
+        // إظهار أزرار رفع الملفات للمدير فقط
         if (currentUser?.userType === 'admin') {
             const fileLabel = document.querySelector('label[for="fileInput"]');
             const driveBtn = document.querySelector('.btn-drive');
@@ -793,9 +817,9 @@ window.switchInvoiceType = async function(type) {
             if (driveBtn) driveBtn.style.display = 'none';
         }
         
-        // عرض بيانات الفواتير (نقدي أو آجل)
+        // إعادة تعيين الصفحة وعرض البيانات
         currentPage = 1;
-			filterInvoicesByUser();
+        filterInvoicesByUser();
     }
 };
 
@@ -1408,22 +1432,53 @@ window.toggleSortOrder = function() {
     const icon = document.querySelector('#sortToggle i');
     if (icon) icon.className = sortOrder === 'asc' ? 'fas fa-sort-amount-down-alt' : 'fas fa-sort-amount-up-alt';
     clearSelectedInvoices();
-    renderData();
+    
+    if (currentInvoiceType === INVOICE_TYPES.CREDIT) {
+        currentCreditSortOrder = sortOrder;
+        renderCreditData();
+    } else {
+        renderData();
+    }
 };
 
 window.changeItemsPerPage = function() {
     const select = document.getElementById('itemsPerPage');
-    itemsPerPage = select.value === 'all' ? Infinity : parseInt(select.value);
+    const newValue = select.value === 'all' ? Infinity : parseInt(select.value);
+    itemsPerPage = newValue;
     currentPage = 1;
     clearSelectedInvoices();
-    renderData();
+    
+    if (currentInvoiceType === INVOICE_TYPES.CREDIT) {
+        itemsPerPageCredit = newValue;
+        currentCreditPage = 1;
+        renderCreditData();
+    } else {
+        renderData();
+    }
 };
 
 window.setViewMode = function(mode) {
+    // تحديث كلا المتغيرين
     viewMode = mode;
+    viewModeCredit = mode;
+    
     clearSelectedInvoices();
-    document.querySelectorAll('.btn-view').forEach((btn, i) => btn.classList.toggle('active', (i === 0 && mode === 'table') || (i === 1 && mode === 'cards')));
-    renderData();
+    
+    // تحديث مظهر الأزرار
+    document.querySelectorAll('.btn-view').forEach((btn, i) => {
+        if ((i === 0 && mode === 'table') || (i === 1 && mode === 'cards')) {
+            btn.classList.add('active');
+        } else {
+            btn.classList.remove('active');
+        }
+    });
+    
+    // إعادة العرض حسب النوع الحالي
+    if (currentInvoiceType === INVOICE_TYPES.CREDIT) {
+        renderCreditData();  // ستستخدم viewModeCredit الجديدة
+    } else {
+        renderData();       // ستستخدم viewMode الجديدة
+    }
 };
 
 window.toggleAdvancedSearch = function() {
@@ -1956,15 +2011,13 @@ async function exportSingleInvoice() {
         return;
     }
     
-    // الحصول على رقم الفاتورة من البيانات المخزنة (تجنب مشكلة DOM)
-    let invoiceNumber = 'فاتورة';
-    if (selectedInvoiceIndex >= 0 && invoicesData[selectedInvoiceIndex]) {
-        invoiceNumber = invoicesData[selectedInvoiceIndex]['final-number'] || 'فاتورة';
-    } else {
-        // محاولة بديلة من DOM
-        const modalSpan = document.getElementById('modalInvoiceNumber');
-        if (modalSpan && modalSpan.textContent) invoiceNumber = modalSpan.textContent;
+    // ✅ الحصول على رقم الفاتورة من البيانات المخزنة
+    const inv = invoicesData[selectedInvoiceIndex];
+    if (!inv) {
+        showNotification('لا توجد بيانات للفاتورة', 'error');
+        return;
     }
+    const invoiceNumber = inv['final-number'] || 'فاتورة';
     
     const loading = document.createElement('div');
     loading.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#4361ee;color:white;padding:15px 30px;border-radius:8px;z-index:10000;';
@@ -2094,6 +2147,10 @@ async function exportMultipleInvoices(indices) {
 }
 
 window.exportInvoicePDF = function() {
+    if (currentDisplayType === 'credit') {
+        window.exportCreditNotePDF();
+        return;
+    }
     exportSingleInvoice();
 };
 
@@ -2107,6 +2164,7 @@ window.showInvoiceDetails = function(index) {
         return;
     }
     selectedInvoiceIndex = index;
+	currentDisplayType = 'invoice';
     const inv = invoicesData[index];
     const finalNum = inv['final-number'] || '';
     const isPostponed = finalNum.startsWith('P') || finalNum.startsWith('p');
@@ -2584,472 +2642,6 @@ if (modalTitle) {
     }, 100);
 };
 
-function printCreditNote() {
-    if (!currentCreditSerial) {
-        showNotification('لا توجد بيانات للطباعة', 'error');
-        return;
-    }
-    
-    const item = creditData.find(d => d.serial == currentCreditSerial);
-    if (!item) {
-        showNotification('لا توجد بيانات للإشعار', 'error');
-        return;
-    }
-    
-    const printWindow = window.open('', '_blank', 'width=1100,height=800');
-    
-    const net = item.displayAmount;
-    const tax = item.displayTax;
-    const total = net + tax;
-    const currencySymbol = item.currency === 'USAD' ? 'USAD' : 'EGP';
-    const logoSrc = companyLogoBase64 ? companyLogoBase64 : '';
-    
-    let itemsHtml = '';
-    if (item.items && item.items.length > 0) {
-        itemsHtml = `
-            <table class="charges-table" style="width:100%; border-collapse: collapse; margin-top: 15px;">
-                <thead><tr><th>الكمية</th><th>السعر</th><th>المبلغ بعد سعر الصرف</th></tr></thead>
-                <tbody>
-                    ${item.items.map(i => `
-                        <tr>
-                            <td>${i.quantity}</td>
-                            <td>${i.rateCredited.toFixed(2)}</td>
-                            <td>${formatNumberWithCommas(i.displayAmount.toFixed(2))} ${currencySymbol}</td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-        `;
-    }
-    
-    const printHtml = `
-        <!DOCTYPE html>
-        <html dir="rtl">
-        <head>
-            <meta charset="UTF-8">
-            <title>طباعة إشعار خصم - ${item.finalNumber || item.draftNumber}</title>
-            <style>
-                @page { size: A4; margin: 0.5cm; }
-                body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; padding: 0; margin: 0; direction: rtl; background: white; }
-                .invoice-container { max-width: 1100px; margin: 0 auto; background: white; padding: 20px; }
-                .credit-detail-header { background: linear-gradient(135deg, #1e3c72, #2a5298); color: white; padding: 15px 20px; border-radius: 10px; margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; }
-                .credit-detail-title { background: linear-gradient(135deg, #f72585, #b5179e); color: white; padding: 12px; text-align: center; border-radius: 8px; margin-bottom: 15px; }
-                .credit-detail-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 15px; }
-                .credit-info-box { background: #f8f9fa; padding: 12px; border-radius: 8px; border-right: 4px solid #f72585; }
-                .credit-summary-box { width: 320px; background: #f8f9fa; padding: 12px; border-radius: 8px; margin-right: auto; }
-                .credit-summary-row { display: flex; justify-content: space-between; padding: 8px 0; border-bottom: 1px solid #dee2e6; }
-                .credit-summary-row.total { border-bottom: none; font-weight: bold; color: #f72585; font-size: 1.1em; }
-                .company-logo-container { width: 70px; height: 70px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 3px solid #ffd700; overflow: hidden; }
-                .company-logo-image { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
-                .notes-box { margin: 15px 0; padding: 10px; background: #fff3cd; border-right: 4px solid #ffc107; border-radius: 5px; }
-                .charges-table { width: 100%; border-collapse: collapse; margin: 15px 0; }
-                .charges-table th, .charges-table td { border: 1px solid #ddd; padding: 8px; text-align: center; }
-                .charges-table th { background: #f72585; color: white; }
-                .signature-section { display: flex; justify-content: space-around; margin: 20px 0; padding: 10px 0; border-top: 2px dashed #dee2e6; }
-                .invoice-footer { text-align: center; padding: 10px; border-top: 2px solid #e9ecef; color: #6c757d; font-size: 0.7em; }
-            </style>
-        </head>
-        <body>
-            <div class="invoice-container">
-                <div class="credit-detail-header">
-                    <div style="display: flex; align-items: center; gap: 15px;">
-                        <div class="company-logo-container">
-                            ${logoSrc ? `<img src="${logoSrc}" class="company-logo-image">` : '<i class="fas fa-ship" style="font-size: 2em; color: #1e3c72;"></i>'}
-                        </div>
-                        <div>
-                            <h2 style="color: #ffd700; margin: 0;">${COMPANY_INFO.name}</h2>
-                            <p style="margin: 3px 0; font-size: 0.8em;">${COMPANY_INFO.nameEn}</p>
-                        </div>
-                    </div>
-                </div>
-                <div class="credit-detail-title">
-                    <h2>إشعار خصم: ${item.finalNumber || item.draftNumber || '-'}
-                        ${item.draftNumber ? `<span style="font-size:0.7em;"> (مسودة: ${item.draftNumber})</span>` : ''}
-                    </h2>
-                    <p>التاريخ: ${item.date || 'غير محدد'}</p>
-                </div>
-                <div class="credit-detail-grid">
-                    <div class="credit-info-box">
-                        <h4>بيانات العميل</h4>
-                        <div><strong>الاسم:</strong> ${item.customer || '-'}</div>
-                        <div><strong>الرقم الضريبي:</strong> ${item.customerId || '-'}</div>
-                    </div>
-                    <div class="credit-info-box">
-                        <h4>بيانات الفاتورة</h4>
-                        <div><strong>رقم الفاتورة الأصلية:</strong> ${item.invoiceFinalNumber || '-'}</div>
-                        <div><strong>رقم المسودة:</strong> ${item.draftNumber || '-'}</div>
-                        <div><strong>رقم الإشعار النهائي:</strong> ${item.finalNumber || '-'}</div>
-                    </div>
-                    <div class="credit-info-box">
-                        <h4>المبالغ</h4>
-                        <div><strong>العملة:</strong> ${currencySymbol}</div>
-                        <div><strong>سعر الصرف:</strong> ${item.exchangeRate.toFixed(4)}</div>
-                        <div><strong>الحالة:</strong> ${item.status || '-'}</div>
-                    </div>
-                </div>
-                ${itemsHtml}
-                <div class="credit-summary-box" style="margin-right: auto;">
-                    <div class="credit-summary-row"><span>صافي إشعار الخصم:</span><span>${formatNumberWithCommas(net.toFixed(2))} ${currencySymbol}</span></div>
-                    <div class="credit-summary-row"><span>إجمالي الضرائب:</span><span>${formatNumberWithCommas(tax.toFixed(2))} ${currencySymbol}</span></div>
-                    <div class="credit-summary-row total"><span>إجمالي الإشعار بعد الضريبة:</span><span>${formatNumberWithCommas(total.toFixed(2))} ${currencySymbol}</span></div>
-                </div>
-                ${item.notes ? `<div class="notes-box"><strong>ملاحظات:</strong> ${item.notes}</div>` : ''}
-                <div class="signature-section">
-                    <div><div style="font-weight:bold;">معد الإشعار</div><div>${item.preparedBy || 'النظام'}</div><div>${new Date().toLocaleDateString('ar-EG')}</div></div>
-                    <div><div style="font-weight:bold;">المراجع</div><div>${item.reviewedBy || 'النظام'}</div></div>
-                    <div><div style="font-weight:bold;">الختم</div><div style="font-size:2em; opacity:0.5;"><i class="fas fa-certificate"></i></div></div>
-                </div>
-                <div class="invoice-footer">
-                    <p>شكراً لتعاملكم مع ${COMPANY_INFO.name}</p>
-                    <p>تم إنشاء هذا الإشعار إلكترونياً</p>
-                    <p>تاريخ الطباعة: ${new Date().toLocaleDateString('ar-EG')}</p>
-                </div>
-            </div>
-        </body>
-        </html>
-    `;
-    
-    printWindow.document.write(printHtml);
-    printWindow.document.close();
-    printWindow.focus();
-    printWindow.print();
-}
-
-async function exportCreditNotePDF() {
-    if (!currentCreditSerial) {
-        showNotification('لا توجد بيانات للتصدير', 'error');
-        return;
-    }
-    
-    const item = creditData.find(d => d.serial == currentCreditSerial);
-    if (!item) {
-        showNotification('لا توجد بيانات للإشعار', 'error');
-        return;
-    }
-    
-    if (typeof window.jspdf === 'undefined' || typeof window.html2canvas === 'undefined') {
-        showNotification('جاري تحميل مكتبات PDF...', 'info');
-        return;
-    }
-    
-    const element = document.getElementById('creditPrint');
-    if (!element) {
-        showNotification('لا يوجد إشعار للتصدير', 'error');
-        return;
-    }
-    
-    const loading = document.createElement('div');
-    loading.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#4361ee;color:white;padding:15px 30px;border-radius:8px;z-index:10000;';
-    loading.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري إنشاء PDF...';
-    document.body.appendChild(loading);
-    
-    try {
-        const canvas = await html2canvas(element, {
-            scale: 1.5,
-            backgroundColor: '#ffffff',
-            logging: false,
-            allowTaint: true,
-            useCORS: true,
-            imageTimeout: 0
-        });
-        
-        const imgData = canvas.toDataURL('image/jpeg', 0.85);
-        const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF({
-            orientation: 'portrait',
-            unit: 'mm',
-            format: 'a4',
-            compress: true
-        });
-        
-        const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
-        
-        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
-        pdf.save(`إشعار_خصم_${item.finalNumber || item.draftNumber || item.serial}.pdf`);
-        
-        showNotification('تم التصدير بنجاح', 'success');
-    } catch (error) {
-        console.error('خطأ في إنشاء PDF:', error);
-        showNotification('حدث خطأ في إنشاء PDF: ' + error.message, 'error');
-    } finally {
-        loading.remove();
-    }
-}
-
-function exportCreditNoteExcel() {
-    if (!currentCreditSerial) {
-        showNotification('لا توجد بيانات للتصدير', 'error');
-        return;
-    }
-    
-    const item = creditData.find(d => d.serial == currentCreditSerial);
-    if (!item) {
-        showNotification('لا توجد بيانات للإشعار', 'error');
-        return;
-    }
-    
-    const net = item.displayAmount;
-    const tax = item.displayTax;
-    const total = net + tax;
-    const currencySymbol = item.currency === 'USAD' ? 'USAD' : 'EGP';
-    
-    const excelData = [
-        ['إشعار خصم'],
-        [`رقم الإشعار: ${item.finalNumber || item.draftNumber || '-'}`],
-        [`رقم المسودة: ${item.draftNumber || '-'}`],
-        [`رقم الفاتورة الأصلية: ${item.invoiceFinalNumber || '-'}`],
-        [`العميل: ${item.customer || '-'}`],
-        [`التاريخ: ${item.date || '-'}`],
-        [`العملة: ${currencySymbol}`],
-        [`سعر الصرف: ${item.exchangeRate.toFixed(4)}`],
-        [`الحالة: ${item.status || '-'}`],
-        [],
-        ['الوصف', 'الكمية', 'السعر', 'المبلغ بعد سعر الصرف']
-    ];
-    
-    item.items.forEach(i => {
-        excelData.push([
-            i.description || '-',
-            i.quantity,
-            i.rateCredited.toFixed(2),
-            `${i.displayAmount.toFixed(2)} ${currencySymbol}`
-        ]);
-    });
-    
-    excelData.push([], ['ملخص']);
-    excelData.push(['صافي إشعار الخصم:', `${net.toFixed(2)} ${currencySymbol}`]);
-    excelData.push(['إجمالي الضرائب:', `${tax.toFixed(2)} ${currencySymbol}`]);
-    excelData.push(['إجمالي الإشعار بعد الضريبة:', `${total.toFixed(2)} ${currencySymbol}`]);
-    
-    if (item.notes) {
-        excelData.push(['ملاحظات:', item.notes]);
-    }
-    
-    const wb = XLSX.utils.book_new();
-    const ws = XLSX.utils.aoa_to_sheet(excelData);
-    XLSX.utils.book_append_sheet(wb, ws, 'إشعار خصم');
-    
-    XLSX.writeFile(wb, `إشعار_خصم_${item.finalNumber || item.draftNumber || item.serial}.xlsx`);
-    showNotification('تم تصدير Excel بنجاح', 'success');
-}
-
-function generateCreditPrintHTML(item) {
-    const net = item.displayAmount;
-    const tax = item.displayTax;
-    const total = net + tax;
-    const currencySymbol = item.currency === 'USAD' ? 'USAD' : 'EGP';
-    const logoSrc = companyLogoBase64 ? companyLogoBase64 : '';
-    
-    // بناء جدول البنود (بدون أعمدة إضافية)
-    let itemsHtml = '';
-    if (item.items && item.items.length > 0) {
-        itemsHtml = `
-            <table class="print-items-table">
-                <thead>
-                    <tr>
-                        <th>الكمية</th>
-                        <th>السعر</th>
-                        <th>المبلغ بعد سعر الصرف</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${item.items.map(i => `
-                        <tr>
-                            <td>${i.quantity}</td>
-                            <td>${i.rateCredited.toFixed(2)}</td>
-                            <td>${formatNumberWithCommas(i.displayAmount.toFixed(2))} ${currencySymbol}</td>
-                        </tr>
-                    `).join('')}
-                </tbody>
-            </table>
-        `;
-    }
-    
-    return `<!DOCTYPE html>
-    <html dir="rtl">
-    <head>
-        <meta charset="UTF-8">
-        <title>طباعة إشعار خصم - ${item.finalNumber || item.draftNumber}</title>
-        <style>
-            @page { size: A4; margin: 1cm; }
-            body {
-                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-                direction: rtl;
-                background: white;
-                padding: 0;
-                margin: 0;
-                -webkit-print-color-adjust: exact;
-                print-color-adjust: exact;
-            }
-            .print-container {
-                max-width: 1000px;
-                margin: 0 auto;
-                background: white;
-                padding: 20px;
-            }
-            .header {
-                display: flex;
-                justify-content: space-between;
-                align-items: center;
-                margin-bottom: 20px;
-                padding-bottom: 10px;
-                border-bottom: 2px solid #e0e0e0;
-            }
-            .logo-area {
-                display: flex;
-                align-items: center;
-                gap: 15px;
-            }
-            .logo {
-                width: 70px;
-                height: 70px;
-                background: #f0f0f0;
-                border-radius: 50%;
-                display: flex;
-                align-items: center;
-                justify-content: center;
-                overflow: hidden;
-                border: 2px solid #ffd700;
-            }
-            .logo img { width: 100%; height: 100%; object-fit: cover; }
-            .company-info h2 { margin: 0; color: #1e3c72; }
-            .company-info p { margin: 5px 0; font-size: 0.8em; color: #555; }
-            .title {
-                background: #f72585;
-                color: white;
-                padding: 10px;
-                text-align: center;
-                border-radius: 8px;
-                margin-bottom: 20px;
-            }
-            .info-grid {
-                display: grid;
-                grid-template-columns: repeat(3, 1fr);
-                gap: 15px;
-                margin-bottom: 20px;
-            }
-            .info-box {
-                background: #f8f9fa;
-                padding: 12px;
-                border-radius: 8px;
-                border-right: 4px solid #f72585;
-            }
-            .info-box h4 { margin: 0 0 8px; color: #f72585; }
-            .summary-box {
-                width: 280px;
-                background: #f8f9fa;
-                padding: 12px;
-                border-radius: 8px;
-                margin-right: auto;
-                margin-top: 20px;
-            }
-            .summary-row {
-                display: flex;
-                justify-content: space-between;
-                padding: 5px 0;
-                border-bottom: 1px solid #ddd;
-            }
-            .summary-row.total {
-                font-weight: bold;
-                color: #f72585;
-                border-bottom: none;
-            }
-            .items-table {
-                width: 100%;
-                border-collapse: collapse;
-                margin: 15px 0;
-            }
-            .items-table th, .items-table td {
-                border: 1px solid #ddd;
-                padding: 8px;
-                text-align: center;
-            }
-            .items-table th {
-                background: #f72585;
-                color: white;
-            }
-            .footer {
-                text-align: center;
-                margin-top: 30px;
-                padding-top: 10px;
-                border-top: 1px solid #ddd;
-                font-size: 0.8em;
-                color: #777;
-            }
-            .notes-box {
-                background: #fff3cd;
-                padding: 10px;
-                border-right: 4px solid #ffc107;
-                margin-top: 15px;
-            }
-            @media print {
-                .no-print { display: none; }
-                body { margin: 0; padding: 0; }
-            }
-        </style>
-    </head>
-    <body>
-        <div class="print-container">
-            <div class="header">
-                <div class="logo-area">
-                    <div class="logo">
-                        ${logoSrc ? `<img src="${logoSrc}" alt="Logo">` : '<i class="fas fa-ship" style="font-size: 2em;"></i>'}
-                    </div>
-                    <div class="company-info">
-                        <h2>${COMPANY_INFO.name}</h2>
-                        <p>${COMPANY_INFO.nameEn}</p>
-                        <p>${COMPANY_INFO.address} | هاتف: ${COMPANY_INFO.phone}</p>
-                    </div>
-                </div>
-            </div>
-            
-            <div class="title">
-                <h2>إشعار خصم: ${item.finalNumber || item.draftNumber || '-'} ${item.draftNumber ? `(مسودة: ${item.draftNumber})` : ''}</h2>
-                <p>التاريخ: ${item.date || 'غير محدد'}</p>
-            </div>
-            
-            <div class="info-grid">
-                <div class="info-box">
-                    <h4>بيانات العميل</h4>
-                    <div><strong>الاسم:</strong> ${item.customer || '-'}</div>
-                    <div><strong>الرقم الضريبي:</strong> ${item.customerId || '-'}</div>
-                </div>
-                <div class="info-box">
-                    <h4>بيانات الفاتورة</h4>
-                    <div><strong>رقم الفاتورة الأصلية:</strong> ${item.invoiceFinalNumber || '-'}</div>
-                    <div><strong>رقم المسودة:</strong> ${item.draftNumber || '-'}</div>
-                    <div><strong>رقم الإشعار النهائي:</strong> ${item.finalNumber || '-'}</div>
-                </div>
-                <div class="info-box">
-                    <h4>المبالغ</h4>
-                    <div><strong>العملة:</strong> ${currencySymbol}</div>
-                    <div><strong>سعر الصرف:</strong> ${item.exchangeRate.toFixed(4)}</div>
-                    <div><strong>الحالة:</strong> ${item.status || '-'}</div>
-                </div>
-            </div>
-            
-            ${itemsHtml}
-            
-            <div class="summary-box">
-                <div class="summary-row"><span>صافي إشعار الخصم:</span><span>${formatNumberWithCommas(net.toFixed(2))} ${currencySymbol}</span></div>
-                <div class="summary-row"><span>إجمالي الضرائب:</span><span>${formatNumberWithCommas(tax.toFixed(2))} ${currencySymbol}</span></div>
-                <div class="summary-row total"><span>إجمالي الإشعار بعد الضريبة:</span><span>${formatNumberWithCommas(total.toFixed(2))} ${currencySymbol}</span></div>
-            </div>
-            
-            ${item.notes ? `<div class="notes-box"><strong>ملاحظات:</strong> ${item.notes}</div>` : ''}
-            
-            <div class="footer">
-                <p>شكراً لتعاملكم مع ${COMPANY_INFO.name}</p>
-                <p>تم إنشاء هذا الإشعار إلكترونياً - تاريخ الطباعة: ${new Date().toLocaleDateString('ar-EG')}</p>
-            </div>
-        </div>
-    </body>
-    </html>`;
-}
-
-
-
 // ============================================
 // دوال إضافية للتحكم في الأزرار - مع تعديل الطباعة
 // ============================================
@@ -3123,21 +2715,20 @@ window.toggleContainers = function(index) {
 
 // دالة الطباعة المعدلة
 window.printInvoice = function() {
+    if (currentDisplayType === 'credit') {
+        printCreditNote();
+        return;
+    }
+    // الكود الأصلي لطباعة الفاتورة
     const content = document.getElementById('invoicePrint');
     if (!content) return alert('لا توجد فاتورة للطباعة');
     
-    // الحصول على رقم الفاتورة لإنشاء QR code
     const inv = invoicesData[selectedInvoiceIndex];
     const invoiceNumber = inv['final-number'] || '';
     const draftNumber = inv['draft-number'] || '';
     
-    // إنشاء نافذة الطباعة
     const printWindow = window.open('', '_blank', 'width=1200,height=800');
-    
-    // نسخ محتوى الفاتورة
     const contentHTML = content.outerHTML;
-    
-    // إنشاء QR code في النافذة الجديدة
     const qrContainerId = `qrcode-container-${invoiceNumber}`;
     
     // استايلات محسنة للطباعة
@@ -3273,6 +2864,32 @@ window.printInvoice = function() {
             }
         </style>
     `;
+		
+
+function printCreditNote() {
+    if (!currentCreditSerial && !currentCreditData) {
+        showNotification('لا توجد بيانات للطباعة', 'error');
+        return;
+    }
+    
+    const item = currentCreditData || creditData.find(d => d.serial == currentCreditSerial);
+    if (!item) {
+        showNotification('لا توجد بيانات للإشعار', 'error');
+        return;
+    }
+    
+    const printWindow = window.open('', '_blank', 'width=1100,height=800');
+    const printHtml = generateCreditPrintHTML(item);
+    
+    printWindow.document.write(printHtml);
+    printWindow.document.close();
+    printWindow.focus();
+    
+    setTimeout(() => {
+        printWindow.print();
+    }, 500);
+}
+
 
     // كتابة محتوى نافذة الطباعة مع تضمين مكتبة QR Code
     printWindow.document.write(`
@@ -3345,7 +2962,11 @@ window.printInvoice = function() {
 };
 
 window.exportInvoiceExcel = function() {
-    const inv = invoicesData[selectedInvoiceIndex];
+     if (currentDisplayType === 'credit') {
+        exportCreditNoteExcel();
+        return;
+    }
+	const inv = invoicesData[selectedInvoiceIndex];
     if (!inv) return;
     const exRate = inv['flex-string-06'] || 48.0215;
     const martyr = 5;
@@ -3635,7 +3256,7 @@ window.saveDriveSettings = function() {
         usersFileName: document.getElementById('driveUsersFileName').value.trim() || 'users.json',
         usersFileId: document.getElementById('driveUsersFileId').value.trim(),
         logoFileId: document.getElementById('logoFileId').value.trim() || '1DugYxs9a21e6J0ynTu6pE0yHXM2wRXSP',
-        creditFileName: document.getElementById('driveCreditFileName').value.trim() || 'creditdata.txt',
+        creditFileName: document.getElementById('driveCreditFileName').value.trim() || 'credit_data.txt',
         creditFileId: document.getElementById('driveCreditFileId').value.trim()
     };
     saveDriveSettingsToStorage();
@@ -4108,17 +3729,16 @@ function changeCreditPage(page) {
 function showCreditDetails(serial) {
     const item = creditData.find(d => d.serial == serial);
     if (!item) return;
-    
-    // حفظ الإشعار الحالي للاستخدام في الطباعة والتصدير
-    currentCreditSerial = serial;
-    
+		currentDisplayType = 'credit';
+		currentCreditData = item;
+		currentCreditSerial = serial;
     const net = item.displayAmount;
     const tax = item.displayTax;
     const total = net + tax;
     const currencySymbol = item.currency === 'USAD' ? 'USAD' : 'EGP';
     const logoSrc = companyLogoBase64 ? companyLogoBase64 : '';
 
-    // جدول البنود
+    // جدول البنود بدون عمود "رقم الفاتورة الأصلية"
     let itemsHtml = '';
     if (item.items && item.items.length > 0) {
         itemsHtml = `
@@ -4146,9 +3766,11 @@ function showCreditDetails(serial) {
         `;
     }
 
+    // بقية الكود كما هو مع التأكد من وجود رقم الفاتورة الأصلية في بيانات الفاتورة
     const html = `
         <div class="invoice-container" id="creditPrint" style="max-width: 1100px; margin: 0 auto; background: white; padding: 20px; border-radius: 12px; box-shadow: 0 5px 20px rgba(0,0,0,0.1);">
             <style>
+                /* نفس الاستايلات السابقة */
                 .credit-detail-header { background: linear-gradient(135deg, #1e3c72, #2a5298); color: white; padding: 15px 20px; border-radius: 10px; margin-bottom: 15px; display: flex; align-items: center; justify-content: space-between; }
                 .credit-detail-title { background: linear-gradient(135deg, #f72585, #b5179e); color: white; padding: 12px; text-align: center; border-radius: 8px; margin-bottom: 15px; }
                 .credit-detail-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 15px; }
@@ -4159,19 +3781,7 @@ function showCreditDetails(serial) {
                 .company-logo-container { width: 70px; height: 70px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 3px solid #ffd700; overflow: hidden; }
                 .company-logo-image { width: 100%; height: 100%; object-fit: cover; border-radius: 50%; }
                 .notes-box { margin: 15px 0; padding: 10px; background: #fff3cd; border-right: 4px solid #ffc107; border-radius: 5px; }
-                .modal-actions { display: flex; justify-content: flex-end; gap: 10px; margin-bottom: 10px; }
-                .btn-icon { background: #4361ee; border: none; color: white; width: 36px; height: 36px; border-radius: 50%; cursor: pointer; transition: all 0.3s ease; }
-                .btn-icon:hover { background: #3a0ca3; transform: scale(1.05); }
-                .close-button { font-size: 28px; font-weight: bold; cursor: pointer; color: #666; transition: all 0.3s ease; line-height: 1; }
-                .close-button:hover { color: #e63946; transform: scale(1.2); }
             </style>
-            
-            <div class="modal-actions">
-                <button class="btn-icon" onclick="printCreditNote()" title="طباعة"><i class="fas fa-print"></i></button>
-                <button class="btn-icon" onclick="exportCreditNotePDF()" title="تصدير PDF"><i class="fas fa-file-pdf"></i></button>
-                <button class="btn-icon" onclick="exportCreditNoteExcel()" title="تصدير Excel"><i class="fas fa-file-excel"></i></button>
-                <span class="close-button" onclick="closeModal()">&times;</span>
-            </div>
             
             <div class="credit-detail-header">
                 <div style="display: flex; align-items: center; gap: 15px;">
@@ -4257,20 +3867,10 @@ function showCreditDetails(serial) {
             </div>
         </div>
     `;
-    
+
     document.getElementById('modalBody').innerHTML = html;
     document.getElementById('modalTitle').innerHTML = `إشعار خصم: ${item.finalNumber || item.draftNumber || item.serial}`;
     document.getElementById('invoiceModal').style.display = 'block';
-	// تعيين أزرار مخصصة لإشعارات الخصم في رأس النافذة
-const modalActions = document.querySelector('#invoiceModal .modal-actions');
-if (modalActions) {
-    modalActions.innerHTML = `
-        <button class="btn-icon" onclick="window.printCreditNote()" title="طباعة"><i class="fas fa-print"></i></button>
-        <button class="btn-icon" onclick="window.exportCreditNotePDF()" title="تصدير PDF"><i class="fas fa-file-pdf"></i></button>
-        <button class="btn-icon" onclick="window.exportCreditNoteExcel()" title="تصدير Excel"><i class="fas fa-file-excel"></i></button>
-        <span class="close-button" onclick="window.closeModal()">&times;</span>
-    `;
-}
 }
 
 function exportSelectedCreditExcel() {
@@ -5173,7 +4773,7 @@ async function testCreditFileLoad() {
     
     // تحديد معرف الملف (من الإعدادات)
     let fileId = driveConfig.creditFileId;
-    const fileName = driveConfig.creditFileName || 'creditdata.txt';
+    const fileName = driveConfig.creditFileName || 'credit_data.txt';
     
     // إذا لم يكن هناك معرف، حاول البحث عنه
     if (!fileId) {
@@ -5305,6 +4905,571 @@ function showCreditTestWindow(data, fileName) {
 }
 
 // ============================================
+// دوال الطباعة لإشعارات الخصم
+// ============================================
+
+/**
+ * إنشاء HTML لطباعة إشعار الخصم
+ */
+function generateCreditPrintHTML(item) {
+    const net = item.displayAmount;
+    const tax = item.displayTax;
+    const total = net + tax;
+    const currencySymbol = item.currency === 'USAD' ? 'USAD' : 'EGP';
+    const logoSrc = companyLogoBase64 ? companyLogoBase64 : '';
+
+    let itemsHtml = '';
+    if (item.items && item.items.length > 0) {
+        itemsHtml = `
+            <table class="print-items-table" style="width:100%; border-collapse: collapse; margin: 15px 0;">
+                <thead>
+                    <tr>
+                        <th style="border:1px solid #ddd; padding:8px; background:#f72585; color:white;">الكمية</th>
+                        <th style="border:1px solid #ddd; padding:8px; background:#f72585; color:white;">السعر</th>
+                        <th style="border:1px solid #ddd; padding:8px; background:#f72585; color:white;">المبلغ بعد سعر الصرف</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    ${item.items.map(i => `
+                        <tr>
+                            <td style="border:1px solid #ddd; padding:8px; text-align:center;">${i.quantity}</td>
+                            <td style="border:1px solid #ddd; padding:8px; text-align:center;">${i.rateCredited.toFixed(2)}</td>
+                            <td style="border:1px solid #ddd; padding:8px; text-align:center;">${formatNumberWithCommas(i.displayAmount.toFixed(2))} ${currencySymbol}</td>
+                        </tr>
+                    `).join('')}
+                </tbody>
+            </table>
+        `;
+    }
+
+    return `<!DOCTYPE html>
+    <html dir="rtl">
+    <head>
+        <meta charset="UTF-8">
+        <title>طباعة إشعار خصم - ${item.finalNumber || item.draftNumber}</title>
+        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+        <style>
+            @page { size: A4; margin: 1cm; }
+            body {
+                font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+                direction: rtl;
+                background: white;
+                padding: 0;
+                margin: 0;
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            .print-container {
+                max-width: 1000px;
+                margin: 0 auto;
+                background: white;
+                padding: 20px;
+            }
+            .header {
+                display: flex;
+                justify-content: space-between;
+                align-items: center;
+                margin-bottom: 20px;
+                padding-bottom: 10px;
+                border-bottom: 2px solid #e0e0e0;
+            }
+            .logo-area {
+                display: flex;
+                align-items: center;
+                gap: 15px;
+            }
+            .logo {
+                width: 70px;
+                height: 70px;
+                background: #f0f0f0;
+                border-radius: 50%;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                overflow: hidden;
+                border: 2px solid #ffd700;
+            }
+            .logo img { width: 100%; height: 100%; object-fit: cover; }
+            .company-info h2 { margin: 0; color: #1e3c72; }
+            .company-info p { margin: 5px 0; font-size: 0.8em; color: #555; }
+            .title {
+                background: #f72585;
+                color: white;
+                padding: 10px;
+                text-align: center;
+                border-radius: 8px;
+                margin-bottom: 20px;
+            }
+            .info-grid {
+                display: grid;
+                grid-template-columns: repeat(3, 1fr);
+                gap: 15px;
+                margin-bottom: 20px;
+            }
+            .info-box {
+                background: #f8f9fa;
+                padding: 12px;
+                border-radius: 8px;
+                border-right: 4px solid #f72585;
+            }
+            .info-box h4 { margin: 0 0 8px; color: #f72585; }
+            .summary-box {
+                width: 280px;
+                background: #f8f9fa;
+                padding: 12px;
+                border-radius: 8px;
+                margin-right: auto;
+                margin-top: 20px;
+            }
+            .summary-row {
+                display: flex;
+                justify-content: space-between;
+                padding: 5px 0;
+                border-bottom: 1px solid #ddd;
+            }
+            .summary-row.total {
+                font-weight: bold;
+                color: #f72585;
+                border-bottom: none;
+            }
+            .footer {
+                text-align: center;
+                margin-top: 30px;
+                padding-top: 10px;
+                border-top: 1px solid #ddd;
+                font-size: 0.8em;
+                color: #777;
+            }
+            .notes-box {
+                background: #fff3cd;
+                padding: 10px;
+                border-right: 4px solid #ffc107;
+                margin-top: 15px;
+            }
+        </style>
+    </head>
+    <body>
+        <div class="print-container">
+            <div class="header">
+                <div class="logo-area">
+                    <div class="logo">
+                        ${logoSrc ? `<img src="${logoSrc}" alt="Logo">` : '<i class="fas fa-ship" style="font-size: 2em;"></i>'}
+                    </div>
+                    <div class="company-info">
+                        <h2>${COMPANY_INFO.name}</h2>
+                        <p>${COMPANY_INFO.nameEn}</p>
+                        <p>${COMPANY_INFO.address} | هاتف: ${COMPANY_INFO.phone}</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="title">
+                <h2>إشعار خصم: ${item.finalNumber || item.draftNumber || '-'} ${item.draftNumber ? `(مسودة: ${item.draftNumber})` : ''}</h2>
+                <p>التاريخ: ${item.date || 'غير محدد'}</p>
+            </div>
+            
+            <div class="info-grid">
+                <div class="info-box">
+                    <h4>بيانات العميل</h4>
+                    <div><strong>الاسم:</strong> ${item.customer || '-'}</div>
+                    <div><strong>الرقم الضريبي:</strong> ${item.customerId || '-'}</div>
+                </div>
+                <div class="info-box">
+                    <h4>بيانات الفاتورة</h4>
+                    <div><strong>رقم الفاتورة الأصلية:</strong> ${item.invoiceFinalNumber || '-'}</div>
+                    <div><strong>رقم المسودة:</strong> ${item.draftNumber || '-'}</div>
+                    <div><strong>رقم الإشعار النهائي:</strong> ${item.finalNumber || '-'}</div>
+                </div>
+                <div class="info-box">
+                    <h4>المبالغ</h4>
+                    <div><strong>العملة:</strong> ${currencySymbol}</div>
+                    <div><strong>سعر الصرف:</strong> ${item.exchangeRate.toFixed(4)}</div>
+                    <div><strong>الحالة:</strong> ${item.status || '-'}</div>
+                </div>
+            </div>
+            
+            ${itemsHtml}
+            
+            <div class="summary-box">
+                <div class="summary-row"><span>صافي إشعار الخصم:</span><span>${formatNumberWithCommas(net.toFixed(2))} ${currencySymbol}</span></div>
+                <div class="summary-row"><span>إجمالي الضرائب:</span><span>${formatNumberWithCommas(tax.toFixed(2))} ${currencySymbol}</span></div>
+                <div class="summary-row total"><span>إجمالي الإشعار بعد الضريبة:</span><span>${formatNumberWithCommas(total.toFixed(2))} ${currencySymbol}</span></div>
+            </div>
+            
+            ${item.notes ? `<div class="notes-box"><strong>ملاحظات:</strong> ${item.notes}</div>` : ''}
+            
+            <div class="footer">
+                <p>شكراً لتعاملكم مع ${COMPANY_INFO.name}</p>
+                <p>تم إنشاء هذا الإشعار إلكترونياً - تاريخ الطباعة: ${new Date().toLocaleDateString('ar-EG')}</p>
+            </div>
+        </div>
+    </body>
+    </html>`;
+}
+
+/**
+ * طباعة إشعار الخصم
+ */
+window.printCreditNote = function() {
+    console.log('تم استدعاء printCreditNote');
+    
+    let item = null;
+    if (currentCreditData) {
+        item = currentCreditData;
+    } else if (currentCreditSerial) {
+        item = creditData.find(d => d.serial == currentCreditSerial);
+    }
+    
+    if (!item) {
+        showNotification('لا توجد بيانات للإشعار', 'error');
+        return;
+    }
+    
+    const printWindow = window.open('', '_blank', 'width=1100,height=800');
+    if (!printWindow) {
+        showNotification('الرجاء السماح للنوافذ المنبثقة', 'error');
+        return;
+    }
+    
+    const printHtml = generateCreditPrintHTML(item);
+    printWindow.document.write(printHtml);
+    printWindow.document.close();
+    printWindow.focus();
+    
+    setTimeout(() => {
+        printWindow.print();
+    }, 500);
+};
+
+window.exportCreditNotePDF = async function() {
+    console.log('تم استدعاء exportCreditNotePDF');
+    
+    let item = null;
+    if (currentCreditData) {
+        item = currentCreditData;
+    } else if (currentCreditSerial) {
+        item = creditData.find(d => d.serial == currentCreditSerial);
+    }
+    
+    if (!item) {
+        showNotification('لا توجد بيانات للإشعار', 'error');
+        return;
+    }
+    
+    // محاولة العثور على عنصر الطباعة في النافذة الحالية
+    let element = document.getElementById('creditPrint');
+    let isTempElement = false;
+    
+    if (!element) {
+        // إذا لم يكن موجوداً، نقوم بإنشاء نسخة مؤقتة
+        const tempDiv = document.createElement('div');
+        tempDiv.style.position = 'absolute';
+        tempDiv.style.left = '-9999px';
+        tempDiv.style.top = '-9999px';
+        tempDiv.innerHTML = generateCreditPrintHTML(item);
+        document.body.appendChild(tempDiv);
+        element = tempDiv.firstChild;
+        isTempElement = true;
+    }
+    
+    if (typeof window.jspdf === 'undefined' || typeof window.html2canvas === 'undefined') {
+        showNotification('جاري تحميل مكتبات PDF...', 'info');
+        if (isTempElement && element && element.parentElement) element.parentElement.remove();
+        return;
+    }
+    
+    const loading = document.createElement('div');
+    loading.style.cssText = 'position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:#4361ee;color:white;padding:15px 30px;border-radius:8px;z-index:10000;';
+    loading.innerHTML = '<i class="fas fa-spinner fa-spin"></i> جاري إنشاء PDF...';
+    document.body.appendChild(loading);
+    
+    try {
+        const canvas = await html2canvas(element, {
+            scale: 1.5,
+            backgroundColor: '#ffffff',
+            logging: false,
+            useCORS: true,
+            imageTimeout: 0
+        });
+        
+        const imgData = canvas.toDataURL('image/jpeg', 0.85);
+        const { jsPDF } = window.jspdf;
+        const pdf = new jsPDF({
+            orientation: 'portrait',
+            unit: 'mm',
+            format: 'a4',
+            compress: true
+        });
+        
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+        
+        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+        pdf.save(`إشعار_خصم_${item.finalNumber || item.draftNumber || item.serial}.pdf`);
+        
+        showNotification('تم التصدير بنجاح', 'success');
+        
+    } catch (error) {
+        console.error('خطأ في إنشاء PDF:', error);
+        showNotification('حدث خطأ في إنشاء PDF: ' + error.message, 'error');
+    } finally {
+        loading.remove();
+        // ✅ إزالة العنصر المؤقت فقط إذا تم إنشاؤه، وليس العنصر الأصلي
+        if (isTempElement && element && element.parentElement) {
+            element.parentElement.remove();
+        }
+        // ✅ لا نغلق النافذة المنبثقة
+        // ✅ لا نعدل على modalBody أو أي شيء آخر
+    }
+};
+
+window.exportCreditNoteExcel = function() {
+    console.log('تم استدعاء exportCreditNoteExcel');
+    
+    let item = null;
+    if (currentCreditData) {
+        item = currentCreditData;
+    } else if (currentCreditSerial) {
+        item = creditData.find(d => d.serial == currentCreditSerial);
+    }
+    
+    if (!item) {
+        showNotification('لا توجد بيانات للإشعار', 'error');
+        return;
+    }
+    
+    const net = item.displayAmount;
+    const tax = item.displayTax;
+    const total = net + tax;
+    const currencySymbol = item.currency === 'USAD' ? 'USAD' : 'EGP';
+    
+    const excelData = [
+        ['إشعار خصم'],
+        [`رقم الإشعار: ${item.finalNumber || item.draftNumber || '-'}`],
+        [`رقم المسودة: ${item.draftNumber || '-'}`],
+        [`رقم الفاتورة الأصلية: ${item.invoiceFinalNumber || '-'}`],
+        [`العميل: ${item.customer || '-'}`],
+        [`الرقم الضريبي: ${item.customerId || '-'}`],
+        [`التاريخ: ${item.date || '-'}`],
+        [`العملة: ${currencySymbol}`],
+        [`سعر الصرف: ${item.exchangeRate.toFixed(4)}`],
+        [`الحالة: ${item.status || '-'}`],
+        [],
+        ['الكمية', 'السعر', 'المبلغ بعد سعر الصرف']
+    ];
+    
+    if (item.items && item.items.length > 0) {
+        item.items.forEach(i => {
+            excelData.push([
+                i.quantity,
+                i.rateCredited.toFixed(2),
+                `${i.displayAmount.toFixed(2)} ${currencySymbol}`
+            ]);
+        });
+    } else {
+        excelData.push(['لا توجد بنود', '', '']);
+    }
+    
+    excelData.push([], ['ملخص']);
+    excelData.push(['صافي إشعار الخصم:', `${net.toFixed(2)} ${currencySymbol}`]);
+    excelData.push(['إجمالي الضرائب:', `${tax.toFixed(2)} ${currencySymbol}`]);
+    excelData.push(['إجمالي الإشعار بعد الضريبة:', `${total.toFixed(2)} ${currencySymbol}`]);
+    
+    if (item.notes) {
+        excelData.push(['ملاحظات:', item.notes]);
+    }
+    
+    const wb = XLSX.utils.book_new();
+    const ws = XLSX.utils.aoa_to_sheet(excelData);
+    ws['!cols'] = [{ wch: 25 }, { wch: 20 }];
+    XLSX.utils.book_append_sheet(wb, ws, 'إشعار خصم');
+    
+    XLSX.writeFile(wb, `إشعار_خصم_${item.finalNumber || item.draftNumber || item.serial}.xlsx`);
+    showNotification('تم تصدير Excel بنجاح', 'success');
+};
+
+// بناء واجهة البحث للفواتير
+function buildInvoiceSearchUI() {
+    const advancedSearch = document.querySelector('.advanced-search');
+    if (!advancedSearch) return;
+    const searchBody = advancedSearch.querySelector('.search-body');
+    if (!searchBody) return;
+    searchBody.innerHTML = `
+        <div class="search-grid">
+            <div class="search-field">
+                <label><i class="fas fa-hashtag"></i> رقم الفاتورة النهائي</label>
+                <input type="text" id="searchFinalNumber" placeholder="مثال: C25-22491">
+            </div>
+            <div class="search-field">
+                <label><i class="fas fa-file-signature"></i> رقم المسودة</label>
+                <input type="text" id="searchDraftNumber" placeholder="مثال: 263531">
+            </div>
+            <div class="search-field">
+                <label><i class="fas fa-user-tie"></i> اسم العميل</label>
+                <input type="text" id="searchCustomer" placeholder="اسم العميل...">
+            </div>
+            <div class="search-field">
+                <label><i class="fas fa-ship"></i> اسم السفينة</label>
+                <input type="text" id="searchVessel" placeholder="اسم السفينة...">
+            </div>
+            <div class="search-field">
+                <label><i class="fas fa-barcode"></i> رقم البوليصة</label>
+                <input type="text" id="searchBlNumber" placeholder="رقم البوليصة...">
+            </div>
+            <div class="search-field">
+                <label><i class="fas fa-container-storage"></i> رقم الحاوية</label>
+                <input type="text" id="searchContainer" placeholder="رقم الحاوية...">
+            </div>
+            <div class="search-field">
+                <label><i class="fas fa-tag"></i> الحالة</label>
+                <select id="searchStatus">
+                    <option value="">الكل</option>
+                    <option value="FINAL">نهائية (FINAL)</option>
+                    <option value="DRAFT">مسودة (DRAFT)</option>
+                </select>
+            </div>
+            <div class="search-field">
+                <label><i class="fas fa-calendar"></i> من تاريخ</label>
+                <input type="date" id="searchDateFrom">
+            </div>
+            <div class="search-field">
+                <label><i class="fas fa-calendar"></i> إلى تاريخ</label>
+                <input type="date" id="searchDateTo">
+            </div>
+            <div class="search-field">
+                <label><i class="fas fa-tag"></i> نوع الفاتورة</label>
+                <select id="searchInvoiceType">
+                    <option value="">الكل</option>
+                    <option value="cash">نقدي</option>
+                    <option value="postponed">أجل</option>
+                </select>
+            </div>
+        </div>
+        <div class="search-actions">
+            <button class="btn btn-primary" onclick="applyAdvancedSearch()"><i class="fas fa-filter"></i> تطبيق البحث</button>
+            <button class="btn btn-secondary" onclick="resetAdvancedSearch()"><i class="fas fa-undo"></i> إعادة ضبط</button>
+        </div>
+    `;
+}
+
+// بناء واجهة البحث لإشعارات الخصم
+function buildCreditSearchUI() {
+    const advancedSearch = document.querySelector('.advanced-search');
+    if (!advancedSearch) return;
+    const searchBody = advancedSearch.querySelector('.search-body');
+    if (!searchBody) return;
+    searchBody.innerHTML = `
+        <div class="search-grid">
+            <div class="search-field">
+                <label><i class="fas fa-hashtag"></i> رقم الإشعار</label>
+                <input type="text" id="creditSearchSerial" placeholder="رقم الإشعار أو رقم المسودة">
+            </div>
+            <div class="search-field">
+                <label><i class="fas fa-user"></i> اسم العميل</label>
+                <input type="text" id="creditSearchCustomer" placeholder="اسم العميل...">
+            </div>
+            <div class="search-field">
+                <label><i class="fas fa-file-invoice"></i> رقم الفاتورة الأصلية</label>
+                <input type="text" id="creditSearchInvoiceNumber" placeholder="رقم الفاتورة الأصلية...">
+            </div>
+            <div class="search-field">
+                <label><i class="fas fa-calendar"></i> من تاريخ الإشعار</label>
+                <input type="date" id="creditSearchDateFrom">
+            </div>
+            <div class="search-field">
+                <label><i class="fas fa-calendar"></i> إلى تاريخ الإشعار</label>
+                <input type="date" id="creditSearchDateTo">
+            </div>
+            <div class="search-field">
+                <label><i class="fas fa-tag"></i> الحالة</label>
+                <select id="creditSearchStatus">
+                    <option value="">الكل</option>
+                    <option value="FINAL">نهائي</option>
+                    <option value="DRAFT">مسودة</option>
+                </select>
+            </div>
+        </div>
+        <div class="search-actions">
+            <button class="btn btn-primary" onclick="applyCreditSearch()"><i class="fas fa-filter"></i> تطبيق البحث</button>
+            <button class="btn btn-secondary" onclick="resetCreditSearch()"><i class="fas fa-undo"></i> إعادة ضبط</button>
+        </div>
+    `;
+    // فتح جسم البحث تلقائيًا
+    if (!searchBody.classList.contains('show')) {
+        searchBody.classList.add('show');
+        const icon = advancedSearch.querySelector('#searchToggleIcon');
+        if (icon) icon.style.transform = 'rotate(180deg)';
+    }
+}
+
+// تطبيق البحث على إشعارات الخصم
+window.applyCreditSearch = function() {
+    const serial = document.getElementById('creditSearchSerial')?.value.trim().toLowerCase() || '';
+    const customer = document.getElementById('creditSearchCustomer')?.value.trim().toLowerCase() || '';
+    const invoiceNumber = document.getElementById('creditSearchInvoiceNumber')?.value.trim().toLowerCase() || '';
+    const dateFrom = document.getElementById('creditSearchDateFrom')?.value;
+    const dateTo = document.getElementById('creditSearchDateTo')?.value;
+    const status = document.getElementById('creditSearchStatus')?.value;
+
+    let filtered = [...creditData];
+    
+    if (serial) {
+        filtered = filtered.filter(c => 
+            (c.serial && c.serial.toLowerCase().includes(serial)) || 
+            (c.draftNumber && c.draftNumber.toLowerCase().includes(serial)) ||
+            (c.finalNumber && c.finalNumber.toLowerCase().includes(serial))
+        );
+    }
+    if (customer) {
+        filtered = filtered.filter(c => (c.customer || '').toLowerCase().includes(customer));
+    }
+    if (invoiceNumber) {
+        filtered = filtered.filter(c => (c.invoiceFinalNumber || '').toLowerCase().includes(invoiceNumber));
+    }
+    if (dateFrom) {
+        const fromDate = new Date(dateFrom);
+        fromDate.setHours(0,0,0,0);
+        filtered = filtered.filter(c => {
+            if (!c.date) return false;
+            const d = new Date(c.date);
+            return d >= fromDate;
+        });
+    }
+    if (dateTo) {
+        const toDate = new Date(dateTo);
+        toDate.setHours(23,59,59,999);
+        filtered = filtered.filter(c => {
+            if (!c.date) return false;
+            const d = new Date(c.date);
+            return d <= toDate;
+        });
+    }
+    if (status) {
+        filtered = filtered.filter(c => c.status === status);
+    }
+    
+    filteredCreditData = filtered;
+    currentCreditPage = 1;
+    renderCreditData();
+    showNotification(`تم العثور على ${filtered.length} إشعار خصم`, filtered.length ? 'success' : 'info');
+};
+
+// إعادة ضبط البحث في إشعارات الخصم
+window.resetCreditSearch = function() {
+    document.getElementById('creditSearchSerial').value = '';
+    document.getElementById('creditSearchCustomer').value = '';
+    document.getElementById('creditSearchInvoiceNumber').value = '';
+    document.getElementById('creditSearchDateFrom').value = '';
+    document.getElementById('creditSearchDateTo').value = '';
+    document.getElementById('creditSearchStatus').value = '';
+    filteredCreditData = [...creditData];
+    currentCreditPage = 1;
+    renderCreditData();
+    showNotification('تم إعادة ضبط البحث', 'info');
+};
+
+
+// ============================================
 // التهيئة الرئيسية
 // ============================================
 document.addEventListener('DOMContentLoaded', async () => {
@@ -5323,7 +5488,15 @@ document.addEventListener('DOMContentLoaded', async () => {
         checkSession();
         
         document.getElementById('fileInput')?.addEventListener('change', handleFileUpload);
-        document.getElementById('sortSelect')?.addEventListener('change', () => { currentSortField = document.getElementById('sortSelect').value; renderData(); });
+        document.getElementById('sortSelect')?.addEventListener('change', () => { 
+    currentSortField = document.getElementById('sortSelect').value; 
+    if (currentInvoiceType === INVOICE_TYPES.CREDIT) {
+        currentCreditSortField = currentSortField;
+        renderCreditData();
+    } else {
+        renderData();
+    }
+});
         document.getElementById('itemsPerPage')?.addEventListener('change', changeItemsPerPage);
         document.querySelectorAll('#searchFinalNumber, #searchDraftNumber, #searchCustomer, #searchVessel, #searchBlNumber, #searchContainer, #searchStatus, #searchDateFrom, #searchDateTo, #searchInvoiceType').forEach(input => input?.addEventListener('input', debounce(applyAdvancedSearch, 500)));
         window.addEventListener('click', e => { if (e.target === document.getElementById('invoiceModal')) window.closeModal(); });
