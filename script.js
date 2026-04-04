@@ -63,8 +63,8 @@ let driveConfig = {
     usersFileName: 'users.json',
     usersFileId: '1-ktLLXz1Febs44lB-aqfuNmTRs1GNB0w',
     logoFileId: '1DugYxs9a21e6J0ynTu6pE0yHXM2wRXSP',
-    creditFileName: 'credit_data.txt',   // ← جديد
-    creditFileId: ''                     // ← جديد
+    creditFileName: 'creditdata.txt',                // ← تم التغيير
+    creditFileId: '1WU9R9Yby0_QoJeulIgYRuCQk9XV-N_e1' // ← تم الإضافة
 };
 
 // متغيرات التقارير
@@ -256,7 +256,7 @@ async function findUsersFileIdAuto() {
 
 async function findCreditFileIdAuto() {
     if (!driveConfig.apiKey || !driveConfig.folderId) return false;
-    const fileName = driveConfig.creditFileName || 'credit_data.txt';
+    const fileName = driveConfig.creditFileName || 'creditdata.txt';  // القيمة الافتراضية الجديدة
     try {
         const query = encodeURIComponent(`'${driveConfig.folderId}' in parents and name='${fileName}' and trashed=false`);
         const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&key=${driveConfig.apiKey}&fields=files(id,name)`);
@@ -3227,11 +3227,22 @@ window.exportReportExcel = function() {
 // ============================================
 function loadDriveSettings() {
     const saved = localStorage.getItem('driveConfig');
-    if (saved) try { driveConfig = { ...driveConfig, ...JSON.parse(saved) }; } catch { }
-    const fields = ['driveApiKey','driveFolderId','driveFileName','driveFileId','driveUsersFileName','driveUsersFileId','logoFileId','driveCreditFileName','driveCreditFileId'];
+    if (saved) {
+        try {
+            const parsed = JSON.parse(saved);
+            driveConfig = { ...driveConfig, ...parsed };
+        } catch(e) {}
+    }
+    // تعبئة الحقول في نافذة الإعدادات إذا كانت مفتوحة
+    const fields = ['driveApiKey','driveFolderId','driveFileName','driveFileId',
+                    'driveUsersFileName','driveUsersFileId','logoFileId',
+                    'driveCreditFileName','driveCreditFileId'];
     fields.forEach(id => {
         const el = document.getElementById(id);
-        if (el) el.value = driveConfig[id.replace('drive','').charAt(0).toLowerCase() + id.replace('drive','').slice(1)] || '';
+        if (el) {
+            let value = driveConfig[id.replace('drive','').charAt(0).toLowerCase() + id.replace('drive','').slice(1)] || '';
+            el.value = value;
+        }
     });
 }
 
