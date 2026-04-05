@@ -3261,17 +3261,40 @@ function loadDriveSettings() {
     if (saved) {
         try {
             const parsed = JSON.parse(saved);
+            
+            // 🔧 تصحيح القيم القدئة لملف إشعارات الخصم
+            if (parsed.creditFileName === 'credit_data.txt') {
+                parsed.creditFileName = 'creditdata.txt';
+                parsed.creditFileId = '1WU9R9Yby0_QoJeulIgYRuCQk9XV-N_e1';
+                // حفظ التصحيح في localStorage
+                localStorage.setItem('driveConfig', JSON.stringify(parsed));
+            }
+            // إذا كان المعرف فارغاً والاسم صحيحاً، ضع المعرف الافتراضي
+            if (parsed.creditFileName === 'creditdata.txt' && !parsed.creditFileId) {
+                parsed.creditFileId = '1WU9R9Yby0_QoJeulIgYRuCQk9XV-N_e1';
+                localStorage.setItem('driveConfig', JSON.stringify(parsed));
+            }
+            
             driveConfig = { ...driveConfig, ...parsed };
-        } catch(e) {}
+        } catch(e) {
+            console.error('خطأ في تحميل إعدادات Drive:', e);
+        }
     }
-    // تعبئة الحقول في نافذة الإعدادات إذا كانت مفتوحة
-    const fields = ['driveApiKey','driveFolderId','driveFileName','driveFileId',
-                    'driveUsersFileName','driveUsersFileId','logoFileId',
-                    'driveCreditFileName','driveCreditFileId'];
+    
+    // تعبئة الحقول في نافذة الإعدادات إذا كانت مفتوحة (أو لأي استخدام لاحق)
+    const fields = [
+        'driveApiKey', 'driveFolderId', 'driveFileName', 'driveFileId',
+        'driveUsersFileName', 'driveUsersFileId', 'logoFileId',
+        'driveCreditFileName', 'driveCreditFileId'
+    ];
+    
     fields.forEach(id => {
         const el = document.getElementById(id);
         if (el) {
-            let value = driveConfig[id.replace('drive','').charAt(0).toLowerCase() + id.replace('drive','').slice(1)] || '';
+            // تحويل id مثل 'driveApiKey' إلى 'apiKey'
+            let key = id.replace('drive', '');
+            key = key.charAt(0).toLowerCase() + key.slice(1);
+            let value = driveConfig[key] || '';
             el.value = value;
         }
     });
