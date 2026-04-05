@@ -39,6 +39,8 @@ let autoSaveEnabled = true;
 // أضف هذه الأسطر مع باقي المتغيرات العامة
 let currentDisplayType = 'invoice'; // 'invoice' أو 'credit'
 let currentCreditData = null; // تخزين بيانات إشعار الخصم الحالي
+// أضف هذا السطر مع المتغيرات العامة (قبل تعريف creditData)
+let currentCreditSerial = null;
 // بيانات إشعارات الخصم
 let creditData = [];
 let filteredCreditData = [];
@@ -600,6 +602,11 @@ function updateUserInterface() {
     document.querySelector('label[for="fileInput"]').style.display = isAdmin ? 'inline-flex' : 'none';
     document.querySelector('.btn-drive').style.display = isAdmin ? 'inline-flex' : 'none';
     document.getElementById('dbControls').style.display = isAdmin ? 'flex' : 'none';
+
+    // ✅ إضافة هذا السطر لبناء واجهة البحث للمستخدم customer
+    if (currentUser && currentUser.userType === 'customer' && !currentUser.isGuest) {
+        buildInvoiceSearchUI();
+    }
 }
 
 window.showChangePassword = function() {
@@ -1148,8 +1155,10 @@ function parseCreditNode(creditElement) {
 window.applyAdvancedSearch = function() {
     if (!invoicesData.length) { filteredInvoices = []; renderData(); return; }
     
-    const [final, draft, cust, vessel, bl, cont, status, from, to, invType] = [
-        'searchFinalNumber', 'searchDraftNumber', 'searchCustomer', 'searchVessel', 'searchBlNumber', 'searchContainer', 'searchStatus', 'searchDateFrom', 'searchDateTo', 'searchInvoiceType'
+    const [final, draft, cust, vessel, bl, cont, status, from, to, invType, contractCustomerId] = [
+        'searchFinalNumber', 'searchDraftNumber', 'searchCustomer', 'searchVessel', 
+        'searchBlNumber', 'searchContainer', 'searchStatus', 'searchDateFrom', 
+        'searchDateTo', 'searchInvoiceType', 'searchContractCustomerId'
     ].map(id => document.getElementById(id)?.value.toLowerCase().trim() || '');
 
     let tempInvoices = [...invoicesData];
@@ -1168,27 +1177,41 @@ window.applyAdvancedSearch = function() {
             if (blNumber) match = match && (inv['key-word2'] || '').toLowerCase().includes(blNumber.toLowerCase());
             return match;
         });
-    } else if (currentUser && currentUser.userType !== 'admin' && !currentUser.isGuest) {
-        const tax = currentUser.taxNumber || '';
-        const contractId = currentUser.contractCustomerId || '';
-        tempInvoices = tempInvoices.filter(inv => {
-            const num = inv['final-number'] || '';
-            const isPostponed = num.startsWith('P') || num.startsWith('p');
-            if (isPostponed) return contractId && (inv['contract-customer-id'] || '').trim().toLowerCase() === contractId.trim().toLowerCase();
-            else return (inv['payee-customer-id'] || '').toLowerCase().includes(tax.toLowerCase()) || (inv['contract-customer-id'] || '').toLowerCase().includes(tax.toLowerCase());
-        });
+    } 
+    else if (currentUser && currentUser.userType !== 'admin' && !currentUser.isGuest) {
+        let allowedIds = [];
+        if (currentUser.contractCustomerId) allowedIds.push(currentUser.contractCustomerId);
+        if (currentUser.customerIds && Array.isArray(currentUser.customerIds)) {
+            allowedIds = allowedIds.concat(currentUser.customerIds);
+        }
+        allowedIds = [...new Set(allowedIds.map(id => id.toLowerCase()))];
+        
+        if (allowedIds.length === 0) {
+            tempInvoices = [];
+        } else {
+            tempInvoices = tempInvoices.filter(inv => {
+                const payeeId = (inv['payee-customer-id'] || '').toLowerCase();
+                const contractId = (inv['contract-customer-id'] || '').toLowerCase();
+                return allowedIds.some(id => payeeId === id || contractId === id);
+            });
+        }
     }
 
     const searched = tempInvoices.filter(inv => {
         if (final && !(inv['final-number'] || '').toLowerCase().includes(final)) return false;
         if (draft && !(inv['draft-number'] || '').toLowerCase().includes(draft)) return false;
-        if (cust && !(inv['payee-customer-id'] || '').toLowerCase().includes(cust)) return false;
+        if (cust) {
+            const payeeMatch = (inv['payee-customer-id'] || '').toLowerCase().includes(cust);
+            const contractMatch = (inv['contract-customer-id'] || '').toLowerCase().includes(cust);
+            if (!payeeMatch && !contractMatch) return false;
+        }
         if (vessel && !(inv['key-word1'] || '').toLowerCase().includes(vessel)) return false;
         if (bl && !(inv['key-word2'] || '').toLowerCase().includes(bl)) return false;
         if (cont) {
             const found = inv.charges.some(c => (c['entity-id'] || '').toLowerCase().includes(cont));
             if (!found) return false;
         }
+        if (contractCustomerId && !(inv['contract-customer-id'] || '').toLowerCase().includes(contractCustomerId)) return false;
         if (status && inv['status'] !== status) return false;
         if (invType) {
             const num = inv['final-number'] || '';
@@ -1199,7 +1222,6 @@ window.applyAdvancedSearch = function() {
             const invDateStr = inv['finalized-date'] || inv['created'] || '';
             const invDate = new Date(invDateStr);
             if (isNaN(invDate)) return true;
-            
             if (from) {
                 const fromDate = new Date(from);
                 fromDate.setHours(0, 0, 0, 0);
@@ -1222,8 +1244,19 @@ window.applyAdvancedSearch = function() {
 };
 
 window.resetAdvancedSearch = function() {
-    ['searchFinalNumber', 'searchDraftNumber', 'searchCustomer', 'searchVessel', 'searchBlNumber', 'searchContainer', 'searchStatus', 'searchDateFrom', 'searchDateTo', 'searchInvoiceType']
-        .forEach(id => document.getElementById(id).value = '');
+    const searchFields = ['searchFinalNumber', 'searchDraftNumber', 'searchCustomer', 'searchVessel', 
+                          'searchBlNumber', 'searchContainer', 'searchStatus', 'searchDateFrom', 
+                          'searchDateTo', 'searchInvoiceType', 'searchContractCustomerId'];
+    searchFields.forEach(id => {
+        const el = document.getElementById(id);
+        if (el) {
+            if (el.tagName === 'SELECT') {
+                el.value = '';
+            } else {
+                el.value = '';
+            }
+        }
+    });
     currentUser?.isGuest ? filterInvoicesByGuest(currentUser.taxNumber, currentUser.blNumber) : filterInvoicesByUser();
     clearSelectedInvoices();
     showNotification('تم إعادة ضبط البحث', 'info');
@@ -3416,9 +3449,14 @@ async function loadCreditDataFromDrive() {
 
         if (!newCredits.length) throw new Error('لا توجد إشعارات خصم صالحة');
         
+        // ✅ حفظ البيانات وتطبيق التصفية
         creditData = newCredits;
         console.log('✅ loadCreditDataFromDrive: تم تحميل', creditData.length, 'إشعار خصم');
         showProgress('تم التحميل', 100);
+        
+        // تطبيق صلاحيات المستخدم على البيانات فوراً
+        filterCreditData();
+        
         return true;
         
     } catch (error) {
@@ -3501,14 +3539,19 @@ function debugCreditData() {
 
 function filterCreditData() {
     console.log('=== filterCreditData ===');
-    console.log('creditData.length:', creditData.length);
     if (!creditData.length) {
         filteredCreditData = [];
         renderCreditData();
         return;
     }
-    filteredCreditData = [...creditData];
-    console.log('filteredCreditData.length:', filteredCreditData.length);
+    
+    // تطبيق تصفية حسب صلاحيات المستخدم
+    let temp = filterCreditByUser(creditData);
+    
+    // تطبيق أي تصفية إضافية من البحث (إذا كانت هناك معايير بحث مخزنة)
+    // سنقوم بتطبيقها داخل applyCreditSearch، لذا نكتفي بالتصفية الأساسية هنا
+    filteredCreditData = temp;
+    console.log('filteredCreditData.length بعد التصفية:', filteredCreditData.length);
     renderCreditData();
 }
 
@@ -3740,6 +3783,19 @@ function changeCreditPage(page) {
 function showCreditDetails(serial) {
     const item = creditData.find(d => d.serial == serial);
     if (!item) return;
+    
+    // التحقق من صلاحية المستخدم
+    const allowed = filterCreditByUser([item]);
+    if (allowed.length === 0) {
+        showNotification('غير مصرح لك بعرض هذا الإشعار', 'error');
+        return;
+    }
+    
+    currentDisplayType = 'credit';
+    currentCreditData = item;
+    currentCreditSerial = serial;
+    // ... باقي الكود
+
 		currentDisplayType = 'credit';
 		currentCreditData = item;
 		currentCreditSerial = serial;
@@ -3889,8 +3945,15 @@ function exportSelectedCreditExcel() {
         showNotification('لم يتم تحديد أي إشعارات', 'warning');
         return;
     }
-
-    const selectedItems = creditData.filter(item => selectedCreditNotes.has(item.serial));
+    
+    const allSelected = creditData.filter(item => selectedCreditNotes.has(item.serial));
+    const allowedItems = filterCreditByUser(allSelected);
+    
+    if (allowedItems.length === 0) {
+        showNotification('لا توجد إشعارات مصرح بها للتصدير', 'error');
+        return;
+    }
+    
     const excelData = [
         ['إشعارات الخصم المحددة'],
         ['تاريخ التقرير: ' + new Date().toLocaleDateString('ar-EG')],
@@ -3898,7 +3961,7 @@ function exportSelectedCreditExcel() {
         ['رقم الإشعار', 'رقم المسودة', 'رقم الفاتورة الأصلية', 'العميل', 'صافي إشعار الخصم', 'إجمالي الضرائب', 'إجمالي الإشعار بعد الضريبة', 'العملة', 'سعر الصرف', 'التاريخ', 'الحالة', 'ملاحظات']
     ];
 
-    selectedItems.forEach(item => {
+    allowedItems.forEach(item => {
         const net = item.displayAmount;
         const tax = item.displayTax;
         const total = net + tax;
@@ -3927,7 +3990,7 @@ function exportSelectedCreditExcel() {
 
     const fileName = `إشعارات_خصم_${new Date().toLocaleDateString('ar-EG').replace(/\//g, '-')}.xlsx`;
     XLSX.writeFile(wb, fileName);
-    showNotification(`تم تصدير ${selectedItems.length} إشعار بنجاح`, 'success');
+    showNotification(`تم تصدير ${allowedItems.length} إشعار بنجاح`, 'success');
 }
 
 async function exportSelectedCreditPDF() {
@@ -4147,6 +4210,47 @@ function renderCreditPagination(totalPages) {
     
     document.getElementById('pagination').innerHTML = html;
 }
+
+function filterCreditByUser(creditArray) {
+    if (!creditArray.length) return [];
+    
+    // المدير أو المحاسب يرى كل الإشعارات
+    if (currentUser && (currentUser.userType === 'admin' || currentUser.userType === 'accountant')) {
+        return [...creditArray];
+    }
+    
+    // مستخدم ضيف
+    if (currentUser?.isGuest) {
+        const taxNumber = currentUser.taxNumber;
+        if (!taxNumber) return []; // لا توجد بيانات ضريبية -> لا شيء
+        return creditArray.filter(credit => 
+            credit.customerId && credit.customerId.toLowerCase() === taxNumber.toLowerCase()
+        );
+    }
+    
+    // مستخدم عادي (عميل)
+    if (currentUser && currentUser.userType === 'customer') {
+        // تجميع جميع المعرفات المسموحة (taxNumber, contractCustomerId, customerIds)
+        let allowedIds = [];
+        if (currentUser.taxNumber) allowedIds.push(currentUser.taxNumber);
+        if (currentUser.contractCustomerId) allowedIds.push(currentUser.contractCustomerId);
+        if (currentUser.customerIds && Array.isArray(currentUser.customerIds)) {
+            allowedIds = allowedIds.concat(currentUser.customerIds);
+        }
+        allowedIds = [...new Set(allowedIds.map(id => id.toLowerCase()))];
+        
+        if (allowedIds.length === 0) return [];
+        
+        return creditArray.filter(credit => {
+            const creditCustomerId = (credit.customerId || '').toLowerCase();
+            return allowedIds.some(id => creditCustomerId === id);
+        });
+    }
+    
+    // أي حالة أخرى (غير مسجل الدخول) -> لا شيء
+    return [];
+}
+
 
 async function loadInvoicesFromDrive() {
     if (!driveConfig.apiKey || !driveConfig.folderId) return false;
@@ -5305,6 +5409,36 @@ function buildInvoiceSearchUI() {
     if (!advancedSearch) return;
     const searchBody = advancedSearch.querySelector('.search-body');
     if (!searchBody) return;
+    
+    // تحديد نوع حقل اسم العميل بناءً على نوع المستخدم
+    let customerFieldHtml = '';
+    const isCustomerUser = currentUser && currentUser.userType === 'customer' && !currentUser.isGuest;
+    
+    if (isCustomerUser && currentUser.customerIds && currentUser.customerIds.length > 0) {
+        // إنشاء قائمة منسدلة تحتوي على customerIds الخاصة بالمستخدم
+        let options = '<option value="">الكل</option>';
+        currentUser.customerIds.forEach(id => {
+            const escapedId = id.replace(/"/g, '&quot;');
+            options += `<option value="${escapedId}">${escapedId}</option>`;
+        });
+        customerFieldHtml = `
+            <div class="search-field">
+                <label><i class="fas fa-user-tie"></i> اسم العميل</label>
+                <select id="searchCustomer">
+                    ${options}
+                </select>
+            </div>
+        `;
+    } else {
+        // حقل نصي عادي للمدير والمحاسب والزائر
+        customerFieldHtml = `
+            <div class="search-field">
+                <label><i class="fas fa-user-tie"></i> اسم العميل</label>
+                <input type="text" id="searchCustomer" placeholder="اسم العميل...">
+            </div>
+        `;
+    }
+    
     searchBody.innerHTML = `
         <div class="search-grid">
             <div class="search-field">
@@ -5315,10 +5449,7 @@ function buildInvoiceSearchUI() {
                 <label><i class="fas fa-file-signature"></i> رقم المسودة</label>
                 <input type="text" id="searchDraftNumber" placeholder="مثال: 263531">
             </div>
-            <div class="search-field">
-                <label><i class="fas fa-user-tie"></i> اسم العميل</label>
-                <input type="text" id="searchCustomer" placeholder="اسم العميل...">
-            </div>
+            ${customerFieldHtml}
             <div class="search-field">
                 <label><i class="fas fa-ship"></i> اسم السفينة</label>
                 <input type="text" id="searchVessel" placeholder="اسم السفينة...">
@@ -5422,8 +5553,10 @@ window.applyCreditSearch = function() {
     const dateTo = document.getElementById('creditSearchDateTo')?.value;
     const status = document.getElementById('creditSearchStatus')?.value;
 
-    let filtered = [...creditData];
+    // الخطوة 1: تصفية حسب صلاحيات المستخدم (بدون البحث)
+    let filtered = filterCreditByUser(creditData);
     
+    // الخطوة 2: تطبيق معايير البحث الإضافية
     if (serial) {
         filtered = filtered.filter(c => 
             (c.serial && c.serial.toLowerCase().includes(serial)) || 
@@ -5473,7 +5606,9 @@ window.resetCreditSearch = function() {
     document.getElementById('creditSearchDateFrom').value = '';
     document.getElementById('creditSearchDateTo').value = '';
     document.getElementById('creditSearchStatus').value = '';
-    filteredCreditData = [...creditData];
+    
+    // إعادة تعيين إلى القائمة المصفاة حسب الصلاحيات (بدون بحث)
+    filteredCreditData = filterCreditByUser(creditData);
     currentCreditPage = 1;
     renderCreditData();
     showNotification('تم إعادة ضبط البحث', 'info');
