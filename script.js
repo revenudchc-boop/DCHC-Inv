@@ -603,10 +603,8 @@ function updateUserInterface() {
     document.querySelector('.btn-drive').style.display = isAdmin ? 'inline-flex' : 'none';
     document.getElementById('dbControls').style.display = isAdmin ? 'flex' : 'none';
 
-    // ✅ إضافة هذا السطر لبناء واجهة البحث للمستخدم customer
-    if (currentUser && currentUser.userType === 'customer' && !currentUser.isGuest) {
-        buildInvoiceSearchUI();
-    }
+    // ✅ بناء واجهة البحث المتقدم لكل المستخدمين (الدالة الداخلية ستقرر القائمة أو النص)
+    buildInvoiceSearchUI();
 }
 
 window.showChangePassword = function() {
@@ -4214,41 +4212,47 @@ function renderCreditPagination(totalPages) {
 function filterCreditByUser(creditArray) {
     if (!creditArray.length) return [];
     
-    // المدير أو المحاسب يرى كل الإشعارات
-    if (currentUser && (currentUser.userType === 'admin' || currentUser.userType === 'accountant')) {
+    // المدير يرى كل الإشعارات
+    if (currentUser && currentUser.userType === 'admin') {
         return [...creditArray];
+    }
+    
+    // المحاسب الحقيقي (بدون معرفات عميل) يرى كل الإشعارات
+    // ولكن إذا كان المحاسب لديه معرفات عميل، فيُعامل كعميل
+    if (currentUser && currentUser.userType === 'accountant') {
+        // التحقق مما إذا كان للمحاسب معرفات عميل (customerIds أو contractCustomerId)
+        const hasCustomerIds = (currentUser.customerIds && currentUser.customerIds.length > 0) || currentUser.contractCustomerId;
+        if (!hasCustomerIds) {
+            return [...creditArray]; // محاسب بدون معرفات -> يرى كل شيء
+        }
+        // إذا كان لديه معرفات، نكمل إلى منطق العميل أدناه
     }
     
     // مستخدم ضيف
     if (currentUser?.isGuest) {
         const taxNumber = currentUser.taxNumber;
-        if (!taxNumber) return []; // لا توجد بيانات ضريبية -> لا شيء
+        if (!taxNumber) return [];
         return creditArray.filter(credit => 
             credit.customerId && credit.customerId.toLowerCase() === taxNumber.toLowerCase()
         );
     }
     
-    // مستخدم عادي (عميل)
-    if (currentUser && currentUser.userType === 'customer') {
-        // تجميع جميع المعرفات المسموحة (taxNumber, contractCustomerId, customerIds)
-        let allowedIds = [];
-        if (currentUser.taxNumber) allowedIds.push(currentUser.taxNumber);
-        if (currentUser.contractCustomerId) allowedIds.push(currentUser.contractCustomerId);
-        if (currentUser.customerIds && Array.isArray(currentUser.customerIds)) {
-            allowedIds = allowedIds.concat(currentUser.customerIds);
-        }
-        allowedIds = [...new Set(allowedIds.map(id => id.toLowerCase()))];
-        
-        if (allowedIds.length === 0) return [];
-        
-        return creditArray.filter(credit => {
-            const creditCustomerId = (credit.customerId || '').toLowerCase();
-            return allowedIds.some(id => creditCustomerId === id);
-        });
+    // منطق العميل (سواء كان userType = 'customer' أو محاسب له معرفات)
+    // تجميع جميع المعرفات المسموحة
+    let allowedIds = [];
+    if (currentUser.taxNumber) allowedIds.push(currentUser.taxNumber);
+    if (currentUser.contractCustomerId) allowedIds.push(currentUser.contractCustomerId);
+    if (currentUser.customerIds && Array.isArray(currentUser.customerIds)) {
+        allowedIds = allowedIds.concat(currentUser.customerIds);
     }
+    allowedIds = [...new Set(allowedIds.map(id => id.toLowerCase()))];
     
-    // أي حالة أخرى (غير مسجل الدخول) -> لا شيء
-    return [];
+    if (allowedIds.length === 0) return [];
+    
+    return creditArray.filter(credit => {
+        const creditCustomerId = (credit.customerId || '').toLowerCase();
+        return allowedIds.some(id => creditCustomerId === id);
+    });
 }
 
 
@@ -5410,27 +5414,41 @@ function buildInvoiceSearchUI() {
     const searchBody = advancedSearch.querySelector('.search-body');
     if (!searchBody) return;
     
-    // تحديد نوع حقل اسم العميل بناءً على نوع المستخدم
     let customerFieldHtml = '';
-    const isCustomerUser = currentUser && currentUser.userType === 'customer' && !currentUser.isGuest;
+    const isAdmin = currentUser && currentUser.userType === 'admin';
     
-    if (isCustomerUser && currentUser.customerIds && currentUser.customerIds.length > 0) {
-        // إنشاء قائمة منسدلة تحتوي على customerIds الخاصة بالمستخدم
-        let options = '<option value="">الكل</option>';
-        currentUser.customerIds.forEach(id => {
-            const escapedId = id.replace(/"/g, '&quot;');
-            options += `<option value="${escapedId}">${escapedId}</option>`;
-        });
-        customerFieldHtml = `
-            <div class="search-field">
-                <label><i class="fas fa-user-tie"></i> اسم العميل</label>
-                <select id="searchCustomer">
-                    ${options}
-                </select>
-            </div>
-        `;
-    } else {
-        // حقل نصي عادي للمدير والمحاسب والزائر
+    // إذا كان المستخدم ليس مديراً (أي محاسب أو عميل أو زائر) وله معرفات
+    if (!isAdmin && currentUser) {
+        let availableIds = [];
+        // جمع المعرفات من customerIds و contractCustomerId فقط (بدون taxNumber)
+        if (currentUser.customerIds && Array.isArray(currentUser.customerIds)) {
+            availableIds.push(...currentUser.customerIds);
+        }
+        if (currentUser.contractCustomerId && !availableIds.includes(currentUser.contractCustomerId)) {
+            availableIds.push(currentUser.contractCustomerId);
+        }
+        // إزالة التكرار والقيم الفارغة
+        availableIds = [...new Set(availableIds.filter(id => id && id.trim() !== ''))];
+        
+        if (availableIds.length > 0) {
+            let options = '<option value="">الكل</option>';
+            availableIds.forEach(id => {
+                const escapedId = id.replace(/"/g, '&quot;');
+                options += `<option value="${escapedId}">${escapedId}</option>`;
+            });
+            customerFieldHtml = `
+                <div class="search-field">
+                    <label><i class="fas fa-user-tie"></i> اسم العميل</label>
+                    <select id="searchCustomer">
+                        ${options}
+                    </select>
+                </div>
+            `;
+        }
+    }
+    
+    // إذا لم يتم إنشاء القائمة المنسدلة (مدير أو لا توجد معرفات) استخدم الحقل النصي
+    if (!customerFieldHtml) {
         customerFieldHtml = `
             <div class="search-field">
                 <label><i class="fas fa-user-tie"></i> اسم العميل</label>
@@ -5439,6 +5457,7 @@ function buildInvoiceSearchUI() {
         `;
     }
     
+    // بناء واجهة البحث المتقدم كاملة
     searchBody.innerHTML = `
         <div class="search-grid">
             <div class="search-field">
