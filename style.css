@@ -1912,6 +1912,9 @@ header {
 /* ========================================
    تنسيقات إضافية للطباعة و QR Code
 ======================================== */
+.progress-bar-container, .progress-message {
+    z-index: 100001 !important;
+}
 
 /* تحسين عرض QR Code في الطباعة */
 @media print {
