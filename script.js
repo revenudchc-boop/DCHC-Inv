@@ -26,7 +26,7 @@ let currentInvoiceType = INVOICE_TYPES.CASH;
 // المتغيرات العامة
 let invoicesData = [];
 let filteredInvoices = [];
-let sortOrder = 'asc';
+let sortOrder = 'desc';
 let currentSortField = 'final-number';
 let currentPage = 1;
 let itemsPerPage = 25;
