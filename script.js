@@ -220,6 +220,98 @@ async function saveViewedToDrive() {
 // متغير لتخزين الشعار
 let companyLogoBase64 = null;
 
+
+async function checkUnviewedInvoicesAndShowReport() {
+    // انتظار قليلاً للتأكد من تحميل البيانات بالكامل
+    await new Promise(resolve => setTimeout(resolve, 1000));
+    
+    // التأكد من وجود بيانات وفواتير
+    if (!invoicesData.length || !currentUser) {
+        console.log('⚠️ لا توجد بيانات أو مستخدم للمتابعة');
+        return;
+    }
+    
+    // الحصول على الفواتير التي تخص المستخدم الحالي
+    const userInvoices = invoicesData.filter(inv => checkIfInvoiceBelongsToUser(inv));
+    
+    if (userInvoices.length === 0) {
+        console.log('📭 لا توجد فواتير تخص هذا المستخدم');
+        return;
+    }
+    
+    // الفواتير التي لم تتم معاينتها (checkbox فارغ)
+    const unviewedInvoices = userInvoices.filter(inv => {
+        const viewKey = getInvoiceKey(inv);
+        return !viewedInvoices.has(viewKey);
+    });
+    
+    if (unviewedInvoices.length === 0) {
+        console.log('✅ جميع الفواتير تمت معاينتها مسبقاً');
+        return;
+    }
+    
+    console.log(`📋 يوجد ${unviewedInvoices.length} فاتورة غير معاينة`);
+    
+    // تجهيز البيانات للتقرير
+    const sortedInvoices = [...unviewedInvoices].sort((a, b) => {
+        const numA = getInvoiceSerialNumber(a['final-number']);
+        const numB = getInvoiceSerialNumber(b['final-number']);
+        return numA - numB;
+    });
+    
+    // حساب الإجماليات
+    let totals = {
+        usadCharges: 0, usadTaxes: 0, usadTotal: 0,
+        egpCharges: 0, egpTaxes: 0, egpTotal: 0,
+        grandTotal: 0
+    };
+    
+    sortedInvoices.forEach(inv => {
+        const currency = inv['currency'] || 'EGP';
+        const exchangeRate = inv['flex-string-06'] || 48.0215;
+        const martyr = (inv['final-number'] || '').startsWith('P') ? 0 : 5;
+        const total = (inv['total-total'] || 0) + martyr;
+        
+        if (currency === 'USAD') {
+            totals.usadCharges += (inv['total-charges'] || 0) / exchangeRate;
+            totals.usadTaxes += (inv['total-taxes'] || 0) / exchangeRate;
+            totals.usadTotal += total / exchangeRate;
+        } else {
+            totals.egpCharges += (inv['total-charges'] || 0);
+            totals.egpTaxes += (inv['total-taxes'] || 0);
+            totals.egpTotal += total;
+        }
+        totals.grandTotal += total;
+    });
+    
+    // الحصول على الخطوط الملاحية الفريدة
+    const lineOperators = [...new Set(sortedInvoices.map(inv => inv['contract-customer-id']).filter(op => op))];
+    const lineOperatorsText = lineOperators.length ? lineOperators.join(', ') : 'الكل';
+    
+    // التأكد من تحميل الشعار
+    if (!companyLogoBase64) {
+        await loadLogoFromDrive();
+    }
+    
+    // إنشاء HTML التقرير (مع بطاقات الإجماليات)
+    const reportHtmlWithSummary = generateReportHTML(sortedInvoices, {
+        fromDate: '', toDate: '',
+        lineOperatorsText,
+        totals,
+        count: sortedInvoices.length
+    }, companyLogoBase64);
+    
+    // إنشاء HTML بدون بطاقات الإجماليات (لـ PDF)
+    let reportHtmlWithoutSummary = reportHtmlWithSummary;
+    reportHtmlWithoutSummary = reportHtmlWithoutSummary.replace(/<div class="summary-section">[\s\S]*?<\/div>\s*<\/div>\s*<div class="report-footer">/, '<div class="report-footer">');
+    
+    // عرض نافذة المعاينة
+    showReportPreview(reportHtmlWithSummary, reportHtmlWithoutSummary);
+    
+    // إشعار للمستخدم
+    showNotification(`يوجد ${unviewedInvoices.length} فاتورة جديدة لم تتم معاينتها`, 'info');
+}
+
 // ============================================
 // ✅ أضف الدالة هنا 👇
 // ============================================
@@ -5193,6 +5285,10 @@ async function loadInvoicesFromDrive() {
         // تحديث واجهة المستخدم مرة أخيرة
         renderData();
         
+		// بعد تحميل العلامات وتحديث الجدول
+		setTimeout(() => {
+			checkUnviewedInvoicesAndShowReport();
+		}, 500);
         document.getElementById('fileStatus').innerHTML = `<i class="fas fa-check-circle"></i> ✅ تم تحميل ${formatNumberWithCommas(invoicesData.length)} فاتورة من Drive`;
         updateDataSource();
         return true;
