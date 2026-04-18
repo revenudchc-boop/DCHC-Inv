@@ -734,14 +734,14 @@ function generateReportHTML(invoices, reportInfo, logoBase64) {
         
         <div class="summary-section">
             <div class="summary-box"><h4>📊 ملخص العملة USAD</h4>
-                <div class="summary-row"><span>إجمالي المبلغ (USAD):</span><span>${totals.usadCharges.toFixed(2)} دولار</span></div>
-                <div class="summary-row"><span>إجمالي الضريبة (USAD):</span><span>${totals.usadTaxes.toFixed(2)} دولار</span></div>
-                <div class="summary-row total"><span>الإجمالي الكلي (USAD):</span><span>${totals.usadTotal.toFixed(2)} دولار</span></div>
+				<div class="summary-row"><span>إجمالي المبلغ (USAD):</span><span style="font-weight: bold; font-size: 1.1em;">${totals.usadCharges.toFixed(2)} دولار</span></div>
+				<div class="summary-row"><span>إجمالي الضريبة (USAD):</span><span style="font-weight: bold; font-size: 1.1em;">${totals.usadTaxes.toFixed(2)} دولار</span></div>
+				<div class="summary-row total"><span>الإجمالي الكلي (USAD):</span><span style="font-weight: bold; font-size: 1.1em;">${totals.usadTotal.toFixed(2)} دولار</span></div>
             </div>
             <div class="summary-box"><h4>📊 ملخص العملة EGP</h4>
-                <div class="summary-row"><span>إجمالي المبلغ (EGP):</span><span>${totals.egpCharges.toFixed(2)} جنيه</span></div>
-                <div class="summary-row"><span>إجمالي الضريبة (EGP):</span><span>${totals.egpTaxes.toFixed(2)} جنيه</span></div>
-                <div class="summary-row total"><span>الإجمالي الكلي (EGP):</span><span>${totals.egpTotal.toFixed(2)} جنيه</span></div>
+				<div class="summary-row"><span>إجمالي المبلغ (EGP):</span><span style="font-weight: bold; font-size: 1.1em;">${totals.egpCharges.toFixed(2)} جنيه</span></div>
+				<div class="summary-row"><span>إجمالي الضريبة (EGP):</span><span style="font-weight: bold; font-size: 1.1em;">${totals.egpTaxes.toFixed(2)} جنيه</span></div>
+				<div class="summary-row total"><span>الإجمالي الكلي (EGP):</span><span style="font-weight: bold; font-size: 1.1em;">${totals.egpTotal.toFixed(2)} جنيه</span></div>
             </div>
         </div>
         
