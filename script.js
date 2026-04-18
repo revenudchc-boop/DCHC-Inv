@@ -673,30 +673,37 @@ function generateReportHTML(invoices, reportInfo, logoBase64) {
     <head>
         <meta charset="UTF-8">
         <title>تقرير الفواتير المحددة</title>
-		<style>
-			body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; padding: 20px; direction: rtl; background: white; font-weight: bold; }
-			.report-header { background: linear-gradient(135deg, #1e3c72, #2a5298) !important; color: white !important; padding: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
-			.report-header * { color: white !important; }
-			.logo-area { display: flex; align-items: center; gap: 15px; }
-			.logo-placeholder { width: 70px; height: 70px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 3px solid #ffd700; overflow: hidden; }
-			.company-title h1 { font-size: 1.3em; margin: 0; }
-			.company-title p { margin: 5px 0 0; font-size: 0.8em; }
-			.tax-info { font-size: 0.9em; background: rgba(255,255,255,0.2); padding: 8px 15px; border-radius: 8px; }
-			.report-info { background: #f8f9fa; padding: 12px 20px; display: flex; flex-wrap: wrap; gap: 15px; font-weight: bold; border-bottom: 1px solid #ddd; }
-			.report-table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 0.75em; }
-			.report-table th, .report-table td { border: 1px solid #aaa; padding: 8px 4px; text-align: center; }
-			.report-table th { background: #4361ee; color: white; }
-			.total-row { background: #e8f4f8; font-weight: bold; }
-			.page-total-row { background-color: #e8f4f8; font-weight: bold; }
-			.grand-total-row { background-color: #d1ecf1; font-weight: bold; }
-			.summary-section { display: flex; flex-wrap: wrap; gap: 20px; margin-top: 20px; }
-			.summary-box { flex: 1; border-right: 4px solid #4361ee; background: #f8f9fa; padding: 12px; border-radius: 8px; }
-			.summary-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px dashed #ccc; }
-			.summary-row.total { font-weight: bold; color: #1e3c72; border-bottom: none; }
-			.summary-row span:last-child { white-space: nowrap; direction: ltr; text-align: left; font-family: monospace; font-size: 0.85em; }
-			.report-footer { text-align: center; margin-top: 20px; padding: 10px; background: #1e3c72; color: white; font-size: 0.7em; }
-			@media print { body { padding: 0; } }
-		</style>
+<style>
+    body { font-family: 'Segoe UI', Tahoma, sans-serif; margin: 0; padding: 20px; direction: rtl; background: white; }
+    .report-header { background: linear-gradient(135deg, #1e3c72, #2a5298) !important; color: white !important; padding: 20px; display: flex; justify-content: space-between; align-items: center; flex-wrap: wrap; }
+    .report-header * { color: white !important; }
+    .logo-area { display: flex; align-items: center; gap: 15px; }
+    .logo-placeholder { width: 70px; height: 70px; background: white; border-radius: 50%; display: flex; align-items: center; justify-content: center; border: 3px solid #ffd700; overflow: hidden; }
+    .company-title h1 { font-size: 1.3em; margin: 0; }
+    .company-title p { margin: 5px 0 0; font-size: 0.8em; }
+    .tax-info { font-size: 0.9em; background: rgba(255,255,255,0.2); padding: 8px 15px; border-radius: 8px; }
+    .report-info { background: #f8f9fa; padding: 12px 20px; display: flex; flex-wrap: wrap; gap: 15px; border-bottom: 1px solid #ddd; }
+    .report-table { width: 100%; border-collapse: collapse; margin: 15px 0; font-size: 0.75em; }
+    .report-table th, .report-table td { border: 1px solid #aaa; padding: 8px 4px; text-align: center; }
+    .report-table th { background: #4361ee; color: white; }
+    .total-row { background: #e8f4f8; }
+    .page-total-row { background-color: #e8f4f8; }
+    .grand-total-row { background-color: #d1ecf1; }
+    .summary-section { display: flex; flex-wrap: wrap; gap: 20px; margin-top: 20px; }
+    .summary-box { flex: 1; border-right: 4px solid #4361ee; background: #f8f9fa; padding: 12px; border-radius: 8px; }
+    .summary-row { display: flex; justify-content: space-between; padding: 5px 0; border-bottom: 1px dashed #ccc; }
+    .summary-row.total { color: #1e3c72; border-bottom: none; }
+    .summary-row span:last-child { white-space: nowrap; direction: ltr; text-align: left; font-family: monospace; font-size: 0.85em; }
+    .report-footer { text-align: center; margin-top: 20px; padding: 10px; background: #1e3c72; color: white; font-size: 0.7em; }
+    @media print { body { padding: 0; } }
+    
+    /* ✅ جعل جميع الأرقام عريضة */
+    .report-table td,
+    .summary-row span:last-child,
+    .report-info span:last-child {
+        font-weight: bold;
+    }
+</style>
     </head>
     <body>
         <div class="report-header">
