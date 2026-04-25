@@ -3020,10 +3020,11 @@ async function exportSingleInvoice() {
     
     const element = document.getElementById('invoicePrint');
     if (!element) {
-        showNotification('لا توجد فاتورة للطباعة', 'error');
+        showNotification('لا توجد فاتورة للتصدير', 'error');
         return;
     }
     
+    // ✅ الحصول على رقم الفاتورة من البيانات المخزنة
     const inv = invoicesData[selectedInvoiceIndex];
     if (!inv) {
         showNotification('لا توجد بيانات للفاتورة', 'error');
@@ -3037,26 +3038,16 @@ async function exportSingleInvoice() {
     document.body.appendChild(loading);
     
     try {
-        // تجهيز الفاتورة للتصوير
-        const originalHeight = element.style.height;
-        const originalOverflow = element.style.overflow;
-        element.style.height = 'auto';
-        element.style.overflow = 'visible';
-        
-        // التقاط صورة كاملة بدقة عالية
         const canvas = await html2canvas(element, {
-            scale: 2.8,          // دقة أعلى
+            scale: 1.5,
             backgroundColor: '#ffffff',
             logging: false,
+            allowTaint: true,
             useCORS: true,
-            windowWidth: element.scrollWidth,
-            windowHeight: element.scrollHeight
+            imageTimeout: 0
         });
         
-        // استعادة الخصائص
-        element.style.height = originalHeight;
-        element.style.overflow = originalOverflow;
-        
+        const imgData = canvas.toDataURL('image/jpeg', 0.85);
         const { jsPDF } = window.jspdf;
         const pdf = new jsPDF({
             orientation: 'portrait',
@@ -3065,76 +3056,20 @@ async function exportSingleInvoice() {
             compress: true
         });
         
-        // الهوامش (ملم)
-        const marginTop = 12;
-        const marginBottom = 12;
-        const marginLeft = 8;
-        const marginRight = 8;
+        const pdfWidth = pdf.internal.pageSize.getWidth();
+        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
         
-        const pdfWidth = pdf.internal.pageSize.getWidth();   // 210 مم
-        const pdfHeight = pdf.internal.pageSize.getHeight(); // 297 مم
-        
-        const contentWidth = pdfWidth - marginLeft - marginRight;
-        const availableHeight = pdfHeight - marginTop - marginBottom;
-        
-        const imgWidth = canvas.width;
-        const imgHeight = canvas.height;
-        const scaleX = contentWidth / imgWidth;
-        const totalImgHeightMM = imgHeight * scaleX;
-        
-        // تداخل بين الصفحات (بالبكسل) - لمنع قطع النصوص
-        const overlapPx = 25;  // 25 بكسل تداخل (حوالي 5-6 ملم)
-        const overlapMM = overlapPx * scaleX;
-        
-        // حساب عدد الصفحات مع مراعاة التداخل
-        let pages = Math.ceil((totalImgHeightMM - overlapMM) / (availableHeight - overlapMM));
-        if (pages < 1) pages = 1;
-        
-        showProgress(`جاري إنشاء ${pages} صفحة...`, 10);
-        
-        for (let i = 0; i < pages; i++) {
-            if (i > 0) pdf.addPage();
-            
-            // حساب بداية ونهاية الشريحة بالبكسل مع التداخل
-            let startY_px = i * (availableHeight / scaleX);
-            if (i > 0) startY_px -= overlapPx; // تراجع للخلف قليلاً لتجنب القطع
-            
-            // التأكد من عدم تجاوز الحدود
-            startY_px = Math.max(0, startY_px);
-            let endY_px = startY_px + (availableHeight / scaleX) + overlapPx;
-            endY_px = Math.min(imgHeight, endY_px);
-            
-            const sliceHeight_px = endY_px - startY_px;
-            if (sliceHeight_px <= 0) continue;
-            
-            // إنشاء Canvas للشريحة
-            const sliceCanvas = document.createElement('canvas');
-            sliceCanvas.width = imgWidth;
-            sliceCanvas.height = sliceHeight_px;
-            const ctx = sliceCanvas.getContext('2d');
-            ctx.drawImage(canvas, 0, startY_px, imgWidth, sliceHeight_px, 0, 0, imgWidth, sliceHeight_px);
-            
-            const sliceImgData = sliceCanvas.toDataURL('image/jpeg', 0.9);
-            const sliceHeightMM = sliceHeight_px * scaleX;
-            
-            pdf.addImage(sliceImgData, 'JPEG', marginLeft, marginTop, contentWidth, sliceHeightMM);
-            
-            showProgress(`الصفحة ${i+1} من ${pages}`, Math.round(((i+1)/pages)*100));
-        }
-        
+        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
         pdf.save(`فاتورة-${invoiceNumber}.pdf`);
-        showNotification(`تم التصدير (${pages} صفحات) بنجاح`, 'success');
         
+        showNotification('تم التصدير بنجاح', 'success');
     } catch (error) {
-        console.error(error);
-        showNotification('حدث خطأ: ' + error.message, 'error');
+        console.error('خطأ في إنشاء PDF:', error);
+        showNotification('حدث خطأ في إنشاء PDF: ' + error.message, 'error');
     } finally {
         loading.remove();
-        hideProgress();
     }
 }
-
-window.exportSingleInvoice = exportSingleInvoice;
 
 async function exportMultipleInvoices(indices) {
     if (typeof window.jspdf === 'undefined' || typeof window.html2canvas === 'undefined') {
