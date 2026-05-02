@@ -7726,6 +7726,37 @@ window.openMyPayments = async function() {
     currentPaymentPage = 1;
     renderPaymentsView();
 };
+
+// فتح تبويب السدادات (حسب الصلاحية)
+window.openPaymentsTab = async function() {
+    if (!currentUser) return;
+    
+    // تحديث مظهر التبويب
+    document.querySelectorAll('.type-tab').forEach(tab => tab.classList.remove('active'));
+    const paymentsTab = document.querySelector('[onclick="openPaymentsTab()"]');
+    if (paymentsTab) paymentsTab.classList.add('active');
+    
+    // إخفاء تقارير الفواتير إن كانت ظاهرة
+    document.getElementById('reportsContainer').style.display = 'none';
+    document.getElementById('dataViewContainer').style.display = 'block';
+    document.getElementById('pagination').style.display = 'flex';
+    
+    document.getElementById('dataViewContainer').innerHTML = '<div style="text-align:center; padding: 50px;"><i class="fas fa-spinner fa-spin"></i> جاري تحميل السدادات...</div>';
+    document.getElementById('pagination').innerHTML = '';
+    
+    if (currentUser.userType === 'admin') {
+        // المدير يرى كل السدادات
+        await loadPaymentsFromCloud(currentUser.username);
+        filteredPayments = [...paymentsData];
+    } else {
+        // باقي المستخدمين يرون سدادتهم فقط
+        await loadPaymentsFromCloud(currentUser.username);
+        filteredPayments = [...paymentsData];
+    }
+    
+    currentPaymentPage = 1;
+    renderPaymentsView();
+};
 // ============================================
 // التهيئة الرئيسية
 // ============================================
