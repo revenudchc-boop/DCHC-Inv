@@ -7225,12 +7225,84 @@ window.submitPayment = async function() {
     const result = await savePaymentToCloud(paymentData);
     
     if (result?.success) {
+        const paymentId = result.payment.id;
+        
+        // ✅ رفع المرفقات إن وجدت
+        const attachmentInput = document.getElementById('paymentAttachment');
+        if (attachmentInput && attachmentInput.files.length > 0) {
+            await uploadPaymentAttachments(paymentId, attachmentInput.files);
+        }
+        
         showPaymentMessage('✅ تم تسجيل السداد بنجاح!', 'success');
         setTimeout(() => closePaymentModal(), 1500);
     } else {
         showPaymentMessage('❌ فشل حفظ السداد', 'error');
     }
 };
+
+// ✅ دالة جديدة: رفع مرفقات السداد
+async function uploadPaymentAttachments(paymentId, files) {
+    const maxFiles = 3;
+    const fileCount = Math.min(files.length, maxFiles);
+    
+    for (let i = 0; i < fileCount; i++) {
+        const file = files[i];
+        
+        // التحقق من نوع الملف
+        const allowedTypes = ['image/jpeg', 'image/png', 'application/pdf'];
+        if (!allowedTypes.includes(file.type)) {
+            console.warn(`⚠️ نوع ملف غير مدعوم: ${file.name}`);
+            continue;
+        }
+        
+        // التحقق من حجم الملف (أقصى 5MB)
+        if (file.size > 5 * 1024 * 1024) {
+            console.warn(`⚠️ حجم الملف كبير جداً: ${file.name}`);
+            continue;
+        }
+        
+        try {
+            // تحويل الملف إلى Base64
+            const base64 = await fileToBase64(file);
+            
+            showPaymentMessage(`جاري رفع المرفق ${i + 1} من ${fileCount}...`, 'info');
+            
+            // إرسال المرفق إلى Apps Script
+            const response = await fetch(PAYMENTS_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({
+                    action: 'upload_attachment',
+                    paymentId: paymentId,
+                    fileName: `${paymentId}_${file.name}`,
+                    fileContent: base64.split(',')[1], // إزالة رأس data:image/...;base64,
+                    mimeType: file.type
+                })
+            });
+            
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            const data = await response.json();
+            
+            if (data.success) {
+                console.log(`✅ تم رفع المرفق: ${file.name}`);
+            } else {
+                console.error(`❌ فشل رفع المرفق: ${data.error}`);
+            }
+        } catch (error) {
+            console.error(`❌ خطأ في رفع المرفق ${file.name}:`, error);
+        }
+    }
+}
+
+// ✅ دالة مساعدة: تحويل File إلى Base64
+function fileToBase64(file) {
+    return new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.readAsDataURL(file);
+        reader.onload = () => resolve(reader.result);
+        reader.onerror = error => reject(error);
+    });
+}
 
 // عرض رسالة في نافذة السداد
 function showPaymentMessage(msg, type) {
