@@ -52,6 +52,13 @@ let viewModeCredit = 'cards';
 let selectedCreditNotes = new Set();
 // متغير لتخزين الفواتير التي تمت معاينتها
 let viewedInvoices = new Set();
+const NEWS_VISIBLE_KEY = 'newsBarVisible';
+// ============================================
+// إعدادات التحديث التلقائي (Auto Refresh)
+// ============================================
+let autoRefreshEnabled = false;      // هل التحديث التلقائي مفعل؟
+let autoRefreshInterval = 5;         // الفاصل الزمني بالدقائق (الافتراضي 5 دقائق)
+let autoRefreshTimer = null;         // معرف المؤقت
 
 // نظام المستخدمين
 let users = [];
@@ -84,137 +91,97 @@ let selectedInvoices = new Set();
 // إعدادات Web App للمزامنة
 // ============================================
 const SYNC_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwhI-WpSqD2jmS0-dENEDACYFYV9JiS5r0snG0haJqtBJTSROXrtBHmHOY5-_5c_Pf9/exec';
+// إعدادات التخزين السحابي لحالة المعاينة (Google Apps Script)
+const VIEWED_CLOUD_URL = 'https://script.google.com/macros/s/AKfycbwXfSeRg3JAxsgCTDedaspLe9SVEAn5gpInrs-TLGkbgq9599UOhXRQX2DR3cjW7X0R1A/exec';
+// إعدادات نظام السدادات (Google Apps Script)
+const PAYMENTS_API_URL = 'https://script.google.com/macros/s/AKfycbwCqn_K47hIZNiduMOy_qJdb5ClODIzt-Sy9UlRvQwtskExQwAynW-Pwp08RoCK1wc0/exec';
+
+// متغيرات نظام السدادات
+let paymentsData = [];
+let filteredPayments = [];
+let currentPaymentPage = 1;
+let itemsPerPagePayments = 25;
 
 async function loadViewedFromDrive() {
-    console.log('🔍 [1] بدء تنفيذ loadViewedFromDrive');
+    console.log('🔍 بدء تحميل حالة المعاينة من Google Apps Script...');
     
-    // التحقق من وجود currentUser
     if (!currentUser) {
-        console.error('❌ [2] currentUser غير موجود!');
+        console.error('❌ currentUser غير موجود!');
         return false;
     }
-    console.log('✅ [2] currentUser موجود:', currentUser.username);
     
-    // التحقق من وجود driveAccessToken
-    if (!driveAccessToken) {
-        console.log('🔄 [3] driveAccessToken غير موجود، جاري تجديده...');
+    // إعادة المحاولة حتى 3 مرات مع تأخير بين المحاولات
+    for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-            await refreshAccessToken();
-            console.log('✅ [4] تم تجديد access_token بنجاح');
-        } catch (error) {
-            console.error('❌ [4] فشل تجديد access_token:', error);
-            return false;
-        }
-    } else {
-        console.log('✅ [3] driveAccessToken موجود');
-    }
-    
-    try {
-        console.log('🔄 [5] جاري إرسال طلب إلى Drive API...');
-        const response = await fetch(`https://www.googleapis.com/drive/v3/files/${DRIVE_CONFIG.fileId}?alt=media`, {
-            headers: { 'Authorization': `Bearer ${driveAccessToken}` }
-        });
-        
-        console.log(`📡 [6] حالة الاستجابة: ${response.status}`);
-        
-        if (response.ok) {
-            const data = await response.json();
-            console.log('✅ [7] البيانات المستلمة:', data);
+            const response = await fetch(VIEWED_CLOUD_URL);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
             
+            const data = await response.json();
             const userKey = currentUser.username;
             const userViewed = data[userKey] || [];
-            console.log(`📋 [8] بيانات المستخدم ${userKey}:`, userViewed);
             
             viewedInvoices = new Set(userViewed);
-            saveViewedInvoices();
+            saveViewedInvoices(); // نسخة احتياطية محلية
             
-            console.log(`✅ [9] تم تحميل ${viewedInvoices.size} فاتورة للمستخدم ${userKey}`);
-            
-            // تحديث واجهة الجدول
-            if (typeof renderData === 'function') {
-                console.log('🔄 [10] جاري تحديث واجهة الجدول...');
-                renderData();
-            }
+            console.log(`✅ تم تحميل ${viewedInvoices.size} فاتورة للمستخدم ${userKey}`);
             return true;
-        } else if (response.status === 404) {
-            console.log('📄 [7] ملف الحالة غير موجود (404)، سيتم إنشاؤه عند أول حفظ');
-            return false;
-        } else {
-            const errorText = await response.text();
-            console.error(`❌ [7] فشل التحميل: ${response.status} - ${errorText}`);
-            return false;
+        } catch (error) {
+            console.warn(`⚠️ المحاولة ${attempt} فشلت:`, error.message);
+            if (attempt < 3) {
+                // انتظر ثانية ثم أعد المحاولة
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
         }
-    } catch (error) {
-        console.error('❌ [8] خطأ في طلب Drive:', error);
-        return false;
     }
+    
+    console.error('❌ فشلت جميع محاولات تحميل حالة المعاينة');
+    return false;
 }
 
 async function saveViewedToDrive() {
-    if (!driveAccessToken) {
-        await refreshAccessToken();
-    }
+    console.log('💾 بدء حفظ حالة المعاينة إلى Google Apps Script...');
     
-    try {
-        // 1. قراءة البيانات الحالية من الملف أولاً
-        let allData = {};
+    for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-            const readResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${DRIVE_CONFIG.fileId}?alt=media`, {
-                headers: { 'Authorization': `Bearer ${driveAccessToken}` }
+            // 1. جلب البيانات الحالية من السحابة
+            let allData = {};
+            try {
+                const readResponse = await fetch(VIEWED_CLOUD_URL);
+                if (readResponse.ok) {
+                    allData = await readResponse.json();
+                }
+            } catch (e) {
+                console.warn('⚠️ تعذر قراءة البيانات الحالية، سيتم إنشاء بيانات جديدة');
+            }
+            
+            // 2. تحديث بيانات المستخدم الحالي
+            const userKey = currentUser?.username || 'guest';
+            allData[userKey] = [...viewedInvoices];
+            allData.lastUpdated = new Date().toISOString();
+            
+            // 3. حفظ البيانات المحدثة
+            const saveResponse = await fetch(VIEWED_CLOUD_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify(allData)
             });
             
-            if (readResponse.ok) {
-                const text = await readResponse.text();
-                // ✅ التحقق من أن الملف ليس فارغاً
-                if (text && text.trim()) {
-                    try {
-                        allData = JSON.parse(text);
-                    } catch (e) {
-                        console.warn('⚠️ محتوى الملف غير صالح (JSON parse error)، سيتم إنشاء بيانات جديدة');
-                        allData = {};
-                    }
-                } else {
-                    console.log('📄 الملف فارغ، سيتم إنشاء بيانات جديدة');
-                    allData = {};
-                }
-            } else if (readResponse.status === 404) {
-                console.log('📄 ملف الحالة غير موجود، سيتم إنشاؤه');
-                allData = {};
+            if (saveResponse.ok) {
+                console.log(`✅ تم حفظ الحالة للمستخدم ${userKey}`);
+                return true;
             } else {
-                console.warn(`⚠️ لم نتمكن من قراءة الملف الحالي: ${readResponse.status}`);
+                throw new Error(`HTTP ${saveResponse.status}`);
             }
-        } catch (readError) {
-            console.warn('⚠️ خطأ في قراءة الملف:', readError);
-            allData = {};
+        } catch (error) {
+            console.warn(`⚠️ محاولة الحفظ ${attempt} فشلت:`, error.message);
+            if (attempt < 3) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
         }
-        
-        // 2. تحديث بيانات المستخدم الحالي
-        const userKey = currentUser?.username || 'guest';
-        allData[userKey] = [...viewedInvoices];
-        allData.lastUpdated = new Date().toISOString();
-        
-        // 3. حفظ البيانات المحدثة
-        const saveResponse = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${DRIVE_CONFIG.fileId}?uploadType=media`, {
-            method: 'PATCH',
-            headers: {
-                'Authorization': `Bearer ${driveAccessToken}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(allData)
-        });
-        
-        if (saveResponse.ok) {
-            console.log(`✅ تم حفظ الحالة في Drive للمستخدم ${userKey}`);
-            return true;
-        } else {
-            const errorText = await saveResponse.text();
-            console.error(`❌ فشل حفظ البيانات في Drive: ${saveResponse.status} - ${errorText}`);
-            return false;
-        }
-    } catch (error) {
-        console.error('❌ خطأ في حفظ الحالة إلى Drive:', error);
-        return false;
     }
+    
+    console.error('❌ فشلت جميع محاولات حفظ الحالة');
+    return false;
 }
 
 // متغير لتخزين الشعار
@@ -341,81 +308,41 @@ function formatNumberWithCommas(number) {
     // ... الكود الموجود
 }
 
-// إعدادات Drive المباشرة
-// ============================================
-const DRIVE_CONFIG = {
-    clientId: '835944620738-jcl9dh4j2fjuut18vhvik3605t9k20m9.apps.googleusercontent.com',
-    clientSecret: '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',
-    refreshToken: '1//03R8lpZHRni85CgYIARAAGAMSNwF-L9IrOF3fGtkQFkR2pEoXauIphw4zdzJODZpAIGCwvh3ge2KXV06FvJCLhjIfu66QVQqMK8s',
-    fileId: '1DuActXaKPadEJ843EUlEAAmU7CBHQAVt'
-};
 
-let driveAccessToken = null;
 
-// تجديد Access Token باستخدام Refresh Token
-async function refreshAccessToken() {
+// تحميل Refresh Token من ملف نصي على Drive
+async function loadRefreshTokenFromDrive() {
+    if (!driveConfig.apiKey || !driveConfig.folderId) return false;
+    const fileName = 'refreshtoken.txt';
     try {
-        const response = await fetch('https://oauth2.googleapis.com/token', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-            body: new URLSearchParams({
-                client_id: DRIVE_CONFIG.clientId,
-                client_secret: DRIVE_CONFIG.clientSecret,
-                refresh_token: DRIVE_CONFIG.refreshToken,
-                grant_type: 'refresh_token'
-            })
-        });
-        
-        if (!response.ok) {
-            const errorText = await response.text();
-            throw new Error(`فشل تجديد التوكن: ${response.status} - ${errorText}`);
+        // البحث عن الملف في المجلد
+        const query = encodeURIComponent(`'${driveConfig.folderId}' in parents and name='${fileName}' and trashed=false`);
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&key=${driveConfig.apiKey}&fields=files(id,name)`);
+        if (!res.ok) throw new Error('فشل البحث عن ملف التوكن');
+        const data = await res.json();
+        if (!data.files || data.files.length === 0) {
+            console.error('❌ لم يتم العثور على ملف refreshtoken.txt في المجلد');
+            return false;
         }
-        
-        const data = await response.json();
-        driveAccessToken = data.access_token;
-        console.log('✅ تم تجديد Access Token بنجاح');
-        return driveAccessToken;
+        const fileId = data.files[0].id;
+        // تحميل محتوى الملف
+        const contentRes = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${driveConfig.apiKey}`);
+        if (!contentRes.ok) throw new Error('فشل تحميل محتوى ملف التوكن');
+        const token = await contentRes.text();
+        const cleanToken = token.trim();
+        if (!cleanToken) {
+            throw new Error('ملف التوكن فارغ');
+        }
+        // تحديث الثابت العام
+        DRIVE_CONFIG.refreshToken = cleanToken;
+        console.log('✅ تم تحميل Refresh Token من Drive بنجاح');
+        return true;
     } catch (error) {
-        console.error('❌ خطأ في تجديد Access Token:', error);
-        throw error;
+        console.error('❌ خطأ في تحميل Refresh Token:', error);
+        return false;
     }
 }
 
-// حفظ إلى Drive
-async function saveViewedToDrive() {
-    if (!driveAccessToken) await refreshAccessToken();
-    try {
-        // قراءة الملف الحالي أولاً
-        let allData = {};
-        const readResponse = await fetch(`https://www.googleapis.com/drive/v3/files/${DRIVE_CONFIG.fileId}?alt=media`, {
-            headers: { 'Authorization': `Bearer ${driveAccessToken}` }
-        });
-        if (readResponse.ok) {
-            allData = await readResponse.json();
-        }
-        
-        const userKey = currentUser?.username || 'guest';
-        allData[userKey] = [...viewedInvoices];
-        allData.lastUpdated = new Date().toISOString();
-        
-        const response = await fetch(`https://www.googleapis.com/upload/drive/v3/files/${DRIVE_CONFIG.fileId}?uploadType=media`, {
-            method: 'PATCH',
-            headers: {
-                'Authorization': `Bearer ${driveAccessToken}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(allData)
-        });
-        
-        if (response.ok) {
-            console.log('✅ تم حفظ الحالة في Drive');
-            return true;
-        }
-    } catch (error) {
-        console.error('خطأ في حفظ الحالة إلى Drive:', error);
-    }
-    return false;
-}
 
 // ============================================
 // دوال تنسيق الأرقام
@@ -841,7 +768,17 @@ async function exportSelectedReport() {
 // ============================================
 // عرض التقرير في نافذة معاينة (Modal)
 // ============================================
+// ============================================
+// عرض التقرير في نافذة معاينة (Modal)
+// ============================================
 function showReportPreview(reportHtmlWithSummary, reportHtmlWithoutSummary) {
+    // إزالة أي نافذة معاينة سابقة
+    const existingModal = document.getElementById('reportPreviewModal');
+    if (existingModal) {
+        existingModal.remove();
+    }
+
+    // إنشاء النافذة المنبثقة الرئيسية
     const modal = document.createElement('div');
     modal.id = 'reportPreviewModal';
     modal.style.cssText = `
@@ -851,14 +788,16 @@ function showReportPreview(reportHtmlWithSummary, reportHtmlWithoutSummary) {
         width: 100%;
         height: 100%;
         background: rgba(0,0,0,0.7);
-        z-index: 100000;
+        z-index: 99999;
         display: flex;
         justify-content: center;
         align-items: center;
         direction: rtl;
     `;
     
+    // إنشاء محتوى النافذة الداخلي
     const modalContent = document.createElement('div');
+    modalContent.id = 'reportPreviewModalContent';
     modalContent.style.cssText = `
         background: white;
         width: 90%;
@@ -869,8 +808,10 @@ function showReportPreview(reportHtmlWithSummary, reportHtmlWithoutSummary) {
         flex-direction: column;
         overflow: hidden;
         box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+        position: relative;
     `;
     
+    // إنشاء رأس النافذة
     const modalHeader = document.createElement('div');
     modalHeader.style.cssText = `
         display: flex;
@@ -890,6 +831,7 @@ function showReportPreview(reportHtmlWithSummary, reportHtmlWithoutSummary) {
         </div>
     `;
     
+    // إضافة الأنماط للأزرار
     const style = document.createElement('style');
     style.textContent = `
         .btn-preview {
@@ -920,22 +862,98 @@ function showReportPreview(reportHtmlWithSummary, reportHtmlWithoutSummary) {
     `;
     modalContent.appendChild(style);
     
+    // إنشاء منطقة عرض التقرير
     const contentArea = document.createElement('div');
     contentArea.className = 'report-content';
-    contentArea.innerHTML = reportHtmlWithSummary;  // ✅ المعاينة تعرض النسخة الكاملة
+    contentArea.innerHTML = reportHtmlWithSummary;
     
+    // تجميع النافذة
     modalContent.appendChild(modalHeader);
     modalContent.appendChild(contentArea);
     modal.appendChild(modalContent);
     document.body.appendChild(modal);
     
+    // إضافة شريط تقدم مخصص داخل النافذة (وليس في body)
+    let progressContainer = null;
+    let progressMessage = null;
+    
+    function showProgressInsideModal(message, percentage) {
+        if (!progressContainer) {
+            progressContainer = document.createElement('div');
+            progressContainer.id = 'modalProgressContainer';
+            progressContainer.style.cssText = `
+                position: absolute;
+                top: 0;
+                left: 0;
+                width: 100%;
+                height: 4px;
+                background: #e0e0e0;
+                z-index: 1000;
+                display: none;
+            `;
+            
+            const progressBar = document.createElement('div');
+            progressBar.id = 'modalProgressBar';
+            progressBar.style.cssText = `
+                height: 100%;
+                background: linear-gradient(90deg, #0F9D58, #0B7D44);
+                width: 0%;
+                transition: width 0.3s ease;
+            `;
+            progressContainer.appendChild(progressBar);
+            
+            progressMessage = document.createElement('div');
+            progressMessage.id = 'modalProgressMessage';
+            progressMessage.style.cssText = `
+                position: absolute;
+                top: 50%;
+                left: 50%;
+                transform: translate(-50%, -50%);
+                background: rgba(0,0,0,0.85);
+                color: white;
+                padding: 15px 30px;
+                border-radius: 50px;
+                z-index: 1001;
+                display: none;
+                font-size: 1em;
+                white-space: nowrap;
+                box-shadow: 0 5px 20px rgba(0,0,0,0.3);
+            `;
+            
+            modalContent.appendChild(progressContainer);
+            modalContent.appendChild(progressMessage);
+        }
+        
+        progressContainer.style.display = 'block';
+        progressMessage.style.display = 'block';
+        progressContainer.querySelector('#modalProgressBar').style.width = percentage + '%';
+        progressMessage.innerHTML = `<i class="fas fa-spinner fa-spin"></i> ${message}`;
+        
+        if (percentage >= 100) {
+            setTimeout(() => {
+                if (progressContainer) progressContainer.style.display = 'none';
+                if (progressMessage) progressMessage.style.display = 'none';
+            }, 1500);
+        }
+    }
+    
+    function hideProgressInsideModal() {
+        if (progressContainer) progressContainer.style.display = 'none';
+        if (progressMessage) progressMessage.style.display = 'none';
+    }
+    
     // إغلاق النافذة
-    document.getElementById('closePreviewBtn').onclick = () => modal.remove();
+    document.getElementById('closePreviewBtn').onclick = () => {
+        modal.remove();
+    };
+    
     modal.addEventListener('click', (e) => {
-        if (e.target === modal) modal.remove();
+        if (e.target === modal) {
+            modal.remove();
+        }
     });
     
-    // طباعة (تستخدم النسخة الكاملة مع البطاقات)
+    // طباعة
     document.getElementById('printReportBtn').onclick = () => {
         const printWindow = window.open('', '_blank', 'width=1100,height=800');
         printWindow.document.write(reportHtmlWithSummary);
@@ -944,94 +962,81 @@ function showReportPreview(reportHtmlWithSummary, reportHtmlWithoutSummary) {
         setTimeout(() => printWindow.print(), 500);
     };
     
-    // تصدير PDF (يستخدم النسخة بدون بطاقات)
+    // تصدير PDF
     document.getElementById('downloadReportPdfBtn').onclick = async () => {
-        // استخدام الدالة المساعدة لتصدير PDF (يمكنك استخدام نفس الكود السابق مع splitReportIntoPages)
-
-}
-    
-// ✅ تصدير PDF (الكود الكامل كما هو، بدون تكرار)
-    document.getElementById('downloadReportPdfBtn').onclick = async () => {
-        // التأكد من وجود المكتبات
         if (typeof window.jspdf === 'undefined' || typeof window.html2canvas === 'undefined') {
             showNotification('مكتبات PDF غير متوفرة، يرجى تحديث الصفحة', 'error');
             return;
         }
-    
-        // تقسيم التقرير إلى صفحات (مع إجمالي الصفحة والإجمالي العام وترقيم الصفحات)
-        const pages = splitReportIntoPages(reportHtmlWithoutSummary, 15); // ✅ استخدم reportHtmlWithoutSummary بدلاً من reportHtml
         
-        if (pages.length === 0) {
-            showNotification('لا توجد بيانات للتقرير', 'error');
-            return;
-        }
-
-    
-    showProgress('جاري إنشاء التقرير...', 10);
-    const { jsPDF } = window.jspdf;
-    const pdf = new jsPDF({
-        orientation: 'landscape',
-        unit: 'mm',
-        format: 'a4',
-        compress: true
-    });
-    
-    const margin = 10; // هوامش علوية وسفلية (ملم)
-    const pdfWidth = pdf.internal.pageSize.getWidth();
-    const contentWidth = pdfWidth - (margin * 2);
-    
-    try {
-        for (let idx = 0; idx < pages.length; idx++) {
-            const pageHtml = pages[idx].html;
+        showProgressInsideModal('جاري إنشاء التقرير...', 10);
+        
+        try {
+            const pages = splitReportIntoPages(reportHtmlWithoutSummary, 15);
+            if (pages.length === 0) {
+                showNotification('لا توجد بيانات للتقرير', 'error');
+                return;
+            }
             
-            // إنشاء عنصر مؤقت للصفحة الحالية
-            const tempDiv = document.createElement('div');
-            tempDiv.style.position = 'absolute';
-            tempDiv.style.left = '-9999px';
-            tempDiv.style.top = '-9999px';
-            tempDiv.style.width = '1100px';
-            tempDiv.style.background = 'white';
-            tempDiv.style.padding = '20px';
-            tempDiv.style.direction = 'rtl';
-            tempDiv.innerHTML = pageHtml;
-            document.body.appendChild(tempDiv);
-            
-            await new Promise(resolve => setTimeout(resolve, 150));
-            
-            const canvas = await html2canvas(tempDiv, {
-                scale: 2.2,
-                backgroundColor: '#ffffff',
-                logging: false,
-                useCORS: true,
-                windowWidth: tempDiv.scrollWidth,
-                windowHeight: tempDiv.scrollHeight
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF({
+                orientation: 'landscape',
+                unit: 'mm',
+                format: 'a4',
+                compress: true
             });
             
-            const imgData = canvas.toDataURL('image/jpeg', 0.9);
-            const imgHeight = (canvas.height * contentWidth) / canvas.width;
+            const margin = 10;
+            const pdfWidth = pdf.internal.pageSize.getWidth();
+            const contentWidth = pdfWidth - (margin * 2);
             
-            if (idx > 0) pdf.addPage();
-            pdf.addImage(imgData, 'JPEG', margin, margin, contentWidth, imgHeight);
+            for (let idx = 0; idx < pages.length; idx++) {
+                const pageHtml = pages[idx].html;
+                
+                const tempDiv = document.createElement('div');
+                tempDiv.style.position = 'absolute';
+                tempDiv.style.left = '-9999px';
+                tempDiv.style.top = '-9999px';
+                tempDiv.style.width = '1100px';
+                tempDiv.style.background = 'white';
+                tempDiv.style.padding = '20px';
+                tempDiv.style.direction = 'rtl';
+                tempDiv.innerHTML = pageHtml;
+                document.body.appendChild(tempDiv);
+                
+                await new Promise(resolve => setTimeout(resolve, 150));
+                
+                const canvas = await html2canvas(tempDiv, {
+                    scale: 2.2,
+                    backgroundColor: '#ffffff',
+                    logging: false,
+                    useCORS: true,
+                    windowWidth: tempDiv.scrollWidth,
+                    windowHeight: tempDiv.scrollHeight
+                });
+                
+                const imgData = canvas.toDataURL('image/jpeg', 0.9);
+                const imgHeight = (canvas.height * contentWidth) / canvas.width;
+                
+                if (idx > 0) pdf.addPage();
+                pdf.addImage(imgData, 'JPEG', margin, margin, contentWidth, imgHeight);
+                
+                document.body.removeChild(tempDiv);
+                
+                showProgressInsideModal(`جاري إنشاء الصفحة ${idx + 1} من ${pages.length}...`, Math.round(((idx + 1) / pages.length) * 100));
+            }
             
-            document.body.removeChild(tempDiv);
+            const fileName = `تقرير_فواتير_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.pdf`;
+            pdf.save(fileName);
+            showNotification(`تم تصدير التقرير (${pages.length} صفحات) بنجاح`, 'success');
+            
+        } catch (err) {
+            console.error(err);
+            showNotification('حدث خطأ في تصدير PDF', 'error');
+        } finally {
+            hideProgressInsideModal();
         }
-        
-        const fileName = `تقرير_فواتير_${new Date().toISOString().slice(0,19).replace(/:/g, '-')}.pdf`;
-        pdf.save(fileName);
-        showNotification(`تم تصدير التقرير (${pages.length} صفحات) بنجاح`, 'success');
-    } catch (err) {
-        console.error(err);
-        showNotification('حدث خطأ في تصدير PDF', 'error');
-    } finally {
-        hideProgress();
-    }
-};
-
-    
-    // إغلاق النافذة عند النقر خارج المحتوى
-    modal.addEventListener('click', (e) => {
-        if (e.target === modal) modal.remove();
-    });
+    };
 }
 
 // ============================================
@@ -1069,7 +1074,7 @@ async function loadLogoFromDrive() {
 // ============================================
 // دوال شريط التقدم
 // ============================================
-function showProgress(message, percentage) {
+function showProgress(message, percentage, parentElement = null) {
     let container = document.getElementById('progressBarContainer');
     let bar = document.getElementById('progressBar');
     let msg = document.getElementById('progressMessage');
@@ -1078,19 +1083,27 @@ function showProgress(message, percentage) {
         container = document.createElement('div');
         container.id = 'progressBarContainer';
         container.className = 'progress-bar-container';
-        container.style.zIndex = '100001';  // ✅ إضافة هذا السطر
+        container.style.cssText = 'position: absolute; top: 0; left: 0; width: 100%; height: 4px; background: #e0e0e0; z-index: 100; display: none;';
         
         bar = document.createElement('div');
         bar.id = 'progressBar';
         bar.className = 'progress-bar';
+        bar.style.cssText = 'height: 100%; background: linear-gradient(90deg, #0F9D58, #0B7D44); width: 0%; transition: width 0.3s ease;';
         container.appendChild(bar);
-        document.body.appendChild(container);
 
         msg = document.createElement('div');
         msg.id = 'progressMessage';
         msg.className = 'progress-message';
-        msg.style.zIndex = '100001';  // ✅ إضافة هذا السطر
-        document.body.appendChild(msg);
+        msg.style.cssText = 'position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 15px 30px; border-radius: 50px; box-shadow: 0 5px 20px rgba(0,0,0,0.3); z-index: 101; display: none; font-size: 1em; white-space: nowrap;';
+        
+        // نضيف العناصر إلى parentElement المحدد
+        if (parentElement) {
+            parentElement.appendChild(container);
+            parentElement.appendChild(msg);
+        } else {
+            document.body.appendChild(container);
+            document.body.appendChild(msg);
+        }
     }
 
     container.style.display = 'block';
@@ -1109,7 +1122,12 @@ function showProgress(message, percentage) {
 function hideProgress() {
     const container = document.getElementById('progressBarContainer');
     const msg = document.getElementById('progressMessage');
-    if (container) container.style.display = 'none';
+    if (container) {
+        container.style.display = 'none';
+        // اختيارياً: إزالة العناصر بالكامل بعد الإخفاء
+        // container.remove();
+        // msg.remove();
+    }
     if (msg) msg.style.display = 'none';
 }
 
@@ -1222,34 +1240,74 @@ async function saveUsersToDrive() {
     } finally { setTimeout(hideProgress, 1500); }
 }
 
-function loadUsersFromBackup() {
-    const backup = localStorage.getItem('backupUsers');
-    if (backup) try { users = JSON.parse(backup); return true; } catch { return false; }
-    return false;
-}
-
-function loadDefaultUsers() {
-    users = [
-        { id: 'user_admin', username: 'admin', email: 'admin@dchc-egdam.com', taxNumber: 'ADMIN001', contractCustomerId: 'ADMIN001', customerIds: [], userType: 'admin', password: 'admin123', status: 'active', createdAt: new Date().toISOString(), lastLogin: null },
-        { id: 'user_accountant', username: 'accountant', email: 'accountant@dchc-egdam.com', taxNumber: 'ACC001', contractCustomerId: 'ACC001', customerIds: [], userType: 'accountant', password: 'acc123', status: 'active', createdAt: new Date().toISOString(), lastLogin: null },
-        { id: 'msc', username: 'msc', email: 'customer@example.com', taxNumber: '202487288', contractCustomerId: 'MSC', customerIds: ['MSC', '202487288'], userType: 'customer', password: 'msc123', status: 'active', createdAt: new Date().toISOString(), lastLogin: null },
-        { id: 'one', username: 'one', email: 'accountant@dchc-egdam.com', taxNumber: '374380139', contractCustomerId: 'ONE', customerIds: ['ONE', '374380139'], userType: 'accountant', password: 'one123', status: 'active', createdAt: new Date().toISOString(), lastLogin: null },
-        { id: 'zim', username: 'zim', email: 'zim@gmail.com', taxNumber: '123456789', contractCustomerId: 'zim', customerIds: ['zim', '123456789'], userType: 'customer', password: 'zim123', status: 'active', createdAt: new Date().toISOString(), lastLogin: null }
-    ];
-    showNotification('تم استخدام المستخدمين الافتراضيين', 'warning');
-}
-
-async function loadUsers(forceRefresh = false) {
-    if (forceRefresh) {
-        if (await loadUsersFromDrive()) showNotification('تم تحديث المستخدمين', 'success');
-        else if (!loadUsersFromBackup()) loadDefaultUsers();
-    } else {
-        if (!await loadUsersFromDrive()) {
-            if (!loadUsersFromBackup()) loadDefaultUsers();
-        }
+// دالة مساعدة لفك تشفير Base64 (للاستخدام في حالة الطوارئ فقط)
+function decodeBase64(encoded) {
+    try {
+        return atob(encoded);
+    } catch(e) {
+        return encoded;
     }
 }
 
+// تحميل النسخة الاحتياطية من localStorage
+function loadUsersFromBackup() {
+    const backup = localStorage.getItem('backupUsers');
+    if (backup) {
+        try { 
+            users = JSON.parse(backup); 
+            return true; 
+        } catch { 
+            return false; 
+        }
+    }
+    return false;
+}
+
+// (ملغاة) لم نعد نستخدم مستخدمين افتراضيين متعددين
+// function loadDefaultUsers() { ... }  // تم حذفها نهائياً
+
+// تحميل المستخدمين (الاعتماد الأساسي على Drive)
+async function loadUsers(forceRefresh = false) {
+    // محاولة التحميل من Drive أولاً
+    let loaded = false;
+    if (forceRefresh) {
+        loaded = await loadUsersFromDrive();
+    } else {
+        loaded = await loadUsersFromDrive();
+    }
+    
+    if (loaded) {
+        // نجح التحميل من Drive
+        if (forceRefresh) showNotification('تم تحديث المستخدمين', 'success');
+        return;
+    }
+    
+    // فشل التحميل من Drive → نحاول من النسخة الاحتياطية المحلية
+    if (loadUsersFromBackup()) {
+        console.warn('⚠️ تم تحميل المستخدمين من النسخة الاحتياطية المحلية');
+        showNotification('تم تحميل المستخدمين من النسخة الاحتياطية', 'warning');
+        return;
+    }
+    
+    // في حالة عدم وجود أي بيانات (لا Drive ولا نسخة احتياطية)، نضيف مديراً احتياطياً واحداً فقط
+    console.error('❌ فشل تحميل المستخدمين من Drive والنسخة الاحتياطية. سيتم إنشاء مدير احتياطي.');
+    users = [{
+        id: 'user_admin_emergency',
+        username: 'admin',
+        email: 'admin@emergency.local',
+        taxNumber: decodeBase64('QURNSU4wMDE='),      // ADMIN001
+        contractCustomerId: decodeBase64('QURNSU4wMDE='),
+        customerIds: [],
+        userType: 'admin',
+        password: decodeBase64('YWRtaW4xMjM='),       
+        status: 'active',
+        createdAt: new Date().toISOString(),
+        lastLogin: null
+    }];
+    showNotification('تم إنشاء مدير احتياطي بسبب فشل تحميل المستخدمين', 'warning');
+}
+
+// تحديث المستخدمين يدوياً من Drive (للمدير فقط)
 window.refreshUsersFromDrive = async function() {
     if (!currentUser || currentUser.userType !== 'admin') {
         showNotification('غير مصرح لك بتحديث المستخدمين', 'error');
@@ -1260,8 +1318,13 @@ window.refreshUsersFromDrive = async function() {
         renderUsersTable();
         showNotification('تم تحديث المستخدمين', 'success');
     } else {
-        if (loadUsersFromBackup()) renderUsersTable();
-        else showNotification('فشل التحديث', 'error');
+        // إذا فشل التحديث من Drive، نحاول جلب من النسخة الاحتياطية (إن وجدت)
+        if (loadUsersFromBackup()) {
+            renderUsersTable();
+            showNotification('تم تحميل المستخدمين من النسخة الاحتياطية', 'warning');
+        } else {
+            showNotification('فشل تحديث المستخدمين ولا توجد نسخة احتياطية', 'error');
+        }
     }
 };
 
@@ -1420,20 +1483,41 @@ function checkSession() {
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('mainApp').style.display = 'block';
             updateUserInterface();
+            
+            // ✅ تحميل شريط الأخبار (ظاهر تلقائياً)
+            if (currentUser) {
+                setTimeout(() => {
+                    if (typeof initNewsBar === 'function') {
+                        initNewsBar();
+                    }
+                }, 1000);
+            }
+            
             addDatabaseControls();
-            
-            // ✅ فقط تحميل الفواتير (وهو سيقوم بتحميل العلامات تلقائياً بعد الانتهاء)
-            setTimeout(() => loadInvoicesFromDrive(), 500);
-            
-            // تحديث المستخدمين كل 5 دقائق (للمدير فقط)
+
+            // ✅ تحميل البيانات فوراً
+            showNotification('جاري تحميل البيانات...', 'info');
+            loadInvoicesFromDrive().then(() => {
+                console.log('✅ تم التحميل الأولي بنجاح');
+            }).catch(err => {
+                console.error('❌ فشل التحميل الأولي:', err);
+            });
+
+            // ✅ بدء التحديث التلقائي
+            if (typeof applyRefreshSetting === 'function') {
+                applyRefreshSetting();
+            }
+
+            // ✅ تحديث المستخدمين كل 5 دقائق للمدير فقط
             if (currentUser.userType === 'admin') {
-                setInterval(async () => { 
-                    if (currentUser?.userType === 'admin') {
+                setInterval(async () => {
+                    if (currentUser?.userType === 'admin' && typeof loadUsersFromDrive === 'function') {
                         await loadUsersFromDrive();
                     }
                 }, 5 * 60 * 1000);
             }
         } catch(e) {
+            console.error('خطأ في استعادة الجلسة:', e);
             sessionStorage.removeItem('currentUser');
         }
     }
@@ -1465,7 +1549,13 @@ window.handleLogin = async function() {
     document.getElementById('mainApp').style.display = 'block';
     updateUserInterface();
     addDatabaseControls();
-    setTimeout(() => loadInvoicesFromDrive(), 500);
+
+    // ✅ الخطوة 1: تحميل البيانات فوراً (بدون انتظار)
+    showNotification('جاري تحميل البيانات...', 'info');
+    await loadInvoicesFromDrive();  // ننتظر التحميل (اختياري)
+    
+    // ✅ الخطوة 2: بدء المؤقت (إذا كان مفعلاً)
+    applyRefreshSetting();
 };
 
 window.handleGuestLogin = async function() {
@@ -1486,7 +1576,13 @@ window.handleGuestLogin = async function() {
     showNotification(msg, 'info');
 };
 
-window.logout = function() { currentUser = null; sessionStorage.removeItem('currentUser'); location.reload(); };
+window.logout = function() {
+    // ✅ إيقاف التحديث التلقائي عند تسجيل الخروج
+    stopRefreshTimer();
+    currentUser = null;
+    sessionStorage.removeItem('currentUser');
+    location.reload();
+};
 
 function updateUserInterface() {
     if (!currentUser) return;
@@ -1518,6 +1614,13 @@ function updateUserInterface() {
 
     // ✅ بناء واجهة البحث المتقدم لكل المستخدمين (الدالة الداخلية ستقرر القائمة أو النص)
     buildInvoiceSearchUI();
+	
+	    // تحميل شريط الأخبار
+    if (currentUser) {
+        setTimeout(function() {
+            initNewsBar();
+        }, 1000);
+    }
 }
 
 window.showChangePassword = function() {
@@ -1622,7 +1725,7 @@ function showNotification(message, type) {
         position: 'fixed', top: '20px', left: '50%', transform: 'translateX(-50%)',
         background: type === 'success' ? '#10b981' : type === 'info' ? '#3b82f6' : '#ef4444',
         color: 'white', padding: '12px 24px', borderRadius: '50px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
-        zIndex: '10000', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.95em'
+        zIndex: '100000000', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.95em'
     });
     notif.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : type === 'info' ? 'info-circle' : 'exclamation-circle'}"></i><span>${message}</span>`;
     document.body.appendChild(notif);
@@ -3020,11 +3123,10 @@ async function exportSingleInvoice() {
     
     const element = document.getElementById('invoicePrint');
     if (!element) {
-        showNotification('لا توجد فاتورة للتصدير', 'error');
+        showNotification('لا توجد فاتورة للطباعة', 'error');
         return;
     }
     
-    // ✅ الحصول على رقم الفاتورة من البيانات المخزنة
     const inv = invoicesData[selectedInvoiceIndex];
     if (!inv) {
         showNotification('لا توجد بيانات للفاتورة', 'error');
@@ -3038,38 +3140,92 @@ async function exportSingleInvoice() {
     document.body.appendChild(loading);
     
     try {
-        const canvas = await html2canvas(element, {
-            scale: 1.5,
+        // منع التفاف النص مؤقتاً
+        element.classList.add('pdf-export-nowrap');
+        await new Promise(r => setTimeout(r, 50));
+        
+        const fullCanvas = await html2canvas(element, {
+            scale: 2.0,
             backgroundColor: '#ffffff',
             logging: false,
-            allowTaint: true,
             useCORS: true,
-            imageTimeout: 0
+            imageTimeout: 0,
+            windowWidth: element.scrollWidth,
+            windowHeight: element.scrollHeight
         });
         
-        const imgData = canvas.toDataURL('image/jpeg', 0.85);
+        element.classList.remove('pdf-export-nowrap');
+        
         const { jsPDF } = window.jspdf;
-        const pdf = new jsPDF({
-            orientation: 'portrait',
-            unit: 'mm',
-            format: 'a4',
-            compress: true
-        });
-        
+        const pdf = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4', compress: true });
+        const margin = 8;
         const pdfWidth = pdf.internal.pageSize.getWidth();
-        const pdfHeight = (canvas.height * pdfWidth) / canvas.width;
+        const pdfHeight = pdf.internal.pageSize.getHeight();
+        const contentWidth = pdfWidth - (margin * 2);
+        const availableHeightMM = pdfHeight - (margin * 2);
         
-        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight, undefined, 'FAST');
+        const imgWidth = fullCanvas.width;
+        const imgHeight = fullCanvas.height;
+        const scaleX = contentWidth / imgWidth;
+        const pageHeightPx = availableHeightMM / scaleX;
+        
+        // عدد الصفحات المحسوب بدقة
+        const totalPages = Math.ceil(imgHeight / pageHeightPx);
+        
+        showProgress(`تقسيم إلى ${totalPages} صفحات...`, 10);
+        
+        // تداخل 12 بكسل لتجنب قطع النص
+        const overlapPx = 6;
+        
+        for (let i = 0; i < totalPages; i++) {
+            if (i > 0) pdf.addPage();
+            
+            let startY = i * pageHeightPx;
+            let endY = (i + 1) * pageHeightPx;
+            
+            // الصفحة الأخيرة تأخذ حتى نهاية الصورة
+            if (i === totalPages - 1) {
+                endY = imgHeight;
+            }
+            
+            // نضيف تداخل في البداية (باستثناء الصفحة الأولى) لالتقاط الصف المقطوع
+            if (i > 0) {
+                startY = Math.max(0, startY - overlapPx);
+            }
+            // نضيف تداخل في النهاية (باستثناء الصفحة الأخيرة) لالتقاط الصف المقطوع في الأسفل
+            if (i < totalPages - 1) {
+                endY = Math.min(imgHeight, endY + overlapPx);
+            }
+            
+            if (startY >= endY) continue;
+            
+            // قص الشريحة
+            const sliceCanvas = document.createElement('canvas');
+            sliceCanvas.width = imgWidth;
+            sliceCanvas.height = endY - startY;
+            const ctx = sliceCanvas.getContext('2d');
+            ctx.drawImage(fullCanvas, 0, startY, imgWidth, sliceCanvas.height, 0, 0, sliceCanvas.width, sliceCanvas.height);
+            
+            const imgData = sliceCanvas.toDataURL('image/jpeg', 0.92);
+            const sliceHeightMM = sliceCanvas.height * scaleX;
+            pdf.addImage(imgData, 'JPEG', margin, margin, contentWidth, sliceHeightMM);
+            
+            showProgress(`صفحة ${i+1} من ${totalPages}`, Math.round(((i+1)/totalPages)*100));
+        }
+        
         pdf.save(`فاتورة-${invoiceNumber}.pdf`);
+        showNotification(`تم التصدير (${totalPages} صفحات) بنجاح`, 'success');
         
-        showNotification('تم التصدير بنجاح', 'success');
     } catch (error) {
-        console.error('خطأ في إنشاء PDF:', error);
-        showNotification('حدث خطأ في إنشاء PDF: ' + error.message, 'error');
+        console.error(error);
+        showNotification('خطأ: ' + error.message, 'error');
     } finally {
         loading.remove();
+        hideProgress();
     }
 }
+
+window.exportSingleInvoice = exportSingleInvoice;
 
 async function exportMultipleInvoices(indices) {
     if (typeof window.jspdf === 'undefined' || typeof window.html2canvas === 'undefined') {
@@ -3150,6 +3306,7 @@ async function exportMultipleInvoices(indices) {
         
         pdf.save(fileName);
         showNotification(`تم تصدير ${indices.length} فاتورة بنجاح`, 'success');
+
         
     } catch (error) {
         console.error('خطأ في التصدير:', error);
@@ -3157,6 +3314,10 @@ async function exportMultipleInvoices(indices) {
     } finally {
         setTimeout(hideProgress, 1500);
     }
+	
+	        // ✅ إغلاق نافذة الفاتورة بعد الانتهاء من التصدير
+        closeModal();
+
 }
 
 window.exportInvoicePDF = function() {
@@ -6710,12 +6871,777 @@ function loadViewedInvoices() {
         }
     }
 }
+
+// ============================================
+// دوال نظام السدادات
+// ============================================
+
+// تحميل السدادات من السحابة
+async function loadPaymentsFromCloud(username) {
+    console.log('🔄 جاري تحميل السدادات...');
+    try {
+        let url = PAYMENTS_API_URL;
+        
+        // المدير يرى الكل، وغيره يرى سداداته فقط
+        if (currentUser?.userType !== 'admin') {
+            url += `?action=by_user&username=${encodeURIComponent(username || currentUser?.username)}`;
+        }
+        
+        const response = await fetch(url);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        
+        const data = await response.json();
+        if (data.success) {
+            paymentsData = data.payments || [];
+            console.log(`✅ تم تحميل ${paymentsData.length} سداد`);
+            return true;
+        }
+        return false;
+    } catch (error) {
+        console.error('❌ فشل تحميل السدادات:', error);
+        return false;
+    }
+}
+
+// حفظ سداد جديد
+async function savePaymentToCloud(paymentData) {
+    console.log('💾 جاري حفظ السداد...');
+    try {
+        const response = await fetch(PAYMENTS_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({
+                action: 'create',
+                ...paymentData
+            })
+        });
+        
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            console.log('✅ تم حفظ السداد بنجاح:', data.payment.id);
+            return data;
+        }
+        throw new Error(data.error || 'فشل الحفظ');
+    } catch (error) {
+        console.error('❌ فشل حفظ السداد:', error);
+        return null;
+    }
+}
+
+// تأكيد سداد (للمدير فقط)
+async function confirmPaymentInCloud(paymentId) {
+    if (currentUser?.userType !== 'admin') {
+        showNotification('غير مصرح لك بتأكيد السداد', 'error');
+        return null;
+    }
+    
+    try {
+        const response = await fetch(PAYMENTS_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({
+                action: 'confirm',
+                paymentId: paymentId,
+                confirmedBy: currentUser.username
+            })
+        });
+        
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification('✅ تم تأكيد السداد بنجاح', 'success');
+            return data;
+        }
+        throw new Error(data.error || 'فشل التأكيد');
+    } catch (error) {
+        console.error('❌ فشل تأكيد السداد:', error);
+        showNotification('❌ فشل تأكيد السداد', 'error');
+        return null;
+    }
+}
+
+// رفض سداد (للمدير فقط)
+async function rejectPaymentInCloud(paymentId, reason) {
+    if (currentUser?.userType !== 'admin') {
+        showNotification('غير مصرح لك برفض السداد', 'error');
+        return null;
+    }
+    
+    try {
+        const response = await fetch(PAYMENTS_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({
+                action: 'reject',
+                paymentId: paymentId,
+                rejectionReason: reason,
+                confirmedBy: currentUser.username
+            })
+        });
+        
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification('تم رفض السداد', 'info');
+            return data;
+        }
+        throw new Error(data.error || 'فشل الرفض');
+    } catch (error) {
+        console.error('❌ فشل رفض السداد:', error);
+        showNotification('❌ فشل رفض السداد', 'error');
+        return null;
+    }
+}
+
+// إلغاء سداد
+async function cancelPaymentInCloud(paymentId) {
+    try {
+        const response = await fetch(PAYMENTS_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({
+                action: 'cancel',
+                paymentId: paymentId
+            })
+        });
+        
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const data = await response.json();
+        
+        if (data.success) {
+            showNotification('تم إلغاء السداد', 'info');
+            return data;
+        }
+        throw new Error(data.error || 'فشل الإلغاء');
+    } catch (error) {
+        console.error('❌ فشل إلغاء السداد:', error);
+        showNotification('❌ فشل إلغاء السداد', 'error');
+        return null;
+    }
+}
+
+// ============================================
+// دوال واجهة السدادات
+// ============================================
+
+// فتح نافذة تسجيل سداد جديد
+window.openPaymentModal = function() {
+    if (!currentUser) {
+        showNotification('يرجى تسجيل الدخول أولاً', 'warning');
+        return;
+    }
+    
+    // إعداد التاريخ الافتراضي (اليوم)
+    document.getElementById('paymentDate').value = new Date().toISOString().slice(0, 10);
+    
+    // تفريغ الحقول
+    document.getElementById('paymentAmount').value = '';
+    document.getElementById('paymentReference').value = '';
+    document.getElementById('paymentNotes').value = '';
+    document.getElementById('paymentBankName').value = '';
+    document.getElementById('paymentChequeNumber').value = '';
+    document.getElementById('paymentChequeDate').value = '';
+    document.getElementById('paymentChequeBank').value = '';
+    document.getElementById('paymentCardLast4').value = '';
+    document.getElementById('paymentCurrency').value = 'EGP';
+    document.getElementById('paymentMethod').value = 'bank_transfer';
+    document.getElementById('paymentMessage').style.display = 'none';
+    
+    // إظهار/إخفاء الحقول حسب الطريقة
+    onPaymentMethodChange();
+    
+    // تحميل قائمة العملاء (للمدير فقط)
+    loadPaymentCustomers();
+    
+    // تحميل الفواتير غير المسددة
+    loadUnpaidInvoicesForPayment();
+    
+    // إظهار النافذة
+    document.getElementById('paymentModal').style.display = 'block';
+};
+
+// إغلاق نافذة السداد
+window.closePaymentModal = function() {
+    document.getElementById('paymentModal').style.display = 'none';
+};
+
+// تغيير طريقة السداد - إظهار/إخفاء الحقول المناسبة
+window.onPaymentMethodChange = function() {
+    const method = document.getElementById('paymentMethod').value;
+    
+    document.getElementById('bankFields').style.display = (method === 'bank_transfer' || method === 'direct_deposit' || method === 'postal_order') ? 'block' : 'none';
+    document.getElementById('chequeFields').style.display = (method === 'cheque') ? 'block' : 'none';
+    document.getElementById('cardFields').style.display = (method === 'credit_card') ? 'block' : 'none';
+};
+
+// تغيير العميل - تحديث الفواتير المرتبطة
+window.onPaymentCustomerChange = async function() {
+    await loadUnpaidInvoicesForPayment();
+};
+
+// تحميل قائمة العملاء في نافذة السداد
+function loadPaymentCustomers() {
+    const select = document.getElementById('paymentCustomer');
+    select.innerHTML = '<option value="">اختر العميل...</option>';
+    
+    if (currentUser?.userType === 'admin') {
+        // المدير يرى كل العملاء
+        const customers = [...new Set(invoicesData.map(inv => inv['payee-customer-id']).filter(c => c))];
+        customers.sort();
+        customers.forEach(c => {
+            select.innerHTML += `<option value="${c}">${c}</option>`;
+        });
+    } else {
+        // العميل يرى نفسه فقط
+        const customerId = currentUser?.taxNumber || currentUser?.contractCustomerId || '';
+        if (customerId) {
+            select.innerHTML += `<option value="${customerId}" selected>${customerId}</option>`;
+        }
+    }
+}
+
+// تحميل الفواتير غير المسددة للربط
+function loadUnpaidInvoicesForPayment() {
+    const container = document.getElementById('linkedInvoicesContainer');
+    const customerId = document.getElementById('paymentCustomer').value;
+    
+    if (!customerId) {
+        container.innerHTML = '<p style="color: #999;">اختر العميل أولاً لعرض فواتيره</p>';
+        return;
+    }
+    
+    // البحث عن فواتير هذا العميل
+    const customerInvoices = invoicesData.filter(inv => {
+        const payee = inv['payee-customer-id'] || '';
+        const contract = inv['contract-customer-id'] || '';
+        return payee.includes(customerId) || contract.includes(customerId);
+    });
+    
+    if (customerInvoices.length === 0) {
+        container.innerHTML = '<p style="color: #999;">لا توجد فواتير لهذا العميل</p>';
+        return;
+    }
+    
+    let html = '<table style="width:100%; font-size:0.85em;">';
+    html += '<thead><tr><th>تحديد</th><th>رقم الفاتورة</th><th>الإجمالي</th><th>المتبقي</th></tr></thead><tbody>';
+    
+    customerInvoices.forEach(inv => {
+        const key = getInvoiceKey(inv);
+        const total = (inv['total-total'] || 0) + ((inv['final-number'] || '').startsWith('P') ? 0 : 5);
+        const paid = inv['total-paid'] || 0;
+        const owed = total - paid;
+        
+        html += `<tr>
+            <td><input type="checkbox" class="link-invoice-check" value="${key}" onchange="updateLinkedTotal()" data-total="${total}"></td>
+            <td>${inv['final-number'] || inv['draft-number'] || '-'}</td>
+            <td>${formatNumberWithCommas(total.toFixed(2))}</td>
+            <td style="color: ${owed > 0 ? 'red' : 'green'};">${formatNumberWithCommas(owed.toFixed(2))}</td>
+        </tr>`;
+    });
+    
+    html += '</tbody></table>';
+    container.innerHTML = html;
+}
+
+// تحديث إجمالي الفواتير المرتبطة
+function updateLinkedTotal() {
+    const checks = document.querySelectorAll('.link-invoice-check:checked');
+    let total = 0;
+    checks.forEach(cb => {
+        total += parseFloat(cb.dataset.total) || 0;
+    });
+    
+    document.getElementById('paymentAmount').value = total > 0 ? total.toFixed(2) : '';
+}
+
+// إرسال السداد للحفظ
+window.submitPayment = async function() {
+    const customerId = document.getElementById('paymentCustomer').value;
+    const amount = parseFloat(document.getElementById('paymentAmount').value);
+    const currency = document.getElementById('paymentCurrency').value;
+    const date = document.getElementById('paymentDate').value;
+    const method = document.getElementById('paymentMethod').value;
+    const reference = document.getElementById('paymentReference').value;
+    const notes = document.getElementById('paymentNotes').value;
+    
+    // التحقق من الحقول المطلوبة
+    if (!customerId) {
+        showPaymentMessage('الرجاء اختيار العميل', 'error');
+        return;
+    }
+    if (!amount || amount <= 0) {
+        showPaymentMessage('الرجاء إدخال مبلغ صحيح', 'error');
+        return;
+    }
+    if (!date) {
+        showPaymentMessage('الرجاء إدخال تاريخ السداد', 'error');
+        return;
+    }
+    
+    // جمع الفواتير المرتبطة
+    const linkedChecks = document.querySelectorAll('.link-invoice-check:checked');
+    const linkedInvoices = [];
+    linkedChecks.forEach(cb => linkedInvoices.push(cb.value));
+    
+    // تجهيز بيانات السداد
+    const paymentData = {
+        customerId: customerId,
+        username: currentUser.username,
+        amount: amount,
+        currency: currency,
+        exchangeRate: currency === 'USD' ? (exchangeRate || 48.0215) : 1,
+        date: date,
+        method: method,
+        reference: reference,
+        bankName: document.getElementById('paymentBankName').value,
+        chequeNumber: document.getElementById('paymentChequeNumber').value,
+        chequeDate: document.getElementById('paymentChequeDate').value,
+        chequeBank: document.getElementById('paymentChequeBank').value,
+        cardType: document.getElementById('paymentCardType').value,
+        cardLast4: document.getElementById('paymentCardLast4').value,
+        notes: notes,
+        linkedInvoices: linkedInvoices,
+        partialPayment: false,
+        status: currentUser?.userType === 'admin' ? 'confirmed' : 'pending',
+        createdBy: currentUser.username
+    };
+    
+    showPaymentMessage('جاري حفظ السداد...', 'info');
+    
+    const result = await savePaymentToCloud(paymentData);
+    
+    if (result?.success) {
+        showPaymentMessage('✅ تم تسجيل السداد بنجاح!', 'success');
+        setTimeout(() => closePaymentModal(), 1500);
+    } else {
+        showPaymentMessage('❌ فشل حفظ السداد', 'error');
+    }
+};
+
+// عرض رسالة في نافذة السداد
+function showPaymentMessage(msg, type) {
+    const div = document.getElementById('paymentMessage');
+    div.textContent = msg;
+    div.className = `login-message ${type}`;
+    div.style.display = 'block';
+}
+
+// ============================================
+// دوال كشف الحساب
+// ============================================
+
+// فتح كشف الحساب
+window.openAccountStatement = async function(customerId) {
+    if (!customerId && currentUser) {
+        customerId = currentUser.taxNumber || currentUser.contractCustomerId || '';
+    }
+    
+    if (!customerId) {
+        showNotification('لا يمكن تحديد العميل', 'error');
+        return;
+    }
+    
+    document.getElementById('statementBody').innerHTML = '<div style="text-align:center; padding: 50px;"><i class="fas fa-spinner fa-spin"></i> جاري تحميل كشف الحساب...</div>';
+    document.getElementById('accountStatementModal').style.display = 'block';
+    
+    // تحميل السدادات
+    await loadPaymentsFromCloud(currentUser?.username);
+    
+    // تصفية فواتير العميل
+    const customerInvoices = invoicesData.filter(inv => {
+        const payee = inv['payee-customer-id'] || '';
+        const contract = inv['contract-customer-id'] || '';
+        return payee.includes(customerId) || contract.includes(customerId);
+    });
+    
+    // تصفية سدادات العميل
+    const customerPayments = paymentsData.filter(p => 
+        p.customerId === customerId && (p.status === 'confirmed' || p.isOpeningBalance)
+    );
+    
+    buildAccountStatement(customerInvoices, customerPayments, customerId);
+};
+
+// إغلاق كشف الحساب
+window.closeStatementModal = function() {
+    document.getElementById('accountStatementModal').style.display = 'none';
+};
+
+// بناء كشف الحساب
+function buildAccountStatement(invoices, payments, customerId) {
+    // بناء قائمة الحركات
+    let transactions = [];
+    
+    // إضافة الفواتير
+    invoices.forEach(inv => {
+        const key = getInvoiceKey(inv);
+        const total = (inv['total-total'] || 0) + ((inv['final-number'] || '').startsWith('P') ? 0 : 5);
+        const date = (inv['finalized-date'] || inv['created'] || '').slice(0, 10);
+        
+        transactions.push({
+            date: date || 'غير محدد',
+            description: `فاتورة ${inv['final-number'] || inv['draft-number'] || ''}`,
+            reference: key,
+            debit: total,
+            credit: 0,
+            type: 'invoice'
+        });
+    });
+    
+    // إضافة السدادات والرصيد الافتتاحي
+    payments.forEach(p => {
+        transactions.push({
+            date: p.date || '',
+            description: p.isOpeningBalance ? 'رصيد افتتاحي' : `سداد - ${getPaymentMethodName(p.method)}`,
+            reference: p.isOpeningBalance ? 'رصيد' : p.id,
+            debit: 0,
+            credit: p.amount,
+            type: p.isOpeningBalance ? 'opening' : 'payment'
+        });
+    });
+    
+    // ترتيب حسب التاريخ
+    transactions.sort((a, b) => new Date(a.date) - new Date(b.date));
+    
+    // حساب الرصيد التراكمي
+    let balance = 0;
+    let totalDebit = 0;
+    let totalCredit = 0;
+    
+    let html = `
+        <div style="background: #f8f9fa; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
+            <h3 style="margin: 0 0 10px;">كشف حساب: ${customerId}</h3>
+            <p style="margin: 0;">تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG')}</p>
+        </div>
+        
+        <table class="data-table" style="width: 100%;">
+            <thead>
+                <tr>
+                    <th>التاريخ</th>
+                    <th>البيان</th>
+                    <th>الرقم المرجعي</th>
+                    <th>مدين</th>
+                    <th>دائن</th>
+                    <th>الرصيد</th>
+                </tr>
+            </thead>
+            <tbody>`;
+    
+    transactions.forEach(t => {
+        totalDebit += t.debit;
+        totalCredit += t.credit;
+        balance = totalCredit - totalDebit;
+        
+        const balanceClass = balance >= 0 ? 'color: green;' : 'color: red;';
+        const rowStyle = t.type === 'opening' ? 'background: #e8f5e9;' : '';
+        
+        html += `<tr style="${rowStyle}">
+            <td>${t.date}</td>
+            <td>${t.description}</td>
+            <td>${t.reference}</td>
+            <td>${t.debit > 0 ? formatNumberWithCommas(t.debit.toFixed(2)) : '-'}</td>
+            <td>${t.credit > 0 ? formatNumberWithCommas(t.credit.toFixed(2)) : '-'}</td>
+            <td style="font-weight: bold; ${balanceClass}">${formatNumberWithCommas(balance.toFixed(2))}</td>
+        </tr>`;
+    });
+    
+    // صف المجموع
+    html += `<tr style="background: #f0f0f0; font-weight: bold;">
+        <td colspan="3">المجموع</td>
+        <td>${formatNumberWithCommas(totalDebit.toFixed(2))}</td>
+        <td>${formatNumberWithCommas(totalCredit.toFixed(2))}</td>
+        <td style="color: ${balance >= 0 ? 'green' : 'red'};">${formatNumberWithCommas(balance.toFixed(2))}</td>
+    </tr>`;
+    
+    html += `</tbody></table>
+        
+        <div style="margin-top: 20px; padding: 15px; background: ${balance >= 0 ? '#e8f5e9' : '#ffebee'}; border-radius: 10px; text-align: center;">
+            <h3 style="margin: 0;">الرصيد الحالي: 
+                <span style="color: ${balance >= 0 ? 'green' : 'red'};">
+                    ${formatNumberWithCommas(Math.abs(balance).toFixed(2))} 
+                    ${balance >= 0 ? 'دائن (لصالحك)' : 'مدين (عليك)'}
+                </span>
+            </h3>
+        </div>
+    `;
+    
+    document.getElementById('statementBody').innerHTML = html;
+}
+
+// الحصول على اسم طريقة السداد بالعربية
+function getPaymentMethodName(method) {
+    const names = {
+        'bank_transfer': 'تحويل بنكي',
+        'cash': 'نقدي',
+        'cheque': 'شيك',
+        'credit_card': 'بطاقة ائتمان',
+        'direct_deposit': 'إيداع مباشر',
+        'postal_order': 'حوالة بريدية',
+        'other': 'أخرى',
+        'opening_balance': 'رصيد افتتاحي'
+    };
+    return names[method] || method;
+}
+
+// تصدير كشف الحساب PDF
+window.exportStatementPDF = function() {
+    const content = document.getElementById('statementBody');
+    if (!content || !content.innerHTML.trim()) return;
+    
+    showNotification('جاري تصدير كشف الحساب PDF...', 'info');
+    // يمكن استخدام نفس تقنية html2canvas + jsPDF
+    if (typeof html2canvas !== 'undefined' && typeof jspdf !== 'undefined') {
+        html2canvas(content).then(canvas => {
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            const imgData = canvas.toDataURL('image/png');
+            const imgWidth = 190;
+            const imgHeight = (canvas.height * imgWidth) / canvas.width;
+            pdf.addImage(imgData, 'PNG', 10, 10, imgWidth, imgHeight);
+            pdf.save(`كشف_حساب_${new Date().toISOString().slice(0,10)}.pdf`);
+            showNotification('✅ تم التصدير بنجاح', 'success');
+        }).catch(() => {
+            showNotification('❌ فشل التصدير', 'error');
+        });
+    } else {
+        showNotification('مكتبات PDF غير متوفرة', 'error');
+    }
+};
+
+// تصدير كشف الحساب Excel
+window.exportStatementExcel = function() {
+    const table = document.querySelector('#statementBody table');
+    if (!table) return;
+    
+    const wb = XLSX.utils.table_to_book(table, { sheet: 'كشف حساب' });
+    XLSX.writeFile(wb, `كشف_حساب_${new Date().toISOString().slice(0,10)}.xlsx`);
+    showNotification('✅ تم التصدير بنجاح', 'success');
+};
+
+
+// ============================================
+// عرض كل السدادات (للمدير فقط)
+// ============================================
+
+window.openAllPaymentsView = async function() {
+    if (!currentUser || currentUser.userType !== 'admin') {
+        showNotification('غير مصرح لك بعرض كل السدادات', 'error');
+        return;
+    }
+    
+    // إخفاء محتوى الفواتير وإظهار السدادات
+    document.getElementById('dataViewContainer').innerHTML = '<div style="text-align:center; padding: 50px;"><i class="fas fa-spinner fa-spin"></i> جاري تحميل السدادات...</div>';
+    document.getElementById('pagination').innerHTML = '';
+    
+    // تحميل السدادات
+    await loadPaymentsFromCloud(currentUser.username);
+    filteredPayments = [...paymentsData];
+    currentPaymentPage = 1;
+    renderPaymentsView();
+};
+
+// عرض السدادات كجدول
+function renderPaymentsView() {
+    if (filteredPayments.length === 0) {
+        document.getElementById('dataViewContainer').innerHTML = '<div class="no-data"><i class="fas fa-inbox"></i><p>لا توجد سدادات</p></div>';
+        document.getElementById('pagination').innerHTML = '';
+        updatePaymentsSummary();
+        return;
+    }
+    
+    // ترتيب حسب التاريخ (الأحدث أولاً)
+    filteredPayments.sort((a, b) => new Date(b.date) - new Date(a.date));
+    
+    // ترقيم الصفحات
+    const totalPages = itemsPerPagePayments === Infinity ? 1 : Math.ceil(filteredPayments.length / itemsPerPagePayments);
+    const start = itemsPerPagePayments === Infinity ? 0 : (currentPaymentPage - 1) * itemsPerPagePayments;
+    const end = itemsPerPagePayments === Infinity ? filteredPayments.length : Math.min(start + itemsPerPagePayments, filteredPayments.length);
+    const pageData = filteredPayments.slice(start, end);
+    
+    let html = `
+        <div class="table-container">
+            <div class="table-toolbar" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; padding:10px; background:#f8f9fa; border-radius:8px;">
+                <div>
+                    <button class="btn btn-primary" onclick="openPaymentModal()"><i class="fas fa-plus"></i> سداد جديد</button>
+                    <button class="btn btn-info" onclick="openAllPaymentsView()" style="background:#4cc9f0;"><i class="fas fa-sync-alt"></i> تحديث</button>
+                </div>
+                <div>
+                    <span>إجمالي السدادات: <strong>${filteredPayments.length}</strong></span>
+                </div>
+            </div>
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>رقم السداد</th>
+                        <th>العميل</th>
+                        <th>المبلغ</th>
+                        <th>العملة</th>
+                        <th>الطريقة</th>
+                        <th>التاريخ</th>
+                        <th>الحالة</th>
+                        <th>إجراءات</th>
+                    </tr>
+                </thead>
+                <tbody>`;
+    
+    pageData.forEach(p => {
+        const statusLabels = { 'pending': '⏳ قيد الانتظار', 'confirmed': '✅ مؤكد', 'rejected': '❌ مرفوض', 'cancelled': '🚫 ملغي' };
+        const statusColors = { 'pending': '#f39c12', 'confirmed': '#27ae60', 'rejected': '#e74c3c', 'cancelled': '#95a5a6' };
+        
+        html += `<tr>
+            <td>${p.id}</td>
+            <td>${p.customerId || '-'}</td>
+            <td>${formatNumberWithCommas(p.amount.toFixed(2))}</td>
+            <td>${p.currency}</td>
+            <td>${getPaymentMethodName(p.method)}</td>
+            <td>${p.date}</td>
+            <td><span style="background:${statusColors[p.status]}; color:white; padding:3px 10px; border-radius:50px; font-size:0.85em;">${statusLabels[p.status] || p.status}</span></td>
+            <td>
+                ${p.status === 'pending' ? `
+                    <button class="action-btn edit" onclick="confirmPaymentInCloud('${p.id}')" title="تأكيد"><i class="fas fa-check"></i></button>
+                    <button class="action-btn delete" onclick="rejectPaymentPrompt('${p.id}')" title="رفض"><i class="fas fa-times"></i></button>
+                ` : ''}
+                ${p.status === 'confirmed' ? '<span style="font-size:0.8em; color:#999;">مؤكد</span>' : ''}
+            </td>
+        </tr>`;
+    });
+    
+    html += `</tbody></table></div>`;
+    
+    document.getElementById('dataViewContainer').innerHTML = html;
+    
+    // ترقيم الصفحات
+    renderPaymentsPagination(totalPages);
+    updatePaymentsSummary();
+}
+
+// ترقيم صفحات السدادات
+function renderPaymentsPagination(totalPages) {
+    if (itemsPerPagePayments === Infinity || totalPages <= 1) {
+        document.getElementById('pagination').innerHTML = '';
+        return;
+    }
+    
+    let html = '';
+    html += `<button class="pagination-btn" onclick="changePaymentPage(${currentPaymentPage - 1})" ${currentPaymentPage === 1 ? 'disabled' : ''}><i class="fas fa-chevron-right"></i></button>`;
+    
+    for (let i = 1; i <= totalPages; i++) {
+        html += `<button class="pagination-btn ${i === currentPaymentPage ? 'active' : ''}" onclick="changePaymentPage(${i})">${i}</button>`;
+    }
+    
+    html += `<button class="pagination-btn" onclick="changePaymentPage(${currentPaymentPage + 1})" ${currentPaymentPage === totalPages ? 'disabled' : ''}><i class="fas fa-chevron-left"></i></button>`;
+    
+    document.getElementById('pagination').innerHTML = html;
+}
+
+// تغيير صفحة السدادات
+function changePaymentPage(page) {
+    const totalPages = itemsPerPagePayments === Infinity ? 1 : Math.ceil(filteredPayments.length / itemsPerPagePayments);
+    if (page >= 1 && page <= totalPages) {
+        currentPaymentPage = page;
+        renderPaymentsView();
+    }
+}
+
+// تحديث ملخص السدادات
+function updatePaymentsSummary() {
+    let totalConfirmed = 0;
+    let totalPending = 0;
+    
+    filteredPayments.forEach(p => {
+        if (p.status === 'confirmed' || p.isOpeningBalance) {
+            totalConfirmed += p.amount;
+        } else if (p.status === 'pending') {
+            totalPending += p.amount;
+        }
+    });
+    
+    document.getElementById('invoiceCount').textContent = filteredPayments.length;
+    document.getElementById('totalSum').innerHTML = totalConfirmed.toFixed(2);
+    document.getElementById('taxSum').innerHTML = totalPending.toFixed(2);
+    document.getElementById('totalUSD').innerHTML = '0.00';
+    document.getElementById('totalEGPWithoutTax').innerHTML = '0.00';
+    document.getElementById('totalMartyr').innerHTML = '0.00';
+}
+
+// طلب سبب الرفض
+window.rejectPaymentPrompt = function(paymentId) {
+    const reason = prompt('أدخل سبب الرفض:');
+    if (reason !== null && reason.trim() !== '') {
+        rejectPaymentInCloud(paymentId, reason).then(result => {
+            if (result?.success) {
+                openAllPaymentsView(); // تحديث العرض
+            }
+        });
+    }
+};
+
+// ============================================
+// إضافة رصيد افتتاحي (للمدير فقط)
+// ============================================
+window.openOpeningBalanceModal = function() {
+    if (currentUser?.userType !== 'admin') {
+        showNotification('غير مصرح', 'error');
+        return;
+    }
+    
+    const customerId = prompt('أدخل الرقم الضريبي للعميل:');
+    if (!customerId) return;
+    
+    const amount = prompt('أدخل مبلغ الرصيد الافتتاحي:');
+    if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
+        showNotification('مبلغ غير صحيح', 'error');
+        return;
+    }
+    
+    const currency = confirm('هل العملة دولار؟ (موافق = دولار، إلغاء = جنيه)') ? 'USD' : 'EGP';
+    const exchangeRate = currency === 'USD' ? parseFloat(prompt('أدخل سعر الصرف:', '48.0215')) || 48.0215 : 1;
+    
+    const body = {
+        action: 'opening_balance',
+        customerId: customerId,
+        username: 'admin',
+        amount: parseFloat(amount),
+        currency: currency,
+        exchangeRate: exchangeRate,
+        date: new Date().toISOString().slice(0, 10),
+        notes: 'رصيد افتتاحي',
+        createdBy: currentUser.username,
+        balanceType: 'credit'
+    };
+    
+    fetch(PAYMENTS_API_URL, {
+        method: 'POST',
+        headers: { 'Content-Type': 'text/plain' },
+        body: JSON.stringify(body)
+    })
+    .then(r => r.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('✅ تم إضافة الرصيد الافتتاحي بنجاح', 'success');
+        } else {
+            showNotification('❌ فشل: ' + data.error, 'error');
+        }
+    })
+    .catch(error => {
+        showNotification('❌ خطأ في الاتصال', 'error');
+    });
+};
+
 // ============================================
 // التهيئة الرئيسية
 // ============================================
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('بدء تشغيل النظام...');
     loadDriveSettings();
+	
+	
+	// ✅ استدعاء تحميل التوكن
+    //await loadRefreshTokenFromDrive();
     
     // تحميل الشعار من Drive
     await loadLogoFromDrive();
@@ -6750,30 +7676,6 @@ function debounce(func, wait) {
     let timeout;
     return (...args) => { clearTimeout(timeout); timeout = setTimeout(() => func(...args), wait); };
 }
-
-
-// ============================================
-// تحميل العلامات مباشرة (مستقل عن باقي البرنامج)
-// ============================================
-(function forceLoadViewed() {
-    console.log('🔄 [forceLoadViewed] بدء التنفيذ');
-    
-    // انتظار وجود currentUser
-    const checkInterval = setInterval(() => {
-        if (currentUser) {
-            clearInterval(checkInterval);
-            console.log('✅ [forceLoadViewed] تم العثور على currentUser:', currentUser.username);
-            
-            // انتظار قليلاً ثم تحميل العلامات
-            setTimeout(() => {
-                console.log('🔄 [forceLoadViewed] جاري تحميل العلامات...');
-                loadViewedFromDrive();
-            }, 2000);
-        } else {
-            console.log('⏳ [forceLoadViewed] انتظار currentUser...');
-        }
-    }, 500);
-})();
 
 
 // دالة للتحقق مما إذا كانت الفاتورة تخص المستخدم الحالي
@@ -6875,4 +7777,287 @@ async function exportDirectPDF() {
     // ... (انسخ الكود من exportSelectedReport حتى إنشاء reportHtmlWithoutSummary)
     // ثم:
     await exportReportAsProfessionalPDF(reportHtmlWithoutSummary, 'تقرير_فواتير');
+}
+
+// ============================================
+// نظام التحديث التلقائي (Auto Refresh)
+// ============================================
+
+// ========== دوال التحديث التلقائي (النسخة النهائية الموحدة) ==========
+let refreshIntervalId = null;
+let currentRefreshEnabled = false;
+let currentRefreshMinutes = 30;
+
+// تحديث واجهة الحالة داخل النافذة
+function updateRefreshStatusDisplay() {
+    const statusDiv = document.getElementById('refreshStatus');
+    if (!statusDiv) return;
+    if (currentRefreshEnabled && currentRefreshMinutes >= 30) {
+        statusDiv.innerHTML = `<i class="fas fa-check-circle"></i> ✅ مفعل - التحديث كل ${currentRefreshMinutes} دقيقة`;
+        statusDiv.style.background = '#d4edda';
+        statusDiv.style.color = '#155724';
+    } else {
+        statusDiv.innerHTML = `<i class="fas fa-ban"></i> ❌ غير مفعل`;
+        statusDiv.style.background = '#f8d7da';
+        statusDiv.style.color = '#721c24';
+    }
+}
+
+// إيقاف المؤقت
+function stopRefreshTimer() {
+    if (refreshIntervalId) {
+        clearInterval(refreshIntervalId);
+        refreshIntervalId = null;
+    }
+    currentRefreshEnabled = false;
+    updateRefreshStatusDisplay();
+    console.log('تم إيقاف التحديث التلقائي');
+}
+
+// بدء المؤقت
+function startRefreshTimer(minutes) {
+    if (refreshIntervalId) stopRefreshTimer(); // إيقاف القديم
+    if (!minutes || minutes < 30) {
+        currentRefreshEnabled = false;
+        updateRefreshStatusDisplay();
+        return;
+    }
+    currentRefreshEnabled = true;
+    currentRefreshMinutes = minutes;
+    refreshIntervalId = setInterval(async () => {
+        console.log(`تحديث تلقائي بعد ${minutes} دقيقة`);
+        if (currentUser) {
+            await loadInvoicesFromDrive();
+            if (currentUser.isGuest) {
+                filterInvoicesByGuest(currentUser.taxNumber, currentUser.blNumber);
+            } else {
+                filterInvoicesByUser();
+            }
+            renderData();
+            showNotification('تم تحديث البيانات تلقائياً', 'success');
+        }
+    }, minutes * 60 * 1000);
+    updateRefreshStatusDisplay();
+    console.log(`تم تفعيل التحديث التلقائي كل ${minutes} دقيقة`);
+}
+
+function applyRefreshSetting() {
+    const enabled = localStorage.getItem('refresh_enabled') === 'true';
+    const minutes = parseInt(localStorage.getItem('refresh_minutes') || '30');
+    if (enabled && minutes >= 30) {
+        startRefreshTimer(minutes);
+    } else {
+        stopRefreshTimer();
+    }
+}
+
+// حفظ الإعدادات من النافذة
+window.saveRefreshSettings = function() {
+    const enabledSelect = document.getElementById('refreshEnabled');
+    const intervalInput = document.getElementById('refreshInterval');
+    if (!enabledSelect || !intervalInput) {
+        showNotification('حدث خطأ في النافذة', 'error');
+        return;
+    }
+    const enabled = enabledSelect.value === 'true';
+    let minutes = parseInt(intervalInput.value);
+    if (isNaN(minutes)) minutes = 30;
+    if (enabled && minutes < 30) {
+        showNotification('⚠️ الحد الأدنى 30 دقيقة', 'warning');
+        return;
+    }
+    if (enabled && minutes > 1440) minutes = 1440;
+    
+    // حفظ في localStorage
+    localStorage.setItem('refresh_enabled', enabled ? 'true' : 'false');
+    if (enabled) {
+        localStorage.setItem('refresh_minutes', minutes);
+        startRefreshTimer(minutes);
+    } else {
+        localStorage.removeItem('refresh_minutes');
+        stopRefreshTimer();
+    }
+    // تحديث واجهة النافذة
+    updateRefreshSettingsForm();
+    closeRefreshSettingsModal();
+    showNotification(enabled ? `✅ تم تفعيل التحديث كل ${minutes} دقيقة` : '⏸️ تم إيقاف التحديث التلقائي', 'success');
+};
+
+// تحميل الإعدادات من localStorage وتطبيقها
+function loadRefreshSettings() {
+    const enabled = localStorage.getItem('refresh_enabled') === 'true';
+    const minutes = parseInt(localStorage.getItem('refresh_minutes') || '30');
+    if (enabled && minutes >= 30) {
+        startRefreshTimer(minutes);
+    } else {
+        stopRefreshTimer();
+    }
+    updateRefreshSettingsForm();
+}
+
+// تحديث حقول النافذة بناءً على المتغيرات الحالية (وليس localStorage)
+function updateRefreshSettingsForm() {
+    const enabledSelect = document.getElementById('refreshEnabled');
+    const intervalInput = document.getElementById('refreshInterval');
+    if (!enabledSelect || !intervalInput) return;
+    // استخدم currentRefreshEnabled و currentRefreshMinutes بدلاً من localStorage
+    enabledSelect.value = currentRefreshEnabled ? 'true' : 'false';
+    intervalInput.value = currentRefreshMinutes;
+    updateRefreshStatusDisplay();
+}
+
+// فتح النافذة
+window.openRefreshSettings = function() {
+    if (!currentUser) {
+        showNotification('يرجى تسجيل الدخول أولاً', 'warning');
+        return;
+    }
+    updateRefreshSettingsForm(); // تعرض القيم الحالية
+    const modal = document.getElementById('refreshSettingsModal');
+    if (modal) modal.style.display = 'block';
+};
+
+// إغلاق النافذة
+window.closeRefreshSettingsModal = function() {
+    const modal = document.getElementById('refreshSettingsModal');
+    if (modal) modal.style.display = 'none';
+};
+
+// تحديث يدوي فوري
+window.manualRefresh = async function() {
+    if (!currentUser) return;
+    showNotification('🔄 جاري التحديث اليدوي...', 'info');
+    await loadInvoicesFromDrive();
+    if (currentUser.isGuest) {
+        filterInvoicesByGuest(currentUser.taxNumber, currentUser.blNumber);
+    } else {
+        filterInvoicesByUser();
+    }
+    renderData();
+    showNotification('✅ تم التحديث اليدوي بنجاح', 'success');
+};
+
+// عند تحميل الصفحة
+document.addEventListener('DOMContentLoaded', () => {
+    loadRefreshSettings();
+});
+
+
+// ============================================
+// شريط الأخبار المتحرك - نسخة بطيئة ومستقرة
+// ============================================
+
+async function loadNewsFromDrive() {
+    const newsBar = document.getElementById('newsBar');
+    const newsContent = document.getElementById('newsTickerContent');
+    
+    if (!newsBar || !newsContent) {
+        console.error('❌ عناصر شريط الأخبار غير موجودة');
+        return;
+    }
+
+    const newsUrl = 'https://raw.githubusercontent.com/revenudchc-boop/DCHC/main/news.txt';
+
+    try {
+        newsContent.innerHTML = '<div class="news-item"><i class="fas fa-spinner fa-spin"></i> جاري تحميل الأخبار...</div>';
+        newsBar.style.display = 'flex';
+        
+        const response = await fetch(newsUrl);
+        if (!response.ok) throw new Error(`HTTP ${response.status}`);
+        const content = await response.text();
+        
+        let newsItems = content.split(/\r?\n/).filter(line => line.trim() !== '');
+        if (newsItems.length === 0) newsItems = ['مرحباً بك في نظام الفواتير المتقدم'];
+        
+        let html = '';
+        for (let repeat = 0; repeat < 3; repeat++) {
+            newsItems.forEach((item, idx) => {
+                let icon = 'fas fa-star';
+                if (item.includes('عاجل') || item.includes('هام')) icon = 'fas fa-bolt';
+                else if (item.includes('تحديث')) icon = 'fas fa-sync-alt';
+                else if (item.includes('جديد')) icon = 'fas fa-gift';
+                else if (item.includes('🎉')) icon = 'fas fa-party-horn';
+                
+                html += `<div class="news-item"><i class="${icon} news-icon"></i><span>${escapeHtmlNews(item)}</span></div>`;
+                if (idx < newsItems.length - 1) html += `<span class="news-separator">✦</span>`;
+            });
+            if (repeat < 2) html += `<span class="news-separator" style="margin:0 25px;">◆ ◆ ◆</span>`;
+        }
+        
+        newsContent.innerHTML = html;
+        
+        const ticker = document.querySelector('.news-ticker');
+        if (ticker) {
+            // إزالة الأنيميشن القديمة
+            ticker.style.animation = 'none';
+            // إعادة تعيين
+            ticker.offsetHeight;
+            // حساب السرعة
+            const contentWidth = newsContent.scrollWidth;
+            const duration = Math.max(30, Math.min(80, contentWidth / 40));
+            // تعيين الأنيميشن الجديدة
+            ticker.style.animation = `tickerScroll ${duration}s linear infinite`;
+            console.log(`✅ سرعة الشريط: ${duration} ثانية`);
+        }
+        
+    } catch (error) {
+        console.error('خطأ في تحميل الأخبار:', error);
+        const newsContentElem = document.getElementById('newsTickerContent');
+        if (newsContentElem) {
+            newsContentElem.innerHTML = '<div class="news-item">⚠️ تعذر تحميل الأخبار</div>';
+        }
+        const newsBarElem = document.getElementById('newsBar');
+        if (newsBarElem) newsBarElem.style.display = 'flex';
+    }
+}
+
+// دالة تنظيف النص من الرموز الضارة
+function escapeHtmlNews(str) {
+    if (!str) return '';
+    return str
+        .replace(/[&<>]/g, function(m) {
+            if (m === '&') return '&amp;';
+            if (m === '<') return '&lt;';
+            if (m === '>') return '&gt;';
+            return m;
+        })
+        .replace(/[\uD800-\uDBFF][\uDC00-\uDFFF]/g, function(c) {
+            return c; // الحفاظ على الرموز التعبيرية (Emoji)
+        });
+}
+
+// تهيئة شريط الأخبار (يتم استدعاؤها بعد تسجيل الدخول)
+function initNewsBar() {
+    const newsBar = document.getElementById('newsBar');
+    if (!newsBar) {
+        console.error('❌ لم يتم العثور على شريط الأخبار');
+        return;
+    }
+    console.log('🔄 جاري تهيئة شريط الأخبار...');
+    newsBar.style.display = 'flex';
+    loadNewsFromDrive();
+}
+
+// دالة إعادة ضبط سرعة الشريط (اختيارية - يمكن استدعاؤها يدوياً)
+function setNewsTickerSpeed(seconds) {
+    const ticker = document.querySelector('.news-ticker');
+    if (ticker) {
+        ticker.style.animation = 'none';
+        ticker.offsetHeight;
+        ticker.style.animation = `scrollTicker ${seconds}s linear infinite`;
+        console.log(`✅ تم تغيير سرعة الشريط إلى ${seconds} ثانية`);
+    }
+}
+
+window.initNewsBar = initNewsBar;
+
+function toggleNewsBar() {
+    const newsBar = document.getElementById('newsBar');
+    if (newsBar) {
+        if (newsBar.style.display === 'none') {
+            newsBar.style.display = 'flex';
+        } else {
+            newsBar.style.display = 'none';
+        }
+    }
 }

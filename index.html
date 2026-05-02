@@ -87,9 +87,26 @@
                 <span class="user-tax" id="userTaxDisplay"></span>
             </div>
             <div class="user-actions">
+				<button class="user-btn refresh-settings-btn" onclick="openRefreshSettings()" title="إعدادات التحديث التلقائي">
+					<i class="fas fa-clock"></i>
+				</button>
+				
+				<div class="user-actions">
+    <!-- الأزرار الموجودة -->
+    <button class="user-btn" onclick="toggleNewsBar()" title="إظهار/إخفاء الأخبار">
+        <i class="fas fa-newspaper"></i>
+    </button>
+</div>
                 <button class="user-btn drive-settings-btn" id="driveSettingsBtn" onclick="openDriveSettings()" title="إعدادات Google Drive">
                     <i class="fab fa-google-drive"></i>
                 </button>
+				<button class="user-btn" onclick="openPaymentModal()" title="تسجيل سداد جديد">
+                    <i class="fas fa-money-bill-wave"></i>
+                </button>
+                <button class="user-btn" onclick="openAccountStatement()" title="كشف الحساب">
+                    <i class="fas fa-file-invoice-dollar"></i>
+                </button>
+				
                 <button class="user-btn" onclick="showChangePassword()" title="تغيير كلمة المرور">
                     <i class="fas fa-key"></i>
                 </button>
@@ -99,8 +116,29 @@
                 <button class="user-btn logout-btn" onclick="logout()" title="تسجيل الخروج">
                     <i class="fas fa-sign-out-alt"></i>
                 </button>
+
             </div>
         </div>
+
+<!-- شريط الأخبار -->
+		<div id="newsBarContainer" style="position: relative;">
+			<div id="newsBar" class="news-ticker-container" style="display: flex;">
+				<div class="news-ticker-header">
+					<i class="fas fa-newspaper"></i>
+					<span>أخبار عاجلة</span>
+					<div class="news-ticker-pulse"></div>
+				</div>
+				<div class="news-ticker-wrapper">
+					<div class="news-ticker" id="newsTicker">
+						<div class="news-ticker-content" id="newsTickerContent">
+							جاري تحميل الأخبار...
+						</div>
+					</div>
+				</div>
+			</div>
+			
+
+		</div>
 
         <!-- شريط بيانات الشركة -->
         <div class="company-bar">
@@ -165,6 +203,7 @@
 				<button class="type-tab active" onclick="switchInvoiceType('cash')">الفواتير النقدية</button>
 				<button class="type-tab" onclick="switchInvoiceType('postponed')">الفواتير الآجلة</button>
 				<button class="type-tab" onclick="switchInvoiceType('credit')">إشعارات الخصم</button>
+				<button class="type-tab" onclick="openAllPaymentsView()">السدادات</button>
 			</div>
 
             <!-- تبويبات التقارير -->
@@ -552,6 +591,184 @@
             </div>
         </div>
     </div>
+	
+    <!-- نافذة تسجيل سداد جديد -->
+    <div id="paymentModal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <div class="modal-header">
+                <h2><i class="fas fa-money-bill-wave"></i> تسجيل سداد جديد</h2>
+                <span class="close-button" onclick="closePaymentModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label><i class="fas fa-user"></i> العميل</label>
+                    <select id="paymentCustomer" onchange="onPaymentCustomerChange()">
+                        <option value="">اختر العميل...</option>
+                    </select>
+                </div>
+                
+                <div class="form-group">
+                    <label><i class="fas fa-hashtag"></i> رقم المرجع</label>
+                    <input type="text" id="paymentReference" placeholder="مثال: TRX-12345 (اختياري)">
+                </div>
+                
+                <div class="form-row" style="display: flex; gap: 15px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label><i class="fas fa-coins"></i> المبلغ</label>
+                        <input type="number" id="paymentAmount" placeholder="0.00" step="0.01" min="0">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label><i class="fas fa-dollar-sign"></i> العملة</label>
+                        <select id="paymentCurrency">
+                            <option value="EGP">جنيه مصري (EGP)</option>
+                            <option value="USD">دولار أمريكي (USD)</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <div class="form-row" style="display: flex; gap: 15px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label><i class="fas fa-calendar"></i> تاريخ السداد</label>
+                        <input type="date" id="paymentDate">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label><i class="fas fa-credit-card"></i> طريقة السداد</label>
+                        <select id="paymentMethod" onchange="onPaymentMethodChange()">
+                            <option value="bank_transfer">تحويل بنكي</option>
+                            <option value="cash">نقدي</option>
+                            <option value="cheque">شيك</option>
+                            <option value="credit_card">بطاقة ائتمان</option>
+                            <option value="direct_deposit">إيداع مباشر</option>
+                            <option value="postal_order">حوالة بريدية</option>
+                            <option value="other">أخرى</option>
+                        </select>
+                    </div>
+                </div>
+                
+                <!-- حقول خاصة بالتحويل البنكي -->
+                <div id="bankFields" style="display: block;">
+                    <div class="form-group">
+                        <label><i class="fas fa-university"></i> اسم البنك</label>
+                        <input type="text" id="paymentBankName" placeholder="مثال: البنك الأهلي (اختياري)">
+                    </div>
+                </div>
+                
+                <!-- حقول خاصة بالشيك (مخفية افتراضياً) -->
+                <div id="chequeFields" style="display: none;">
+                    <div class="form-row" style="display: flex; gap: 15px;">
+                        <div class="form-group" style="flex: 1;">
+                            <label>رقم الشيك</label>
+                            <input type="text" id="paymentChequeNumber" placeholder="رقم الشيك">
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label>تاريخ الشيك</label>
+                            <input type="date" id="paymentChequeDate">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>بنك الشيك</label>
+                        <input type="text" id="paymentChequeBank" placeholder="اسم البنك">
+                    </div>
+                </div>
+                
+                <!-- حقول خاصة ببطاقة الائتمان (مخفية افتراضياً) -->
+                <div id="cardFields" style="display: none;">
+                    <div class="form-row" style="display: flex; gap: 15px;">
+                        <div class="form-group" style="flex: 1;">
+                            <label>نوع البطاقة</label>
+                            <select id="paymentCardType">
+                                <option value="visa">Visa</option>
+                                <option value="mastercard">Mastercard</option>
+                                <option value="other">أخرى</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label>آخر 4 أرقام</label>
+                            <input type="text" id="paymentCardLast4" placeholder="1234" maxlength="4">
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label><i class="fas fa-file-invoice"></i> ربط بفواتير (اختياري)</label>
+                    <div id="linkedInvoicesContainer" style="border: 1px solid #ddd; border-radius: 8px; padding: 10px; max-height: 200px; overflow-y: auto;">
+                        <p style="color: #999; font-size: 0.9em;">سيتم تحميل الفواتير غير المسددة...</p>
+                    </div>
+                </div>
+                
+                <div class="form-group">
+                    <label><i class="fas fa-sticky-note"></i> ملاحظات</label>
+                    <textarea id="paymentNotes" rows="3" placeholder="ملاحظات إضافية..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label><i class="fas fa-paperclip"></i> مرفقات</label>
+                    <input type="file" id="paymentAttachment" multiple accept=".jpg,.jpeg,.png,.pdf">
+                    <small>الحد الأقصى 3 ملفات. JPG, PNG, PDF</small>
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button class="btn btn-primary" onclick="submitPayment()" style="flex: 1;">
+                        <i class="fas fa-save"></i> تسجيل السداد
+                    </button>
+                    <button class="btn btn-secondary" onclick="closePaymentModal()" style="flex: 1;">
+                        <i class="fas fa-times"></i> إلغاء
+                    </button>
+                </div>
+                <div id="paymentMessage" class="login-message"></div>
+            </div>
+        </div>
+    </div>
+    
+    <!-- نافذة كشف الحساب -->
+    <div id="accountStatementModal" class="modal">
+        <div class="modal-content" style="max-width: 1000px;">
+            <div class="modal-header">
+                <h2><i class="fas fa-file-invoice-dollar"></i> كشف حساب</h2>
+                <div class="modal-actions">
+                    <button class="btn btn-primary" onclick="exportStatementPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
+                    <button class="btn btn-success" onclick="exportStatementExcel()"><i class="fas fa-file-excel"></i> Excel</button>
+                    <span class="close-button" onclick="closeStatementModal()">&times;</span>
+                </div>
+            </div>
+            <div class="modal-body" id="statementBody"></div>
+        </div>
+    </div>
+				<!-- نافذة إعدادات التحديث التلقائي -->
+<div id="refreshSettingsModal" class="modal">
+    <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-header">
+            <h2><i class="fas fa-sync-alt"></i> إعدادات التحديث التلقائي</h2>
+            <span class="close-button" onclick="closeRefreshSettingsModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label><i class="fas fa-clock"></i> تفعيل التحديث التلقائي</label>
+                <select id="refreshEnabled" class="form-control">
+                    <option value="false">معطل</option>
+                    <option value="true">مفعل</option>
+                </select>
+                <small class="form-text">سيتم تحديث البيانات من Google Drive تلقائياً</small>
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-hourglass-half"></i> الفاصل الزمني (بالدقائق)</label>
+                <input type="number" id="refreshInterval" min="30" max="1440" step="1" value="30">
+                <small class="form-text">أدخل عدد الدقائق بين كل تحديث (30 - 1440 دقيقة)</small>
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-info-circle"></i> حالة التحديث الحالية</label>
+                <div id="refreshStatus" class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> جاري تحميل الإعدادات...
+                </div>
+            </div>
+            <div class="form-actions" style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn btn-primary" onclick="saveRefreshSettings()"><i class="fas fa-save"></i> حفظ الإعدادات</button>
+                <button class="btn btn-secondary" onclick="closeRefreshSettingsModal()">إلغاء</button>
+                <button class="btn btn-info" onclick="manualRefresh()" style="background: #4cc9f0;"><i class="fas fa-sync-alt"></i> تحديث يدوي الآن</button>
+            </div>
+        </div>
+    </div>
+</div>
 
     <!-- شريط التقدم -->
     <div id="progressBarContainer" class="progress-bar-container" style="display: none;">
