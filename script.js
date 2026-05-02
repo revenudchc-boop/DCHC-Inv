@@ -1605,6 +1605,7 @@ function updateUserInterface() {
     const isAdmin = currentUser.userType === 'admin';
     const isGuest = currentUser.isGuest;
 
+    // الأزرار القديمة
     document.getElementById('driveSettingsBtn').style.display = isAdmin ? 'flex' : 'none';
     document.querySelector('[onclick="showChangePassword()"]').style.display = isGuest ? 'none' : 'flex';
     document.getElementById('adminPanelBtn').style.display = isAdmin ? 'flex' : 'none';
@@ -1612,10 +1613,19 @@ function updateUserInterface() {
     document.querySelector('.btn-drive').style.display = isAdmin ? 'inline-flex' : 'none';
     document.getElementById('dbControls').style.display = isAdmin ? 'flex' : 'none';
 
+    // ✅ أزرار السداد وكشف الحساب - متاحة للجميع
+    const paymentBtn = document.querySelector('[onclick="openPaymentModal()"]');
+    const statementBtn = document.querySelector('[onclick="openAccountStatement()"]');
+    const myPaymentsBtn = document.querySelector('[onclick="openMyPayments()"]');
+    
+    if (paymentBtn) paymentBtn.style.display = 'flex';
+    if (statementBtn) statementBtn.style.display = 'flex';
+    if (myPaymentsBtn) myPaymentsBtn.style.display = 'flex';
+
     // ✅ بناء واجهة البحث المتقدم لكل المستخدمين (الدالة الداخلية ستقرر القائمة أو النص)
     buildInvoiceSearchUI();
-	
-	    // تحميل شريط الأخبار
+    
+    // تحميل شريط الأخبار
     if (currentUser) {
         setTimeout(function() {
             initNewsBar();
@@ -7632,6 +7642,18 @@ window.openOpeningBalanceModal = function() {
     });
 };
 
+// عرض سداداته (للعميل والمحاسب)
+window.openMyPayments = async function() {
+    if (!currentUser) return;
+    
+    document.getElementById('dataViewContainer').innerHTML = '<div style="text-align:center; padding: 50px;"><i class="fas fa-spinner fa-spin"></i> جاري تحميل سدادتك...</div>';
+    document.getElementById('pagination').innerHTML = '';
+    
+    await loadPaymentsFromCloud(currentUser.username);
+    filteredPayments = [...paymentsData];
+    currentPaymentPage = 1;
+    renderPaymentsView();
+};
 // ============================================
 // التهيئة الرئيسية
 // ============================================
