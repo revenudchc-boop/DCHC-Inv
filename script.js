@@ -7515,17 +7515,54 @@ window.openAllPaymentsView = async function() {
         return;
     }
     
-    // إخفاء محتوى الفواتير وإظهار السدادات
+    // تحديث مظهر التبويب
+    document.querySelectorAll('.type-tab').forEach(tab => tab.classList.remove('active'));
+    const paymentsTab = document.querySelector('[onclick="openAllPaymentsView()"]');
+    if (paymentsTab) paymentsTab.classList.add('active');
+    
+    // إخفاء التقارير
+    document.getElementById('reportsContainer').style.display = 'none';
+    document.getElementById('dataViewContainer').style.display = 'block';
+    document.getElementById('pagination').style.display = 'flex';
+    
+    // إظهار رسالة تحميل
     document.getElementById('dataViewContainer').innerHTML = '<div style="text-align:center; padding: 50px;"><i class="fas fa-spinner fa-spin"></i> جاري تحميل السدادات...</div>';
     document.getElementById('pagination').innerHTML = '';
     
     // تحميل السدادات
     await loadPaymentsFromCloud(currentUser.username);
     
-    // إذا لم يكن مديراً، اعرض سداداته فقط
+    // فلترة حسب صلاحيات المستخدم
     if (currentUser.userType !== 'admin') {
-        filteredPayments = paymentsData.filter(p => p.createdBy === currentUser.username);
+        // جمع معرفات المستخدم (رقم ضريبي، رقم عقد، customerIds)
+        let userCustomerIds = [];
+        if (currentUser.taxNumber) userCustomerIds.push(currentUser.taxNumber.toLowerCase());
+        if (currentUser.contractCustomerId) userCustomerIds.push(currentUser.contractCustomerId.toLowerCase());
+        if (currentUser.customerIds && Array.isArray(currentUser.customerIds)) {
+            currentUser.customerIds.forEach(id => userCustomerIds.push(id.toLowerCase()));
+        }
+        userCustomerIds = [...new Set(userCustomerIds)]; // إزالة التكرار
+        
+        console.log('🔍 معرفات المستخدم:', userCustomerIds);
+        console.log('📋 إجمالي السدادات قبل الفلترة:', paymentsData.length);
+        
+        filteredPayments = paymentsData.filter(p => {
+            // السداد الذي سجله المستخدم بنفسه
+            if (p.createdBy === currentUser.username) return true;
+            
+            // السداد المرتبط بأحد معرفات العميل (مطابقة كاملة أو جزئية)
+            const paymentCustomer = (p.customerId || '').toLowerCase();
+            for (const id of userCustomerIds) {
+                if (paymentCustomer.includes(id) || id.includes(paymentCustomer)) {
+                    return true;
+                }
+            }
+            return false;
+        });
+        
+        console.log('📋 السدادات بعد الفلترة:', filteredPayments.length);
     } else {
+        // المدير يرى كل السدادات
         filteredPayments = [...paymentsData];
     }
     
@@ -7751,14 +7788,41 @@ window.openPaymentsTab = async function() {
     document.getElementById('dataViewContainer').innerHTML = '<div style="text-align:center; padding: 50px;"><i class="fas fa-spinner fa-spin"></i> جاري تحميل السدادات...</div>';
     document.getElementById('pagination').innerHTML = '';
     
+    // تحميل السدادات
+    await loadPaymentsFromCloud(currentUser.username);
+    
     if (currentUser.userType === 'admin') {
         // المدير يرى كل السدادات
-        await loadPaymentsFromCloud(currentUser.username);
         filteredPayments = [...paymentsData];
     } else {
         // باقي المستخدمين يرون سدادتهم فقط
-        await loadPaymentsFromCloud(currentUser.username);
-        filteredPayments = [...paymentsData];
+        // جمع معرفات المستخدم
+        let userCustomerIds = [];
+        if (currentUser.taxNumber) userCustomerIds.push(currentUser.taxNumber.toLowerCase());
+        if (currentUser.contractCustomerId) userCustomerIds.push(currentUser.contractCustomerId.toLowerCase());
+        if (currentUser.customerIds && Array.isArray(currentUser.customerIds)) {
+            currentUser.customerIds.forEach(id => userCustomerIds.push(id.toLowerCase()));
+        }
+        userCustomerIds = [...new Set(userCustomerIds)]; // إزالة التكرار
+        
+        console.log('🔍 معرفات المستخدم:', userCustomerIds);
+        console.log('📋 إجمالي السدادات قبل الفلترة:', paymentsData.length);
+        
+        filteredPayments = paymentsData.filter(p => {
+            // السداد الذي سجله المستخدم بنفسه
+            if (p.createdBy === currentUser.username) return true;
+            
+            // السداد المرتبط بأحد معرفات العميل
+            const paymentCustomer = (p.customerId || '').toLowerCase();
+            for (const id of userCustomerIds) {
+                if (paymentCustomer.includes(id) || id.includes(paymentCustomer)) {
+                    return true;
+                }
+            }
+            return false;
+        });
+        
+        console.log('📋 السدادات بعد الفلترة:', filteredPayments.length);
     }
     
     currentPaymentPage = 1;
