@@ -7510,8 +7510,8 @@ window.exportStatementExcel = function() {
 // ============================================
 
 window.openAllPaymentsView = async function() {
-    if (!currentUser || currentUser.userType !== 'admin') {
-        showNotification('غير مصرح لك بعرض كل السدادات', 'error');
+    if (!currentUser) {
+        showNotification('يرجى تسجيل الدخول', 'error');
         return;
     }
     
@@ -7521,7 +7521,14 @@ window.openAllPaymentsView = async function() {
     
     // تحميل السدادات
     await loadPaymentsFromCloud(currentUser.username);
-    filteredPayments = [...paymentsData];
+    
+    // إذا لم يكن مديراً، اعرض سداداته فقط
+    if (currentUser.userType !== 'admin') {
+        filteredPayments = paymentsData.filter(p => p.createdBy === currentUser.username);
+    } else {
+        filteredPayments = [...paymentsData];
+    }
+    
     currentPaymentPage = 1;
     renderPaymentsView();
 };
