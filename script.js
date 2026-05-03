@@ -4312,24 +4312,30 @@ function renderTableView(data) {
         // ✅ تحضير حالة السداد
         const key = getInvoiceKey(inv);
         const customer = inv['payee-customer-id'] || inv['contract-customer-id'] || '';
-        const total = (inv['total-total'] || 0) + ((inv['final-number'] || '').startsWith('P') ? 0 : 5);
+        // استخدم المبلغ الأصلي (بدون تحويل عملة)
+        const originalTotal = inv['total-total'] || 0;
+        const martyr = ((inv['final-number'] || '').startsWith('P') ? 0 : 5);
+        const totalWithMartyr = originalTotal + martyr;
+        // المبلغ بالعملة الأصلية
+        const amountInOriginalCurrency = currency === 'USAD' ? totalWithMartyr : totalWithMartyr;
         const paymentStatus = getInvoicePaymentStatus(key, customer);
-        const remaining = total - paymentStatus.paid;
+        // احسب المتبقي بالعملة الأصلية
+        const remainingOriginal = amountInOriginalCurrency - paymentStatus.paid;
         
         let paymentCell = '';
-        if (remaining <= 0.01) {
+        if (remainingOriginal <= 0.01) {
             paymentCell = `<span style="background:rgba(34,197,94,0.15); color:#4ade80; padding:4px 10px; border-radius:8px; font-size:0.75em; font-weight:700;">
                 <i class="fas fa-check-circle"></i> تم السداد
             </span>`;
         } else if (paymentStatus.paid > 0) {
             paymentCell = `<div>
-                <button class="pay-btn" onclick="event.stopPropagation(); quickPayInvoice('${key}', '${customer}', ${remaining.toFixed(2)}, '${currency}')" title="سداد المتبقي: ${formatNumberWithCommas(remaining.toFixed(2))}">
+                <button class="pay-btn" onclick="event.stopPropagation(); quickPayInvoice('${key}', '${customer}', ${remainingOriginal.toFixed(2)}, '${currency}')" title="سداد المتبقي: ${formatNumberWithCommas(remainingOriginal.toFixed(2))} ${currency}">
                     <i class="fas fa-money-bill-wave"></i> سداد جزئي
                 </button>
-                <div style="font-size:0.65em; color:var(--text-muted); margin-top:2px;">متبقي: ${formatNumberWithCommas(remaining.toFixed(2))}</div>
+                <div style="font-size:0.65em; color:var(--text-muted); margin-top:2px;">متبقي: ${formatNumberWithCommas(remainingOriginal.toFixed(2))} ${currency}</div>
             </div>`;
         } else {
-            paymentCell = `<button class="pay-btn" onclick="event.stopPropagation(); quickPayInvoice('${key}', '${customer}', ${remaining.toFixed(2)}, '${currency}')" title="سداد سريع">
+            paymentCell = `<button class="pay-btn" onclick="event.stopPropagation(); quickPayInvoice('${key}', '${customer}', ${remainingOriginal.toFixed(2)}, '${currency}')" title="سداد سريع">
                 <i class="fas fa-money-bill-wave"></i> سداد
             </button>`;
         }
