@@ -4268,14 +4268,14 @@ function renderTableView(data) {
                         <th style="width:50px;">معاينة</th>
                         <th>الرقم النهائي</th>
                         <th>رقم المسودة</th>
-                        <th>تاريخ الفاتورة</th>   <!-- ✅ تم النقل إلى هنا -->
+                        <th>تاريخ الفاتورة</th>
                         <th>العميل</th>
                         <th>السفينة</th>
                         <th>${currentInvoiceType === INVOICE_TYPES.POSTPONED ? 'IB ID / OB ID' : 'رقم البوليصة'}</th>
-                        <th>تاريخ الرحله</th>
+                        <th>تاريخ الرحلة</th>
                         <th>الإجمالي (EGP)</th>
                         <th>المبلغ بالعملة</th>
-						<th>سداد</th>
+                        <th>سداد</th>
                     </tr>
                 </thead>
                 <tbody>`;
@@ -4309,51 +4309,51 @@ function renderTableView(data) {
         const invoiceDateRaw = inv['finalized-date'] || inv['created'] || '';
         const invoiceDate = invoiceDateRaw ? new Date(invoiceDateRaw).toLocaleDateString('ar-EG') : '-';
         
+        // ✅ تحضير حالة السداد
+        const key = getInvoiceKey(inv);
+        const customer = inv['payee-customer-id'] || inv['contract-customer-id'] || '';
+        const total = (inv['total-total'] || 0) + ((inv['final-number'] || '').startsWith('P') ? 0 : 5);
+        const paymentStatus = getInvoicePaymentStatus(key, customer);
+        const remaining = total - paymentStatus.paid;
+        
+        let paymentCell = '';
+        if (remaining <= 0.01) {
+            paymentCell = `<span style="background:rgba(34,197,94,0.15); color:#4ade80; padding:4px 10px; border-radius:8px; font-size:0.75em; font-weight:700;">
+                <i class="fas fa-check-circle"></i> تم السداد
+            </span>`;
+        } else if (paymentStatus.paid > 0) {
+            paymentCell = `<div>
+                <button class="pay-btn" onclick="event.stopPropagation(); quickPayInvoice('${key}', '${customer}', ${remaining.toFixed(2)}, '${currency}')" title="سداد المتبقي: ${formatNumberWithCommas(remaining.toFixed(2))}">
+                    <i class="fas fa-money-bill-wave"></i> سداد جزئي
+                </button>
+                <div style="font-size:0.65em; color:var(--text-muted); margin-top:2px;">متبقي: ${formatNumberWithCommas(remaining.toFixed(2))}</div>
+            </div>`;
+        } else {
+            paymentCell = `<button class="pay-btn" onclick="event.stopPropagation(); quickPayInvoice('${key}', '${customer}', ${remaining.toFixed(2)}, '${currency}')" title="سداد سريع">
+                <i class="fas fa-money-bill-wave"></i> سداد
+            </button>`;
+        }
+        
         html += `<tr onclick="window.handleRowClick(${idx}, event)" class="${selectedClass}" data-index="${idx}" data-key="${viewKey}">
             <td onclick="event.stopPropagation()"><input type="checkbox" class="invoice-checkbox" data-index="${idx}" ${isSelected} onchange="updateSelectedInvoices(${idx}, this.checked)"></td>
             <td class="viewed-cell" onclick="event.stopPropagation()">
                 <input type="checkbox" class="viewed-checkbox" data-key="${viewKey}" ${isViewed} 
                        onchange="toggleInvoiceViewed('${viewKey}', this.checked, '${finalNum}', '${draftNum}')">
-            <\/td>
-            <td>${inv['final-number'] || '-'} (${invoiceTypeDisplay})<\/td>
-            <td>${inv['draft-number'] || '-'}<\/td>
-            <td>${invoiceDate}<\/td>   <!-- ✅ تم النقل إلى هنا -->
-            <td>${(inv['payee-customer-id'] || '-').substring(0,20)}<\/td>
-            <td>${inv['key-word1'] || '-'}<\/td>
-            <td>${inv['key-word2'] || '-'}<\/td>
-            <td>${inv['flex-date-02'] ? new Date(inv['flex-date-02']).toLocaleDateString('ar-EG') : '-'}<\/td>
-            <td>${formatNumberWithCommas(totalOriginal.toFixed(2))}<\/td>
-            <td>${formatNumberWithCommas(displayAmount)} ${displayCurrency}<\/td>
-			<td>
-				${(() => {
-					const key = getInvoiceKey(inv);
-					const customer = inv['payee-customer-id'] || inv['contract-customer-id'] || '';
-					const total = (inv['total-total'] || 0) + ((inv['final-number'] || '').startsWith('P') ? 0 : 5);
-					const status = getInvoicePaymentStatus(key, customer);
-					const remaining = total - status.paid;
-					
-					if (remaining <= 0.01) {
-						return `<span style="background:rgba(34,197,94,0.15); color:#4ade80; padding:4px 10px; border-radius:8px; font-size:0.75em; font-weight:700;">
-							<i class="fas fa-check-circle"></i> تم السداد
-						</span>`;
-					} else if (status.paid > 0) {
-						return `<div>
-							<button class="pay-btn" onclick="event.stopPropagation(); quickPayInvoice('${key}', '${customer}', ${remaining}, '${inv['currency'] || 'EGP'}')" title="سداد المتبقي: ${formatNumberWithCommas(remaining.toFixed(2))}">
-								<i class="fas fa-money-bill-wave"></i> سداد جزئي
-							</button>
-							<div style="font-size:0.65em; color:var(--text-muted); margin-top:2px;">متبقي: ${formatNumberWithCommas(remaining.toFixed(2))}</div>
-						</div>`;
-					} else {
-						return `<button class="pay-btn" onclick="event.stopPropagation(); quickPayInvoice('${key}', '${customer}', ${remaining}, '${inv['currency'] || 'EGP'}')" title="سداد سريع">
-							<i class="fas fa-money-bill-wave"></i> سداد
-						</button>`;
-					}
-				})()}
-			</td>
+            </td>
+            <td>${inv['final-number'] || '-'} (${invoiceTypeDisplay})</td>
+            <td>${inv['draft-number'] || '-'}</td>
+            <td>${invoiceDate}</td>
+            <td>${(inv['payee-customer-id'] || '-').substring(0,20)}</td>
+            <td>${inv['key-word1'] || '-'}</td>
+            <td>${inv['key-word2'] || '-'}</td>
+            <td>${inv['flex-date-02'] ? new Date(inv['flex-date-02']).toLocaleDateString('ar-EG') : '-'}</td>
+            <td>${formatNumberWithCommas(totalOriginal.toFixed(2))}</td>
+            <td>${formatNumberWithCommas(displayAmount)} ${displayCurrency}</td>
+            <td>${paymentCell}</td>
         </tr>`;
     });
     
-    html += '</tbody><table></div>';
+    html += '</tbody></table></div>';
     document.getElementById('dataViewContainer').innerHTML = html;
     updateSelectedCount();
 }
@@ -8461,6 +8461,10 @@ window.quickPayInvoice = async function(invoiceKey, customerId, totalAmount, cur
         return;
     }
     
+    // ✅ تصحيح العملة - USAD تصبح USD
+    let correctedCurrency = currency || 'EGP';
+    if (correctedCurrency === 'USAD') correctedCurrency = 'USD';
+    
     // تحميل السدادات لحساب المبلغ المتبقي
     await loadPaymentsFromCloud(currentUser.username);
     
@@ -8477,7 +8481,6 @@ window.quickPayInvoice = async function(invoiceKey, customerId, totalAmount, cur
     
     const remaining = totalAmount - totalPaid;
     
-    // إذا تم السداد كلياً، لا داعي لفتح النافذة
     if (remaining <= 0.01) {
         showNotification('✅ هذه الفاتورة مسددة بالكامل', 'success');
         return;
@@ -8485,20 +8488,19 @@ window.quickPayInvoice = async function(invoiceKey, customerId, totalAmount, cur
     
     openPaymentModal();
     
-    // انتظار فتح النافذة
     await new Promise(resolve => setTimeout(resolve, 300));
     
-    // ملء الحقول تلقائياً
+    // ✅ ملء الحقول - العملة الصحيحة
     document.getElementById('paymentCustomer').value = customerId;
     document.getElementById('paymentAmount').value = remaining.toFixed(2);
-    document.getElementById('paymentCurrency').value = currency || 'EGP';
+    document.getElementById('paymentCurrency').value = correctedCurrency;
     document.getElementById('paymentDate').value = new Date().toISOString().slice(0, 10);
     
     // البحث عن بيانات الفاتورة
     const inv = invoicesData.find(i => getInvoiceKey(i) === invoiceKey);
     const invNum = inv ? (inv['final-number'] || inv['draft-number'] || invoiceKey) : invoiceKey;
     
-    // ✅ عرض الفاتورة المحددة فقط بدلاً من كل الفواتير
+    // عرض الفاتورة المحددة فقط
     const container = document.getElementById('linkedInvoicesContainer');
     container.innerHTML = `
         <table style="width:100%; font-size:0.85em;">
@@ -8515,7 +8517,6 @@ window.quickPayInvoice = async function(invoiceKey, customerId, totalAmount, cur
         </table>
     `;
     
-    // تحديث إجمالي المبلغ
     updateLinkedTotal();
 };
 
