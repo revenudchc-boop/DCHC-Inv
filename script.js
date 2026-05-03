@@ -7639,6 +7639,9 @@ function renderPaymentsView() {
             <td>${getPaymentMethodName(p.method)}</td>
             <td>${p.date}</td>
             <td><span style="background:${statusColors[p.status]}; color:white; padding:3px 10px; border-radius:50px; font-size:0.85em;">${statusLabels[p.status] || p.status}</span></td>
+                        <td>
+                <span style="background:${statusColors[p.status]}; color:white; padding:3px 10px; border-radius:50px; font-size:0.85em;">${statusLabels[p.status] || p.status}</span>
+            </td>
             <td>
                 ${p.attachments && p.attachments.length > 0 ? 
                     `<button class="action-btn" onclick="viewAttachments('${p.id}')" title="عرض المرفقات (${p.attachments.length})" style="background:#4cc9f0; color:white;">
