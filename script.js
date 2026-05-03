@@ -7114,10 +7114,7 @@ window.openPaymentModal = function() {
         return;
     }
     
-    // إعداد التاريخ الافتراضي (اليوم)
     document.getElementById('paymentDate').value = new Date().toISOString().slice(0, 10);
-    
-    // تفريغ الحقول
     document.getElementById('paymentAmount').value = '';
     document.getElementById('paymentReference').value = '';
     document.getElementById('paymentNotes').value = '';
@@ -7130,21 +7127,12 @@ window.openPaymentModal = function() {
     document.getElementById('paymentMethod').value = 'bank_transfer';
     document.getElementById('paymentMessage').style.display = 'none';
     
-    // إظهار/إخفاء الحقول حسب الطريقة
     onPaymentMethodChange();
-    
-    // تحميل قائمة العملاء (للمدير فقط)
     loadPaymentCustomers();
     
-    // ✅ تحميل السدادات أولاً للتأكد من تحديث القائمة
-    loadPaymentsFromCloud(currentUser.username).then(() => {
-        // ✅ فقط في السداد العادي نحمل كل الفواتير غير المسددة
-        if (!isQuickPayment) {
-            loadUnpaidInvoicesForPayment();
-        }
-    });
+    // ✅ لا نقوم بتحميل أي شيء هنا - الـ quickPayInvoice ستتولى ذلك
+    // ✅ سيتم تحميل الفواتير فقط عند تغيير العميل في onPaymentCustomerChange
     
-    // إظهار النافذة
     document.getElementById('paymentModal').style.display = 'block';
 };
 
