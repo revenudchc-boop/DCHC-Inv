@@ -1496,9 +1496,16 @@ function checkSession() {
             addDatabaseControls();
 
             // ✅ تحميل البيانات فوراً
-            showNotification('جاري تحميل البيانات...', 'info');
-            loadInvoicesFromDrive().then(() => {
+            loadInvoicesFromDrive().then(async () => {
                 console.log('✅ تم التحميل الأولي بنجاح');
+                // تحميل السدادات لتحديث حالة الفواتير
+                await loadPaymentsFromCloud(currentUser.username);
+                // إعادة عرض البيانات لتحديث الأيقونات
+                if (currentUser?.isGuest) {
+                    filterInvoicesByGuest(currentUser.taxNumber, currentUser.blNumber);
+                } else {
+                    filterInvoicesByUser();
+                }
             }).catch(err => {
                 console.error('❌ فشل التحميل الأولي:', err);
             });
@@ -1890,6 +1897,8 @@ window.parseXMLContent = async function(xmlString, source) {
         if (!newInvoices.length) throw new Error('لا توجد فواتير');
         invoicesData = newInvoices;
         showProgress('تم التحديث', 100);
+		        // ✅ تحميل السدادات لتحديث حالة السداد في الجدول
+        await loadPaymentsFromCloud(currentUser?.username);
         currentUser?.isGuest ? filterInvoicesByGuest(currentUser.taxNumber, currentUser.blNumber) : filterInvoicesByUser();
         document.getElementById('fileStatus').innerHTML = `<i class="fas fa-check-circle"></i> ✅ تم تحديث ${formatNumberWithCommas(invoicesData.length)} فاتورة من ${source}`;
         updateDataSource();
@@ -8446,21 +8455,42 @@ window.viewAttachments = function(paymentId) {
 };
 
 // سداد سريع من جدول الفواتير
-window.quickPayInvoice = function(invoiceKey, customerId, amount, currency) {
+window.quickPayInvoice = async function(invoiceKey, customerId, amount, currency) {
     if (!currentUser) {
         showNotification('يرجى تسجيل الدخول', 'warning');
         return;
     }
     
+    // ✅ تحميل السدادات أولاً لحساب المبلغ المتبقي
+    await loadPaymentsFromCloud(currentUser.username);
+    
+    // حساب المبلغ المتبقي للفاتورة
+    let totalPaid = 0;
+    paymentsData.forEach(p => {
+        if (p.customerId === customerId && (p.status === 'confirmed' || p.isOpeningBalance)) {
+            if (p.linkedInvoices && Array.isArray(p.linkedInvoices) && p.linkedInvoices.includes(invoiceKey)) {
+                const amountPerInvoice = p.linkedInvoices.length > 0 ? p.amount / p.linkedInvoices.length : p.amount;
+                totalPaid += amountPerInvoice;
+            }
+        }
+    });
+    
+    const remaining = amount - totalPaid;
+    
     openPaymentModal();
+    
+    // انتظار فتح النافذة
+    await new Promise(resolve => setTimeout(resolve, 300));
     
     // ملء الحقول تلقائياً
     document.getElementById('paymentCustomer').value = customerId;
-    document.getElementById('paymentAmount').value = amount.toFixed(2);
+    document.getElementById('paymentAmount').value = remaining > 0 ? remaining.toFixed(2) : amount.toFixed(2);
     document.getElementById('paymentCurrency').value = currency || 'EGP';
     document.getElementById('paymentDate').value = new Date().toISOString().slice(0, 10);
     
-    // تحديد الفاتورة تلقائياً
+    // تحميل الفواتير وتحديد الفاتورة تلقائياً
+    await loadUnpaidInvoicesForPayment();
+    
     setTimeout(() => {
         const checkboxes = document.querySelectorAll('.link-invoice-check');
         checkboxes.forEach(cb => {
@@ -8469,7 +8499,7 @@ window.quickPayInvoice = function(invoiceKey, customerId, amount, currency) {
             }
         });
         updateLinkedTotal();
-    }, 500);
+    }, 800);
 };
 
 // حساب حالة السداد لفاتورة
