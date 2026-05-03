@@ -7620,8 +7620,8 @@ function renderPaymentsView() {
                         <th>العملة</th>
                         <th>الطريقة</th>
                         <th>التاريخ</th>
-						<th>الحالة</th>
 						<th>مرفقات</th>
+						<th>الحالة</th>
 						<th>إجراءات</th>
                     </tr>
                 </thead>
