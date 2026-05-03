@@ -7109,7 +7109,7 @@ window.openPaymentModal = function() {
         return;
     }
     
-    // إعداد التاريخ الافتراضي (اليوم)
+    // إعداد التاريخ الافتراضي
     document.getElementById('paymentDate').value = new Date().toISOString().slice(0, 10);
     
     // تفريغ الحقول
@@ -7128,11 +7128,14 @@ window.openPaymentModal = function() {
     // إظهار/إخفاء الحقول حسب الطريقة
     onPaymentMethodChange();
     
-    // تحميل قائمة العملاء (للمدير فقط)
+    // تحميل قائمة العملاء
     loadPaymentCustomers();
     
-    // تحميل الفواتير غير المسددة
-    loadUnpaidInvoicesForPayment();
+    // ✅ تحميل السدادات أولاً للتأكد من تحديث القائمة
+    loadPaymentsFromCloud(currentUser.username).then(() => {
+        // ✅ ثم تحميل الفواتير غير المسددة
+        loadUnpaidInvoicesForPayment();
+    });
     
     // إظهار النافذة
     document.getElementById('paymentModal').style.display = 'block';
@@ -7781,15 +7784,15 @@ function renderPaymentsView() {
                         '<span style="font-size:0.8em; color:#999;">-</span>'}
                 </td>
             <td>
-                ${p.status === 'pending' ? `
+                ${p.status === 'pending' && currentUser?.userType === 'admin' ? `
                     <button class="action-btn edit" onclick="confirmPaymentInCloud('${p.id}')" title="تأكيد"><i class="fas fa-check"></i></button>
                     <button class="action-btn delete" onclick="rejectPaymentPrompt('${p.id}')" title="رفض"><i class="fas fa-times"></i></button>
                 ` : ''}
-                ${p.status === 'confirmed' ? `
-                    <button class="action-btn" onclick="viewAttachments('${p.id}')" title="عرض" style="background:#4361ee; color:white;"><i class="fas fa-eye"></i></button>
+                ${p.status === 'pending' && currentUser?.userType !== 'admin' && p.createdBy === currentUser?.username ? `
+                    <button class="action-btn delete" onclick="cancelPaymentInCloud('${p.id}')" title="حذف"><i class="fas fa-trash"></i></button>
                 ` : ''}
-                ${p.status === 'rejected' ? `
-                    <button class="action-btn" onclick="viewAttachments('${p.id}')" title="عرض" style="background:#95a5a6; color:white;"><i class="fas fa-eye"></i></button>
+                ${p.status === 'confirmed' || p.status === 'rejected' ? `
+                    <button class="action-btn" onclick="viewAttachments('${p.id}')" title="عرض"><i class="fas fa-eye"></i></button>
                 ` : ''}
             </td>
             </tr>`;
