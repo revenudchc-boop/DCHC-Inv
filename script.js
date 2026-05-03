@@ -2473,25 +2473,9 @@ function renderCardsView(data) {
                     <div class="card-row"><span class="card-label">سعر الصرف:</span><span class="card-value">${exRate.toFixed(4)}</span></div>
                 </div>
                 <div class="card-footer">
-					${(() => {
-						const key = getInvoiceKey(inv);
-						const customer = inv['payee-customer-id'] || inv['contract-customer-id'] || '';
-						const total = (inv['total-total'] || 0) + ((inv['final-number'] || '').startsWith('P') ? 0 : 5);
-						const status = getInvoicePaymentStatus(key, customer);
-						const remaining = total - status.paid;
-						
-						if (remaining <= 0.01) {
-							return `<span style="color:#4ade80; font-weight:700;"><i class="fas fa-check-circle"></i> تم السداد كلياً</span>`;
-						} else if (status.paid > 0) {
-							return `<div>
-								<span style="color:#fbbf24; font-weight:700;"><i class="fas fa-clock"></i> سداد جزئي</span>
-								<span style="font-size:0.8em; color:var(--text-muted);">متبقي: ${formatNumberWithCommas(remaining.toFixed(2))}</span>
-							</div>`;
-						} else {
-							return `<span>الإجمالي: <span class="card-total">${formattedDisplayAmount} ${displayCurrency}</span></span>`;
-						}
-					})()}
-				</div>
+                    <span>الإجمالي:</span>
+                    <span class="card-total">${formattedDisplayAmount} ${displayCurrency}</span>
+                </div>
             </div>`;
     });
     html += '</div>';
