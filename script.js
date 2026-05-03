@@ -53,6 +53,7 @@ let selectedCreditNotes = new Set();
 // متغير لتخزين الفواتير التي تمت معاينتها
 let viewedInvoices = new Set();
 const NEWS_VISIBLE_KEY = 'newsBarVisible';
+let isQuickPayment = false;
 // ============================================
 // إعدادات التحديث التلقائي (Auto Refresh)
 // ============================================
@@ -4321,15 +4322,19 @@ function renderTableView(data) {
             paymentCell = `<span style="background:rgba(34,197,94,0.15); color:#4ade80; padding:4px 10px; border-radius:8px; font-size:0.75em; font-weight:700;">
                 <i class="fas fa-check-circle"></i> تم السداد
             </span>`;
+        } else if (paymentStatus.hasPending) {
+            paymentCell = `<span style="background:rgba(245,158,11,0.15); color:#fbbf24; padding:4px 10px; border-radius:8px; font-size:0.75em; font-weight:700;">
+                <i class="fas fa-hourglass-half"></i> في انتظار الموافقة
+            </span>`;
         } else if (paymentStatus.paid > 0) {
             paymentCell = `<div>
-                <button class="pay-btn" onclick="event.stopPropagation(); quickPayInvoice('${key}', '${customer}', ${remainingOriginal.toFixed(2)}, '${currency}')" title="سداد المتبقي: ${formatNumberWithCommas(remainingOriginal.toFixed(2))} ${currency}">
+                <button class="pay-btn" onclick="event.stopPropagation(); quickPayInvoice('${key}', '${customer}', ${remainingOriginal.toFixed(2)}, '${displayCurrency}')" title="سداد المتبقي">
                     <i class="fas fa-money-bill-wave"></i> سداد جزئي
                 </button>
-                <div style="font-size:0.65em; color:var(--text-muted); margin-top:2px;">متبقي: ${formatNumberWithCommas(remainingOriginal.toFixed(2))} ${currency}</div>
+                <div style="font-size:0.65em; color:var(--text-muted); margin-top:2px;">متبقي: ${formatNumberWithCommas(remainingOriginal.toFixed(2))} ${displayCurrency}</div>
             </div>`;
         } else {
-            paymentCell = `<button class="pay-btn" onclick="event.stopPropagation(); quickPayInvoice('${key}', '${customer}', ${remainingOriginal.toFixed(2)}, '${currency}')" title="سداد سريع">
+            paymentCell = `<button class="pay-btn" onclick="event.stopPropagation(); quickPayInvoice('${key}', '${customer}', ${remainingOriginal.toFixed(2)}, '${displayCurrency}')" title="سداد سريع">
                 <i class="fas fa-money-bill-wave"></i> سداد
             </button>`;
         }
@@ -7109,7 +7114,7 @@ window.openPaymentModal = function() {
         return;
     }
     
-    // إعداد التاريخ الافتراضي
+    // إعداد التاريخ الافتراضي (اليوم)
     document.getElementById('paymentDate').value = new Date().toISOString().slice(0, 10);
     
     // تفريغ الحقول
@@ -7128,13 +7133,15 @@ window.openPaymentModal = function() {
     // إظهار/إخفاء الحقول حسب الطريقة
     onPaymentMethodChange();
     
-    // تحميل قائمة العملاء
+    // تحميل قائمة العملاء (للمدير فقط)
     loadPaymentCustomers();
     
     // ✅ تحميل السدادات أولاً للتأكد من تحديث القائمة
     loadPaymentsFromCloud(currentUser.username).then(() => {
-        // ✅ ثم تحميل الفواتير غير المسددة
-        loadUnpaidInvoicesForPayment();
+        // ✅ فقط في السداد العادي نحمل كل الفواتير غير المسددة
+        if (!isQuickPayment) {
+            loadUnpaidInvoicesForPayment();
+        }
     });
     
     // إظهار النافذة
@@ -8498,11 +8505,6 @@ window.quickPayInvoice = async function(invoiceKey, customerId, totalAmount, cur
         return;
     }
     
-    // ✅ فتح النافذة أولاً
-    openPaymentModal();
-    
-    await new Promise(resolve => setTimeout(resolve, 400));
-    
     // ✅ تحديد العميل الصحيح من customerIds
     let finalCustomerId = customerId;
     
@@ -8520,6 +8522,14 @@ window.quickPayInvoice = async function(invoiceKey, customerId, totalAmount, cur
     } else if (currentUser && currentUser.contractCustomerId) {
         finalCustomerId = currentUser.contractCustomerId;
     }
+    
+    // ✅ تعيين مؤشر السداد السريع
+    isQuickPayment = true;
+    
+    // ✅ فتح النافذة
+    openPaymentModal();
+    
+    await new Promise(resolve => setTimeout(resolve, 400));
     
     // ✅ ملء الحقول تلقائياً
     document.getElementById('paymentCustomer').value = finalCustomerId;
@@ -8549,31 +8559,30 @@ window.quickPayInvoice = async function(invoiceKey, customerId, totalAmount, cur
     `;
     
     updateLinkedTotal();
+    
+    // ✅ إعادة تعيين المؤشر
+    setTimeout(() => { isQuickPayment = false; }, 1000);
 };
 
 // حساب حالة السداد لفاتورة
 function getInvoicePaymentStatus(invoiceKey, customerId) {
     if (!paymentsData || paymentsData.length === 0) {
-        return { status: 'unpaid', paid: 0 };
+        return { status: 'unpaid', paid: 0, hasPending: false };
     }
     
     let totalPaid = 0;
+    let hasPending = false;
     
     paymentsData.forEach(p => {
-        if (p.customerId === customerId && (p.status === 'confirmed' || p.isOpeningBalance)) {
-            if (p.linkedInvoices && Array.isArray(p.linkedInvoices) && p.linkedInvoices.includes(invoiceKey)) {
-                // إذا كان للسداد عملة محددة وكانت الفاتورة بنفس العملة
-                if (p.currency === 'USD' || p.currency === 'USAD') {
-                    const amountPerInvoice = p.linkedInvoices.length > 0 ? p.amount / p.linkedInvoices.length : p.amount;
-                    totalPaid += amountPerInvoice;
-                } else if (p.currency === 'EGP') {
-                    // إذا كان السداد بالجنيه والفاتورة بالجنيه
-                    const amountPerInvoice = p.linkedInvoices.length > 0 ? p.amount / p.linkedInvoices.length : p.amount;
-                    totalPaid += amountPerInvoice;
-                }
+        if (p.linkedInvoices && Array.isArray(p.linkedInvoices) && p.linkedInvoices.includes(invoiceKey)) {
+            if (p.status === 'confirmed' || p.isOpeningBalance) {
+                const amountPerInvoice = p.linkedInvoices.length > 0 ? p.amount / p.linkedInvoices.length : p.amount;
+                totalPaid += amountPerInvoice;
+            } else if (p.status === 'pending') {
+                hasPending = true;
             }
         }
     });
     
-    return { paid: totalPaid, status: totalPaid <= 0 ? 'unpaid' : 'partial' };
+    return { paid: totalPaid, status: totalPaid <= 0 ? 'unpaid' : 'partial', hasPending: hasPending };
 }
