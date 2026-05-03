@@ -4312,15 +4312,13 @@ function renderTableView(data) {
         // ✅ تحضير حالة السداد
         const key = getInvoiceKey(inv);
         const customer = inv['payee-customer-id'] || inv['contract-customer-id'] || '';
-        // استخدم المبلغ الأصلي (بدون تحويل عملة)
+        // ✅ المبلغ الأصلي بالعملة (للسداد)
         const originalTotal = inv['total-total'] || 0;
-        const martyr = ((inv['final-number'] || '').startsWith('P') ? 0 : 5);
+        const martyr = (finalNum.startsWith('P') || finalNum.startsWith('p')) ? 0 : 5;
         const totalWithMartyr = originalTotal + martyr;
-        // المبلغ بالعملة الأصلية
-        const amountInOriginalCurrency = currency === 'USAD' ? totalWithMartyr : totalWithMartyr;
         const paymentStatus = getInvoicePaymentStatus(key, customer);
-        // احسب المتبقي بالعملة الأصلية
-        const remainingOriginal = amountInOriginalCurrency - paymentStatus.paid;
+        // المتبقي بالعملة الأصلية (بدون تحويل)
+        const remainingOriginal = totalWithMartyr - paymentStatus.paid;
         
         let paymentCell = '';
         if (remainingOriginal <= 0.01) {
@@ -7170,17 +7168,31 @@ function loadPaymentCustomers() {
     
     if (currentUser?.userType === 'admin') {
         // المدير يرى كل العملاء
-        const customers = [...new Set(invoicesData.map(inv => inv['payee-customer-id']).filter(c => c))];
+        const customers = [...new Set(invoicesData.map(inv => {
+            const payee = inv['payee-customer-id'] || '';
+            const contract = inv['contract-customer-id'] || '';
+            return payee || contract;
+        }).filter(c => c))];
         customers.sort();
         customers.forEach(c => {
             select.innerHTML += `<option value="${c}">${c}</option>`;
         });
     } else {
-        // العميل يرى نفسه فقط
-        const customerId = currentUser?.taxNumber || currentUser?.contractCustomerId || '';
-        if (customerId) {
-            select.innerHTML += `<option value="${customerId}" selected>${customerId}</option>`;
+        // ✅ عرض اسم العميل وليس الرقم الضريبي فقط
+        let displayName = currentUser?.contractCustomerId || currentUser?.taxNumber || '';
+        let displayValue = currentUser?.contractCustomerId || currentUser?.taxNumber || '';
+        
+        // البحث عن اسم أفضل من customerIds
+        if (currentUser.customerIds && currentUser.customerIds.length > 0) {
+            displayName = currentUser.customerIds[0]; // استخدام أول معرف كاسم
+            displayValue = currentUser.customerIds[0];
         }
+        if (currentUser.contractCustomerId && currentUser.contractCustomerId !== currentUser.taxNumber) {
+            displayName = currentUser.contractCustomerId;
+            displayValue = currentUser.contractCustomerId;
+        }
+        
+        select.innerHTML += `<option value="${displayValue}" selected>${displayName}</option>`;
     }
 }
 
