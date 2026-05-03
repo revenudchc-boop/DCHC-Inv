@@ -7654,12 +7654,18 @@ function renderPaymentsView() {
                         </button>` : 
                         '<span style="font-size:0.8em; color:#999;">-</span>'}
                 </td>
-                <td>
-                    ${p.status === 'pending' ? `
-                        <button class="action-btn edit" onclick="confirmPaymentInCloud('${p.id}')" title="تأكيد"><i class="fas fa-check"></i></button>
-                        <button class="action-btn delete" onclick="rejectPaymentPrompt('${p.id}')" title="رفض"><i class="fas fa-times"></i></button>
-                    ` : ''}
-                </td>
+            <td>
+                ${p.status === 'pending' ? `
+                    <button class="action-btn edit" onclick="confirmPaymentInCloud('${p.id}')" title="تأكيد"><i class="fas fa-check"></i></button>
+                    <button class="action-btn delete" onclick="rejectPaymentPrompt('${p.id}')" title="رفض"><i class="fas fa-times"></i></button>
+                ` : ''}
+                ${p.status === 'confirmed' ? `
+                    <button class="action-btn" onclick="viewAttachments('${p.id}')" title="عرض" style="background:#4361ee; color:white;"><i class="fas fa-eye"></i></button>
+                ` : ''}
+                ${p.status === 'rejected' ? `
+                    <button class="action-btn" onclick="viewAttachments('${p.id}')" title="عرض" style="background:#95a5a6; color:white;"><i class="fas fa-eye"></i></button>
+                ` : ''}
+            </td>
             </tr>`;
         });
         
