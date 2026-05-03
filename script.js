@@ -7305,11 +7305,26 @@ function loadUnpaidInvoicesForPayment() {
 function updateLinkedTotal() {
     const checks = document.querySelectorAll('.link-invoice-check:checked');
     let total = 0;
+    let currency = null;
+    
     checks.forEach(cb => {
+        const row = cb.closest('tr');
+        const cells = row?.querySelectorAll('td');
+        // الخلية الأخيرة هي العملة
+        const currencyCell = cells?.[cells.length - 1];
+        const rowCurrency = currencyCell?.textContent?.trim();
+        
+        if (!currency && rowCurrency) {
+            currency = rowCurrency;
+        }
+        
         total += parseFloat(cb.dataset.remaining) || 0;
     });
     
     document.getElementById('paymentAmount').value = total > 0 ? total.toFixed(2) : '';
+    if (currency) {
+        document.getElementById('paymentCurrency').value = currency;
+    }
 }
 
 // إرسال السداد للحفظ
