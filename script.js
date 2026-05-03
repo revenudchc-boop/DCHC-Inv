@@ -4250,6 +4250,7 @@ function renderTableView(data) {
                         <th>تاريخ الرحله</th>
                         <th>الإجمالي (EGP)</th>
                         <th>المبلغ بالعملة</th>
+						<th>سداد</th>
                     </tr>
                 </thead>
                 <tbody>`;
@@ -4298,6 +4299,11 @@ function renderTableView(data) {
             <td>${inv['flex-date-02'] ? new Date(inv['flex-date-02']).toLocaleDateString('ar-EG') : '-'}<\/td>
             <td>${formatNumberWithCommas(totalOriginal.toFixed(2))}<\/td>
             <td>${formatNumberWithCommas(displayAmount)} ${displayCurrency}<\/td>
+			<td>
+		<button class="pay-btn" onclick="event.stopPropagation(); quickPayInvoice('${getInvoiceKey(inv)}', '${inv['payee-customer-id'] || inv['contract-customer-id'] || ''}', ${inv['total-total'] || 0}, '${inv['currency'] || 'EGP'}')" title="سداد سريع">
+			<i class="fas fa-money-bill-wave"></i> سداد
+		</button>
+	</td>
         </tr>`;
     });
     
@@ -7132,7 +7138,7 @@ function loadUnpaidInvoicesForPayment() {
     const customerId = document.getElementById('paymentCustomer').value;
     
     if (!customerId) {
-        container.innerHTML = '<p style="color: #999;">اختر العميل أولاً لعرض فواتيره</p>';
+        container.innerHTML = '<p style="color:var(--text-muted);">اختر العميل أولاً لعرض فواتيره</p>';
         return;
     }
     
@@ -7144,24 +7150,46 @@ function loadUnpaidInvoicesForPayment() {
     });
     
     if (customerInvoices.length === 0) {
-        container.innerHTML = '<p style="color: #999;">لا توجد فواتير لهذا العميل</p>';
+        container.innerHTML = '<p style="color:var(--text-muted);">لا توجد فواتير لهذا العميل</p>';
         return;
     }
     
-    let html = '<table style="width:100%; font-size:0.85em;">';
+    // تجميع الفواتير المرتبطة بسدادات مؤكدة لهذا العميل
+    const paidInvoiceKeys = new Set();
+    paymentsData.forEach(p => {
+        if (p.customerId === customerId && (p.status === 'confirmed' || p.isOpeningBalance)) {
+            if (p.linkedInvoices && Array.isArray(p.linkedInvoices)) {
+                p.linkedInvoices.forEach(key => paidInvoiceKeys.add(key));
+            }
+        }
+    });
+    
+    // تصفية الفواتير غير المسددة
+    const unpaidInvoices = customerInvoices.filter(inv => {
+        const key = getInvoiceKey(inv);
+        return !paidInvoiceKeys.has(key);
+    });
+    
+    if (unpaidInvoices.length === 0) {
+        container.innerHTML = '<p style="color:#4ade80;">✅ جميع فواتير هذا العميل مسددة</p>';
+        return;
+    }
+    
+    let html = `<p style="font-size:0.8em; color:var(--text-muted); margin-bottom:8px;">${unpaidInvoices.length} فاتورة غير مسددة من أصل ${customerInvoices.length}</p>`;
+    html += '<table style="width:100%; font-size:0.85em;">';
     html += '<thead><tr><th>تحديد</th><th>رقم الفاتورة</th><th>الإجمالي</th><th>المتبقي</th></tr></thead><tbody>';
     
-    customerInvoices.forEach(inv => {
+    unpaidInvoices.forEach(inv => {
         const key = getInvoiceKey(inv);
         const total = (inv['total-total'] || 0) + ((inv['final-number'] || '').startsWith('P') ? 0 : 5);
         const paid = inv['total-paid'] || 0;
         const owed = total - paid;
         
         html += `<tr>
-            <td><input type="checkbox" class="link-invoice-check" value="${key}" onchange="updateLinkedTotal()" data-total="${total}"></td>
+            <td><input type="checkbox" class="link-invoice-check" value="${key}" onchange="updateLinkedTotal()" data-total="${owed > 0 ? owed : total}"></td>
             <td>${inv['final-number'] || inv['draft-number'] || '-'}</td>
             <td>${formatNumberWithCommas(total.toFixed(2))}</td>
-            <td style="color: ${owed > 0 ? 'red' : 'green'};">${formatNumberWithCommas(owed.toFixed(2))}</td>
+            <td style="color: ${owed > 0 ? 'var(--danger)' : 'var(--success)'};">${formatNumberWithCommas(owed.toFixed(2))}</td>
         </tr>`;
     });
     
@@ -8335,4 +8363,31 @@ window.viewAttachments = function(paymentId) {
     document.getElementById('modalBody').innerHTML = html;
     document.getElementById('modalTitle').textContent = 'مرفقات السداد';
     document.getElementById('invoiceModal').style.display = 'block';
+};
+
+// سداد سريع من جدول الفواتير
+window.quickPayInvoice = function(invoiceKey, customerId, amount, currency) {
+    if (!currentUser) {
+        showNotification('يرجى تسجيل الدخول', 'warning');
+        return;
+    }
+    
+    openPaymentModal();
+    
+    // ملء الحقول تلقائياً
+    document.getElementById('paymentCustomer').value = customerId;
+    document.getElementById('paymentAmount').value = amount.toFixed(2);
+    document.getElementById('paymentCurrency').value = currency || 'EGP';
+    document.getElementById('paymentDate').value = new Date().toISOString().slice(0, 10);
+    
+    // تحديد الفاتورة تلقائياً
+    setTimeout(() => {
+        const checkboxes = document.querySelectorAll('.link-invoice-check');
+        checkboxes.forEach(cb => {
+            if (cb.value === invoiceKey) {
+                cb.checked = true;
+            }
+        });
+        updateLinkedTotal();
+    }, 500);
 };
