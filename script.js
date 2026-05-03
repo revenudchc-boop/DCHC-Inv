@@ -4312,12 +4312,9 @@ function renderTableView(data) {
         // ✅ تحضير حالة السداد
         const key = getInvoiceKey(inv);
         const customer = inv['payee-customer-id'] || inv['contract-customer-id'] || '';
-        // ✅ المبلغ الأصلي بالعملة (للسداد)
-        const originalTotal = inv['total-total'] || 0;
-        const martyr = (finalNum.startsWith('P') || finalNum.startsWith('p')) ? 0 : 5;
-        const totalWithMartyr = originalTotal + martyr;
         const paymentStatus = getInvoicePaymentStatus(key, customer);
-        const remainingOriginal = Math.max(0, totalWithMartyr - paymentStatus.paid);
+        const remainingOriginal = Math.max(0, parseFloat(displayAmount) - paymentStatus.paid);
+        const paymentCurrency = displayCurrency;
         
         let paymentCell = '';
         if (remainingOriginal <= 0.01) {
