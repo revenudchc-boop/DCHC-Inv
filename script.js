@@ -7208,7 +7208,6 @@ function loadUnpaidInvoicesForPayment() {
         return;
     }
     
-    // البحث عن فواتير هذا العميل
     const customerInvoices = invoicesData.filter(inv => {
         const payee = inv['payee-customer-id'] || '';
         const contract = inv['contract-customer-id'] || '';
@@ -7220,59 +7219,59 @@ function loadUnpaidInvoicesForPayment() {
         return;
     }
     
-    // حساب إجمالي السدادات المؤكدة لكل فاتورة
+    // ✅ جمع الفواتير التي لها أي سداد (مؤكد أو معلق)
+    const invoicesWithPayment = new Set();
     const invoicePaidAmounts = {};
+    
     paymentsData.forEach(p => {
-        if (p.customerId === customerId && (p.status === 'confirmed' || p.isOpeningBalance)) {
-            if (p.linkedInvoices && Array.isArray(p.linkedInvoices)) {
-                const amountPerInvoice = p.linkedInvoices.length > 0 ? p.amount / p.linkedInvoices.length : p.amount;
-                p.linkedInvoices.forEach(key => {
+        if (p.linkedInvoices && Array.isArray(p.linkedInvoices)) {
+            p.linkedInvoices.forEach(key => {
+                // ✅ الفاتورة التي لها أي سداد (معلق أو مؤكد) تستبعد
+                invoicesWithPayment.add(key);
+                
+                if (p.status === 'confirmed' || p.isOpeningBalance) {
+                    const amountPerInvoice = p.linkedInvoices.length > 0 ? p.amount / p.linkedInvoices.length : p.amount;
                     if (!invoicePaidAmounts[key]) invoicePaidAmounts[key] = 0;
                     invoicePaidAmounts[key] += amountPerInvoice;
-                });
-            }
-        }
-    });
-    
-    // تصفية الفواتير غير المسددة بالكامل
-    const unpaidInvoices = [];
-    customerInvoices.forEach(inv => {
-        const key = getInvoiceKey(inv);
-        const total = (inv['total-total'] || 0) + ((inv['final-number'] || '').startsWith('P') ? 0 : 5);
-        const paid = invoicePaidAmounts[key] || 0;
-        const remaining = total - paid;
-        
-        // فقط الفواتير التي لها مبلغ متبقي
-        if (remaining > 0.01) {
-            unpaidInvoices.push({
-                invoice: inv,
-                key: key,
-                total: total,
-                paid: paid,
-                remaining: remaining
+                }
             });
         }
     });
     
+    // ✅ تصفية الفواتير التي ليس لها أي سداد
+    const unpaidInvoices = [];
+    customerInvoices.forEach(inv => {
+        const key = getInvoiceKey(inv);
+        
+        // ✅ إذا كان للفاتورة أي سداد (معلق أو مؤكد)، لا تظهر
+        if (invoicesWithPayment.has(key)) return;
+        
+        const total = (inv['total-total'] || 0) + ((inv['final-number'] || '').startsWith('P') ? 0 : 5);
+        unpaidInvoices.push({
+            invoice: inv,
+            key: key,
+            total: total,
+            paid: 0,
+            remaining: total
+        });
+    });
+    
     if (unpaidInvoices.length === 0) {
-        container.innerHTML = '<p style="color:#4ade80;">✅ جميع فواتير هذا العميل مسددة بالكامل</p>';
+        container.innerHTML = '<p style="color:#4ade80;">✅ جميع فواتير هذا العميل تم سدادها أو لها سداد قيد الانتظار</p>';
         return;
     }
     
     let html = `<p style="font-size:0.8em; color:var(--text-muted); margin-bottom:8px;">
-        ${unpaidInvoices.length} فاتورة غير مسددة من أصل ${customerInvoices.length} | 
-        <span style="color:#4ade80;">${customerInvoices.length - unpaidInvoices.length} مسددة كلياً</span>
+        ${unpaidInvoices.length} فاتورة متاحة للسداد من أصل ${customerInvoices.length}
     </p>`;
     html += '<table style="width:100%; font-size:0.85em;">';
-    html += '<thead><tr><th>تحديد</th><th>رقم الفاتورة</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th></tr></thead><tbody>';
+    html += '<thead><tr><th>تحديد</th><th>رقم الفاتورة</th><th>الإجمالي</th></tr></thead><tbody>';
     
     unpaidInvoices.forEach(item => {
         html += `<tr>
             <td><input type="checkbox" class="link-invoice-check" value="${item.key}" onchange="updateLinkedTotal()" data-remaining="${item.remaining.toFixed(2)}"></td>
             <td>${item.invoice['final-number'] || item.invoice['draft-number'] || '-'}</td>
             <td>${formatNumberWithCommas(item.total.toFixed(2))}</td>
-            <td style="color:var(--success);">${formatNumberWithCommas(item.paid.toFixed(2))}</td>
-            <td style="color:${item.remaining > 0 ? 'var(--danger)' : 'var(--success)'}; font-weight:700;">${formatNumberWithCommas(item.remaining.toFixed(2))}</td>
         </tr>`;
     });
     
