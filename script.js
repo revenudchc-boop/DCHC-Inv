@@ -7584,82 +7584,106 @@ window.openAllPaymentsView = async function() {
 
 // عرض السدادات كجدول
 function renderPaymentsView() {
-    if (filteredPayments.length === 0) {
-        document.getElementById('dataViewContainer').innerHTML = '<div class="no-data"><i class="fas fa-inbox"></i><p>لا توجد سدادات</p></div>';
-        document.getElementById('pagination').innerHTML = '';
-        updatePaymentsSummary();
+    const container = document.getElementById('paymentsTableBody');
+    if (!container) return;
+    
+    // Clear container
+    container.innerHTML = '';
+    
+    if (!pageData || pageData.length === 0) {
+        container.innerHTML = `
+            <tr>
+                <td colspan="9" style="text-align: center; padding: 40px;">
+                    <i class="fas fa-inbox" style="font-size: 48px; color: #ccc;"></i>
+                    <p style="margin-top: 10px; color: #999;">لا توجد مدفوعات لعرضها</p>
+                 </td>
+             </tr>
+        `;
         return;
     }
     
-    // ترتيب حسب التاريخ (الأحدث أولاً)
-    filteredPayments.sort((a, b) => new Date(b.date) - new Date(a.date));
+    // Get current page data
+    const start = (currentPage - 1) * itemsPerPage;
+    const end = start + itemsPerPage;
+    const currentData = pageData.slice(start, end);
     
-    // ترقيم الصفحات
-    const totalPages = itemsPerPagePayments === Infinity ? 1 : Math.ceil(filteredPayments.length / itemsPerPagePayments);
-    const start = itemsPerPagePayments === Infinity ? 0 : (currentPaymentPage - 1) * itemsPerPagePayments;
-    const end = itemsPerPagePayments === Infinity ? filteredPayments.length : Math.min(start + itemsPerPagePayments, filteredPayments.length);
-    const pageData = filteredPayments.slice(start, end);
+    // Track processed IDs to prevent duplicates
+    const processedIds = new Set();
     
-    let html = `
-        <div class="table-container">
-            <div class="table-toolbar" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; padding:10px; background:#f8f9fa; border-radius:8px;">
-                <div>
-                    <button class="btn btn-primary" onclick="openPaymentModal()"><i class="fas fa-plus"></i> سداد جديد</button>
-                    <button class="btn btn-info" onclick="openAllPaymentsView()" style="background:#4cc9f0;"><i class="fas fa-sync-alt"></i> تحديث</button>
-                </div>
-                <div>
-                    <span>إجمالي السدادات: <strong>${filteredPayments.length}</strong></span>
-                </div>
-            </div>
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>رقم السداد</th>
-                        <th>العميل</th>
-                        <th>المبلغ</th>
-                        <th>العملة</th>
-                        <th>الطريقة</th>
-                        <th>التاريخ</th>
-						<th>مرفقات</th>
-						<th>الحالة</th>
-						<th>إجراءات</th>
-                    </tr>
-                </thead>
-                <tbody>`;
-    
-    pageData.forEach(p => {
-        const statusLabels = { 'pending': '⏳ قيد الانتظار', 'confirmed': '✅ مؤكد', 'rejected': '❌ مرفوض', 'cancelled': '🚫 ملغي' };
-        const statusColors = { 'pending': '#f39c12', 'confirmed': '#27ae60', 'rejected': '#e74c3c', 'cancelled': '#95a5a6' };
+    currentData.forEach(p => {
+        // Skip if this ID has been processed already (remove duplicate)
+        if (processedIds.has(p.id)) {
+            return;
+        }
+        processedIds.add(p.id);
         
-        html += `<tr>
+        const statusLabels = { 
+            'pending': '⏳ قيد الانتظار', 
+            'confirmed': '✅ مؤكد', 
+            'rejected': '❌ مرفوض', 
+            'cancelled': '🚫 ملغي' 
+        };
+        const statusColors = { 
+            'pending': '#f39c12', 
+            'confirmed': '#27ae60', 
+            'rejected': '#e74c3c', 
+            'cancelled': '#95a5a6' 
+        };
+        
+        const row = document.createElement('tr');
+        row.innerHTML = `
             <td>${p.id}</td>
             <td>${p.customerId || '-'}</td>
             <td>${formatNumberWithCommas(p.amount.toFixed(2))}</td>
             <td>${p.currency}</td>
             <td>${getPaymentMethodName(p.method)}</td>
             <td>${p.date}</td>
-            <td><span style="background:${statusColors[p.status]}; color:white; padding:3px 10px; border-radius:50px; font-size:0.85em;">${statusLabels[p.status] || p.status}</span></td>
+            <td>
+                <span style="background:${statusColors[p.status]}; color:white; padding:3px 10px; border-radius:50px; font-size:0.85em;">
+                    ${statusLabels[p.status] || p.status}
+                </span>
+            </td>
             <td>
                 ${p.attachments && p.attachments.length > 0 ? 
-                    `<button class="action-btn" onclick="viewAttachments('${p.id}')" title="عرض المرفقات (${p.attachments.length})" style="background:#4cc9f0; color:white;">
+                    `<button class="action-btn" onclick="viewAttachments('${p.id}')" title="عرض المرفقات (${p.attachments.length})" style="background:#4cc9f0; color:white; border:none; padding:5px 10px; border-radius:5px; cursor:pointer;">
                         <i class="fas fa-paperclip"></i> ${p.attachments.length}
                     </button>` : 
                     '<span style="font-size:0.8em; color:#999;">-</span>'}
             </td>
             <td>
                 ${p.status === 'pending' ? `
-                    <button class="action-btn edit" onclick="confirmPaymentInCloud('${p.id}')" title="تأكيد"><i class="fas fa-check"></i></button>
-                    <button class="action-btn delete" onclick="rejectPaymentPrompt('${p.id}')" title="رفض"><i class="fas fa-times"></i></button>
+                    <button class="action-btn edit" onclick="confirmPaymentInCloud('${p.id}')" title="تأكيد" style="background:#27ae60; color:white; border:none; padding:5px 10px; border-radius:5px; cursor:pointer; margin:0 2px;">
+                        <i class="fas fa-check"></i>
+                    </button>
+                    <button class="action-btn delete" onclick="rejectPaymentPrompt('${p.id}')" title="رفض" style="background:#e74c3c; color:white; border:none; padding:5px 10px; border-radius:5px; cursor:pointer; margin:0 2px;">
+                        <i class="fas fa-times"></i>
+                    </button>
                 ` : ''}
             </td>
-        </tr>`;
+        `;
+        container.appendChild(row);
     });
     
-    html += `</tbody></table></div>`;
+    // Show a warning if duplicates were found in the data source
+    const totalUnique = processedIds.size;
+    const totalRecords = pageData.length;
+    if (totalRecords !== totalUnique) {
+        console.warn(`⚠️ تم العثور على ${totalRecords - totalUnique} سجل مكرر وتم تجاهلها في العرض`);
+        
+        // Optional: Show warning banner to user
+        const warningBanner = document.getElementById('duplicateWarning');
+        if (warningBanner) {
+            warningBanner.style.display = 'block';
+            warningBanner.innerHTML = `
+                <div style="background:#fff3cd; color:#856404; padding:10px; margin:10px; border-radius:5px; border-right:4px solid #ffc107;">
+                    <i class="fas fa-exclamation-triangle"></i> 
+                    تنبيه: يوجد ${totalRecords - totalUnique} سجل مكرر في قاعدة البيانات. يرجى مراجعة البيانات.
+                </div>
+            `;
+        }
+    }
     
-    document.getElementById('dataViewContainer').innerHTML = html;
-    
-    // ترقيم الصفحات
+    // Render pagination
     renderPaymentsPagination(totalPages);
     updatePaymentsSummary();
 }
