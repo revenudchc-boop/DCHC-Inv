@@ -7310,11 +7310,11 @@ function updateLinkedTotal() {
     checks.forEach(cb => {
         const row = cb.closest('tr');
         const cells = row?.querySelectorAll('td');
-        // الخلية الأخيرة هي العملة
         const currencyCell = cells?.[cells.length - 1];
         const rowCurrency = currencyCell?.textContent?.trim();
         
-        if (!currency && rowCurrency) {
+        // ✅ تحديث العملة لكل فاتورة محددة (وليس فقط الأولى)
+        if (rowCurrency && (rowCurrency === 'USD' || rowCurrency === 'EGP')) {
             currency = rowCurrency;
         }
         
