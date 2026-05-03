@@ -7236,14 +7236,45 @@ function loadUnpaidInvoicesForPayment() {
         // ✅ فقط المؤكد والمعلق يستبعدان. المرفوض يظهر
         if (invoicesWithActivePayment.has(key)) return;
         
-        const total = (inv['total-total'] || 0) + ((inv['final-number'] || '').startsWith('P') ? 0 : 5);
+        // ✅ حساب المبلغ بالعملة الأصلية
+        const currency = inv['currency'] || 'EGP';
+        const exRate = inv['flex-string-06'] || 48.0215;
+        const originalTotal = inv['total-total'] || 0;
+        const martyr = (inv['final-number'] || '').startsWith('P') ? 0 : 5;
+        
+        let displayTotal, displayCurrency;
+        if (currency === 'USAD') {
+            displayTotal = (originalTotal + martyr) / exRate;
+            displayCurrency = 'USD';
+        } else {
+            displayTotal = originalTotal + martyr;
+            displayCurrency = 'EGP';
+        }
+        
         unpaidInvoices.push({
             invoice: inv,
             key: key,
-            total: total,
+            total: displayTotal,
+            currency: displayCurrency,
             paid: 0,
-            remaining: total
+            remaining: displayTotal
         });
+    });
+    
+    // ✅ ترتيب الفواتير تنازلياً حسب الرقم التسلسلي
+    unpaidInvoices.sort((a, b) => {
+        const getNum = (finalNumber) => {
+            if (!finalNumber) return 0;
+            const parts = finalNumber.split('-');
+            if (parts.length > 1) {
+                return parseInt(parts[parts.length - 1]) || 0;
+            }
+            return 0;
+        };
+        
+        const numA = getNum(a.invoice['final-number']);
+        const numB = getNum(b.invoice['final-number']);
+        return numB - numA; // تنازلياً: الأكبر أولاً
     });
     
     if (unpaidInvoices.length === 0) {
@@ -7255,13 +7286,14 @@ function loadUnpaidInvoicesForPayment() {
         ${unpaidInvoices.length} فاتورة متاحة للسداد من أصل ${customerInvoices.length}
     </p>`;
     html += '<table style="width:100%; font-size:0.85em;">';
-    html += '<thead><tr><th>تحديد</th><th>رقم الفاتورة</th><th>الإجمالي</th></tr></thead><tbody>';
+    html += '<thead><tr><th>تحديد</th><th>رقم الفاتورة</th><th>الإجمالي</th><th>العملة</th></tr></thead><tbody>';
     
     unpaidInvoices.forEach(item => {
         html += `<tr>
             <td><input type="checkbox" class="link-invoice-check" value="${item.key}" onchange="updateLinkedTotal()" data-remaining="${item.remaining.toFixed(2)}"></td>
             <td>${item.invoice['final-number'] || item.invoice['draft-number'] || '-'}</td>
             <td>${formatNumberWithCommas(item.total.toFixed(2))}</td>
+            <td>${item.currency}</td>
         </tr>`;
     });
     
@@ -7274,7 +7306,7 @@ function updateLinkedTotal() {
     const checks = document.querySelectorAll('.link-invoice-check:checked');
     let total = 0;
     checks.forEach(cb => {
-        total += parseFloat(cb.dataset.remaining) || parseFloat(cb.dataset.total) || 0;
+        total += parseFloat(cb.dataset.remaining) || 0;
     });
     
     document.getElementById('paymentAmount').value = total > 0 ? total.toFixed(2) : '';
