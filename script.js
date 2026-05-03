@@ -7152,7 +7152,8 @@ window.onPaymentMethodChange = function() {
 
 // تغيير العميل - تحديث الفواتير المرتبطة
 window.onPaymentCustomerChange = async function() {
-    await loadUnpaidInvoicesForPayment();
+    await loadPaymentsFromCloud(currentUser.username);
+    loadUnpaidInvoicesForPayment();
 };
 
 // تحميل قائمة العملاء في نافذة السداد
