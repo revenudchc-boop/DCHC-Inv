@@ -4317,8 +4317,7 @@ function renderTableView(data) {
         const martyr = (finalNum.startsWith('P') || finalNum.startsWith('p')) ? 0 : 5;
         const totalWithMartyr = originalTotal + martyr;
         const paymentStatus = getInvoicePaymentStatus(key, customer);
-        // المتبقي بالعملة الأصلية (بدون تحويل)
-        const remainingOriginal = totalWithMartyr - paymentStatus.paid;
+        const remainingOriginal = Math.max(0, totalWithMartyr - paymentStatus.paid);
         
         let paymentCell = '';
         if (remainingOriginal <= 0.01) {
@@ -7167,32 +7166,27 @@ function loadPaymentCustomers() {
     select.innerHTML = '<option value="">اختر العميل...</option>';
     
     if (currentUser?.userType === 'admin') {
-        // المدير يرى كل العملاء
         const customers = [...new Set(invoicesData.map(inv => {
-            const payee = inv['payee-customer-id'] || '';
-            const contract = inv['contract-customer-id'] || '';
-            return payee || contract;
+            return inv['payee-customer-id'] || inv['contract-customer-id'] || '';
         }).filter(c => c))];
         customers.sort();
         customers.forEach(c => {
             select.innerHTML += `<option value="${c}">${c}</option>`;
         });
     } else {
-        // ✅ عرض اسم العميل وليس الرقم الضريبي فقط
-        let displayName = currentUser?.contractCustomerId || currentUser?.taxNumber || '';
-        let displayValue = currentUser?.contractCustomerId || currentUser?.taxNumber || '';
-        
-        // البحث عن اسم أفضل من customerIds
+        // ✅ استخدام customerIds الخاصة بالمستخدم
         if (currentUser.customerIds && currentUser.customerIds.length > 0) {
-            displayName = currentUser.customerIds[0]; // استخدام أول معرف كاسم
-            displayValue = currentUser.customerIds[0];
+            currentUser.customerIds.forEach(id => {
+                select.innerHTML += `<option value="${id}">${id}</option>`;
+            });
+            select.value = currentUser.customerIds[0];
+        } else if (currentUser.contractCustomerId) {
+            select.innerHTML += `<option value="${currentUser.contractCustomerId}">${currentUser.contractCustomerId}</option>`;
+            select.value = currentUser.contractCustomerId;
+        } else if (currentUser.taxNumber) {
+            select.innerHTML += `<option value="${currentUser.taxNumber}">${currentUser.taxNumber}</option>`;
+            select.value = currentUser.taxNumber;
         }
-        if (currentUser.contractCustomerId && currentUser.contractCustomerId !== currentUser.taxNumber) {
-            displayName = currentUser.contractCustomerId;
-            displayValue = currentUser.contractCustomerId;
-        }
-        
-        select.innerHTML += `<option value="${displayValue}" selected>${displayName}</option>`;
     }
 }
 
@@ -8483,10 +8477,10 @@ window.quickPayInvoice = async function(invoiceKey, customerId, totalAmount, cur
     let correctedCurrency = currency || 'EGP';
     if (correctedCurrency === 'USAD') correctedCurrency = 'USD';
     
-    // تحميل السدادات لحساب المبلغ المتبقي
+    // ✅ تحميل السدادات لحساب المبلغ المتبقي
     await loadPaymentsFromCloud(currentUser.username);
     
-    // حساب المبلغ المدفوع لهذه الفاتورة
+    // ✅ حساب المبلغ المدفوع لهذه الفاتورة
     let totalPaid = 0;
     paymentsData.forEach(p => {
         if (p.status === 'confirmed' || p.isOpeningBalance) {
@@ -8504,21 +8498,40 @@ window.quickPayInvoice = async function(invoiceKey, customerId, totalAmount, cur
         return;
     }
     
+    // ✅ فتح النافذة أولاً
     openPaymentModal();
     
-    await new Promise(resolve => setTimeout(resolve, 300));
+    await new Promise(resolve => setTimeout(resolve, 400));
     
-    // ✅ ملء الحقول - العملة الصحيحة
-    document.getElementById('paymentCustomer').value = customerId;
+    // ✅ تحديد العميل الصحيح من customerIds
+    let finalCustomerId = customerId;
+    
+    if (currentUser && currentUser.customerIds && currentUser.customerIds.length > 0) {
+        const customerLower = customerId.toLowerCase();
+        const matched = currentUser.customerIds.find(id => 
+            customerLower.includes(id.toLowerCase()) || 
+            id.toLowerCase().includes(customerLower)
+        );
+        if (matched) {
+            finalCustomerId = matched;
+        } else {
+            finalCustomerId = currentUser.customerIds[0];
+        }
+    } else if (currentUser && currentUser.contractCustomerId) {
+        finalCustomerId = currentUser.contractCustomerId;
+    }
+    
+    // ✅ ملء الحقول تلقائياً
+    document.getElementById('paymentCustomer').value = finalCustomerId;
     document.getElementById('paymentAmount').value = remaining.toFixed(2);
     document.getElementById('paymentCurrency').value = correctedCurrency;
     document.getElementById('paymentDate').value = new Date().toISOString().slice(0, 10);
     
-    // البحث عن بيانات الفاتورة
+    // ✅ البحث عن بيانات الفاتورة للعرض
     const inv = invoicesData.find(i => getInvoiceKey(i) === invoiceKey);
     const invNum = inv ? (inv['final-number'] || inv['draft-number'] || invoiceKey) : invoiceKey;
     
-    // عرض الفاتورة المحددة فقط
+    // ✅ عرض الفاتورة المحددة فقط
     const container = document.getElementById('linkedInvoicesContainer');
     container.innerHTML = `
         <table style="width:100%; font-size:0.85em;">
@@ -8527,9 +8540,9 @@ window.quickPayInvoice = async function(invoiceKey, customerId, totalAmount, cur
                 <tr>
                     <td><input type="checkbox" class="link-invoice-check" value="${invoiceKey}" checked onchange="updateLinkedTotal()" data-remaining="${remaining.toFixed(2)}"></td>
                     <td><strong>${invNum}</strong></td>
-                    <td>${formatNumberWithCommas(totalAmount.toFixed(2))}</td>
-                    <td style="color:var(--success);">${formatNumberWithCommas(totalPaid.toFixed(2))}</td>
-                    <td style="color:var(--danger); font-weight:700;">${formatNumberWithCommas(remaining.toFixed(2))}</td>
+                    <td>${formatNumberWithCommas(totalAmount.toFixed(2))} ${correctedCurrency}</td>
+                    <td style="color:var(--success);">${formatNumberWithCommas(totalPaid.toFixed(2))} ${correctedCurrency}</td>
+                    <td style="color:var(--danger); font-weight:700;">${formatNumberWithCommas(remaining.toFixed(2))} ${correctedCurrency}</td>
                 </tr>
             </tbody>
         </table>
@@ -8541,7 +8554,7 @@ window.quickPayInvoice = async function(invoiceKey, customerId, totalAmount, cur
 // حساب حالة السداد لفاتورة
 function getInvoicePaymentStatus(invoiceKey, customerId) {
     if (!paymentsData || paymentsData.length === 0) {
-        return { status: 'unpaid', paid: 0, remaining: 0, total: 0 };
+        return { status: 'unpaid', paid: 0 };
     }
     
     let totalPaid = 0;
@@ -8549,15 +8562,18 @@ function getInvoicePaymentStatus(invoiceKey, customerId) {
     paymentsData.forEach(p => {
         if (p.customerId === customerId && (p.status === 'confirmed' || p.isOpeningBalance)) {
             if (p.linkedInvoices && Array.isArray(p.linkedInvoices) && p.linkedInvoices.includes(invoiceKey)) {
-                const amountPerInvoice = p.linkedInvoices.length > 0 ? p.amount / p.linkedInvoices.length : p.amount;
-                totalPaid += amountPerInvoice;
+                // إذا كان للسداد عملة محددة وكانت الفاتورة بنفس العملة
+                if (p.currency === 'USD' || p.currency === 'USAD') {
+                    const amountPerInvoice = p.linkedInvoices.length > 0 ? p.amount / p.linkedInvoices.length : p.amount;
+                    totalPaid += amountPerInvoice;
+                } else if (p.currency === 'EGP') {
+                    // إذا كان السداد بالجنيه والفاتورة بالجنيه
+                    const amountPerInvoice = p.linkedInvoices.length > 0 ? p.amount / p.linkedInvoices.length : p.amount;
+                    totalPaid += amountPerInvoice;
+                }
             }
         }
     });
     
-    return {
-        paid: totalPaid,
-        status: totalPaid <= 0 ? 'unpaid' : 'partial',
-        total: 0 // سيتم ملؤه لاحقاً
-    };
+    return { paid: totalPaid, status: totalPaid <= 0 ? 'unpaid' : 'partial' };
 }
