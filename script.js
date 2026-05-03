@@ -6944,6 +6944,10 @@ async function savePaymentToCloud(paymentData) {
 async function confirmPaymentInCloud(paymentId) {
     if (currentUser?.userType !== 'admin') {
         showNotification('غير مصرح لك بتأكيد السداد', 'error');
+		// تحديث عرض السدادات مباشرة إذا كان التبويب مفتوحاً
+	if (document.querySelector('.type-tab.active')?.textContent?.includes('السدادات')) {
+		await openAllPaymentsView();
+}
         return null;
     }
     
@@ -6977,6 +6981,10 @@ async function confirmPaymentInCloud(paymentId) {
 async function rejectPaymentInCloud(paymentId, reason) {
     if (currentUser?.userType !== 'admin') {
         showNotification('غير مصرح لك برفض السداد', 'error');
+		// تحديث عرض السدادات مباشرة إذا كان التبويب مفتوحاً
+	if (document.querySelector('.type-tab.active')?.textContent?.includes('السدادات')) {
+		await openAllPaymentsView();
+}
         return null;
     }
     
@@ -7024,6 +7032,10 @@ async function cancelPaymentInCloud(paymentId) {
         
         if (data.success) {
             showNotification('تم إلغاء السداد', 'info');
+			// تحديث عرض السدادات مباشرة إذا كان التبويب مفتوحاً
+		if (document.querySelector('.type-tab.active')?.textContent?.includes('السدادات')) {
+			await openAllPaymentsView();
+}
             return data;
         }
         throw new Error(data.error || 'فشل الإلغاء');
@@ -7608,8 +7620,9 @@ function renderPaymentsView() {
                         <th>العملة</th>
                         <th>الطريقة</th>
                         <th>التاريخ</th>
-                        <th>الحالة</th>
-                        <th>إجراءات</th>
+						<th>مرفقات</th>
+						<th>الحالة</th>
+						<th>إجراءات</th>
                     </tr>
                 </thead>
                 <tbody>`;
@@ -7627,12 +7640,20 @@ function renderPaymentsView() {
             <td>${p.date}</td>
             <td><span style="background:${statusColors[p.status]}; color:white; padding:3px 10px; border-radius:50px; font-size:0.85em;">${statusLabels[p.status] || p.status}</span></td>
             <td>
+                ${p.attachments && p.attachments.length > 0 ? 
+                    `<button class="action-btn" onclick="viewAttachments('${p.id}')" title="عرض المرفقات (${p.attachments.length})" style="background:#4cc9f0; color:white;">
+                        <i class="fas fa-paperclip"></i> ${p.attachments.length}
+                    </button>` : 
+                    '<span style="font-size:0.8em; color:#999;">-</span>'}
+            </td>
+            <td>
                 ${p.status === 'pending' ? `
                     <button class="action-btn edit" onclick="confirmPaymentInCloud('${p.id}')" title="تأكيد"><i class="fas fa-check"></i></button>
                     <button class="action-btn delete" onclick="rejectPaymentPrompt('${p.id}')" title="رفض"><i class="fas fa-times"></i></button>
                 ` : ''}
                 ${p.status === 'confirmed' ? '<span style="font-size:0.8em; color:#999;">مؤكد</span>' : ''}
             </td>
+			
         </tr>`;
     });
     
@@ -8257,3 +8278,35 @@ function toggleNewsBar() {
         }
     }
 }
+
+// عرض مرفقات السداد
+window.viewAttachments = function(paymentId) {
+    const payment = paymentsData.find(p => p.id === paymentId);
+    if (!payment || !payment.attachments || payment.attachments.length === 0) {
+        showNotification('لا توجد مرفقات لهذا السداد', 'info');
+        return;
+    }
+    
+    let html = '<div style="padding:10px;">';
+    html += `<h4>مرفقات السداد: ${payment.id}</h4>`;
+    html += '<div style="display:flex; flex-wrap:wrap; gap:10px; margin-top:10px;">';
+    
+    payment.attachments.forEach((att, i) => {
+        const isImage = att.name.match(/\.(jpg|jpeg|png|gif)$/i);
+        const isPDF = att.name.match(/\.pdf$/i);
+        
+        html += `<div style="border:1px solid #ddd; border-radius:8px; padding:10px; text-align:center; width:150px;">
+            ${isImage ? 
+                `<img src="https://drive.google.com/thumbnail?id=${att.id}" style="width:100%; height:100px; object-fit:cover; border-radius:4px;" onerror="this.src='data:image/svg+xml,<svg xmlns=%22http://www.w3.org/2000/svg%22 width=%22100%22 height=%22100%22><rect fill=%22%23ddd%22 width=%22100%22 height=%22100%22/><text x=%2250%22 y=%2255%22 text-anchor=%22middle%22 fill=%22%23999%22>📄</text></svg>'">` : 
+                `<div style="width:100%; height:100px; background:#f0f0f0; border-radius:4px; display:flex; align-items:center; justify-content:center; font-size:2em;">📄</div>`}
+            <div style="font-size:0.75em; margin-top:5px; word-break:break-all;">${att.name}</div>
+            <a href="${att.url}" target="_blank" style="font-size:0.7em; color:#4361ee;">فتح</a>
+        </div>`;
+    });
+    
+    html += '</div></div>';
+    
+    document.getElementById('modalBody').innerHTML = html;
+    document.getElementById('modalTitle').textContent = 'مرفقات السداد';
+    document.getElementById('invoiceModal').style.display = 'block';
+};
