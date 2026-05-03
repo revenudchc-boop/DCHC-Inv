@@ -7813,7 +7813,7 @@ function renderPaymentsView() {
             const statusColors = { 'pending': '#f39c12', 'confirmed': '#27ae60', 'rejected': '#e74c3c', 'cancelled': '#95a5a6' };
             
             html += `<tr>
-                <td>${p.id}</td>
+                <td style="cursor:pointer; color:var(--primary); text-decoration:underline;" onclick="showPaymentInvoices('${p.id}')" title="عرض الفواتير المرتبطة">${p.id}</td>
                 <td>${p.customerId || '-'}</td>
                 <td>${formatNumberWithCommas(p.amount.toFixed(2))}</td>
                 <td>${p.currency}</td>
@@ -8629,3 +8629,45 @@ function getInvoicePaymentStatus(invoiceKey, customerId) {
     
     return { paid: totalPaid, status: totalPaid <= 0 ? 'unpaid' : 'partial', hasPending: hasPending, hasRejected: hasRejected };
 }
+
+// عرض الفواتير المرتبطة بالسداد
+window.showPaymentInvoices = function(paymentId) {
+    const payment = paymentsData.find(p => p.id === paymentId);
+    if (!payment) {
+        showNotification('السداد غير موجود', 'error');
+        return;
+    }
+    
+    if (!payment.linkedInvoices || payment.linkedInvoices.length === 0) {
+        showNotification('هذا السداد غير مرتبط بأي فواتير', 'info');
+        return;
+    }
+    
+    // بناء قائمة الفواتير المرتبطة
+    let html = `
+        <div style="padding:10px;">
+            <h4>فواتير السداد: ${payment.id}</h4>
+            <p style="color:var(--text-muted); font-size:0.85em;">العميل: ${payment.customerId} | المبلغ: ${formatNumberWithCommas(payment.amount.toFixed(2))} ${payment.currency} | الحالة: ${payment.status}</p>
+            <table class="data-table" style="margin-top:10px;">
+                <thead><tr><th>رقم الفاتورة</th><th>الإجمالي</th></tr></thead>
+                <tbody>`;
+    
+    payment.linkedInvoices.forEach(key => {
+        const inv = invoicesData.find(i => getInvoiceKey(i) === key);
+        if (inv) {
+            const total = (inv['total-total'] || 0) + ((inv['final-number'] || '').startsWith('P') ? 0 : 5);
+            html += `<tr>
+                <td>${inv['final-number'] || inv['draft-number'] || key}</td>
+                <td>${formatNumberWithCommas(total.toFixed(2))}</td>
+            </tr>`;
+        } else {
+            html += `<tr><td>${key}</td><td>-</td></tr>`;
+        }
+    });
+    
+    html += '</tbody></table></div>';
+    
+    document.getElementById('modalBody').innerHTML = html;
+    document.getElementById('modalTitle').textContent = 'فواتير السداد';
+    document.getElementById('invoiceModal').style.display = 'block';
+};
