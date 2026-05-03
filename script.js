@@ -7584,7 +7584,11 @@ window.openAllPaymentsView = async function() {
 
 // عرض السدادات كجدول
 function renderPaymentsView() {
+    console.log('🔄 renderPaymentsView استدعيت');
+    console.log('📊 عدد السدادات:', filteredPayments.length);
+    
     if (filteredPayments.length === 0) {
+        console.log('⚠️ لا توجد سدادات');
         document.getElementById('dataViewContainer').innerHTML = '<div class="no-data"><i class="fas fa-inbox"></i><p>لا توجد سدادات</p></div>';
         document.getElementById('pagination').innerHTML = '';
         updatePaymentsSummary();
@@ -7600,68 +7604,86 @@ function renderPaymentsView() {
     const end = itemsPerPagePayments === Infinity ? filteredPayments.length : Math.min(start + itemsPerPagePayments, filteredPayments.length);
     const pageData = filteredPayments.slice(start, end);
     
-    let html = `
-        <div class="table-container">
-            <div class="table-toolbar" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; padding:10px; background:#f8f9fa; border-radius:8px;">
-                <div>
-                    <button class="btn btn-primary" onclick="openPaymentModal()"><i class="fas fa-plus"></i> سداد جديد</button>
-                    <button class="btn btn-info" onclick="openAllPaymentsView()" style="background:#4cc9f0;"><i class="fas fa-sync-alt"></i> تحديث</button>
-                </div>
-                <div>
-                    <span>إجمالي السدادات: <strong>${filteredPayments.length}</strong></span>
-                </div>
-            </div>
-            <table class="data-table">
-                <thead>
-                    <tr>
-                        <th>رقم السداد</th>
-                        <th>العميل</th>
-                        <th>المبلغ</th>
-                        <th>العملة</th>
-                        <th>الطريقة</th>
-                        <th>التاريخ</th>
-                        <th>الحالة</th>
-                        <th>مرفقات</th>
-                        <th>إجراءات</th>
-                    </tr>
-                </thead>
-                <tbody>`;
+    console.log('📋 pageData.length:', pageData.length);
     
-    pageData.forEach(p => {
-        const statusLabels = { 'pending': '⏳ قيد الانتظار', 'confirmed': '✅ مؤكد', 'rejected': '❌ مرفوض', 'cancelled': '🚫 ملغي' };
-        const statusColors = { 'pending': '#f39c12', 'confirmed': '#27ae60', 'rejected': '#e74c3c', 'cancelled': '#95a5a6' };
+    try {
+        let html = `
+            <div class="table-container">
+                <div class="table-toolbar" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; padding:10px; background:#f8f9fa; border-radius:8px;">
+                    <div>
+                        <button class="btn btn-primary" onclick="openPaymentModal()"><i class="fas fa-plus"></i> سداد جديد</button>
+                        <button class="btn btn-info" onclick="openAllPaymentsView()" style="background:#4cc9f0;"><i class="fas fa-sync-alt"></i> تحديث</button>
+                    </div>
+                    <div>
+                        <span>إجمالي السدادات: <strong>${filteredPayments.length}</strong></span>
+                    </div>
+                </div>
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>رقم السداد</th>
+                            <th>العميل</th>
+                            <th>المبلغ</th>
+                            <th>العملة</th>
+                            <th>الطريقة</th>
+                            <th>التاريخ</th>
+                            <th>الحالة</th>
+                            <th>مرفقات</th>
+                            <th>إجراءات</th>
+                        </tr>
+                    </thead>
+                    <tbody>`;
         
-        html += `<tr>
-            <td>${p.id}</td>
-            <td>${p.customerId || '-'}</td>
-            <td>${formatNumberWithCommas(p.amount.toFixed(2))}</td>
-            <td>${p.currency}</td>
-            <td>${getPaymentMethodName(p.method)}</td>
-            <td>${p.date}</td>
-            <td><span style="background:${statusColors[p.status]}; color:white; padding:3px 10px; border-radius:50px; font-size:0.85em;">${statusLabels[p.status] || p.status}</span></td>
-            <td style="text-align:center;">
-                ${p.attachments && p.attachments.length > 0 ? 
-                    `<button class="action-btn" onclick="viewAttachments('${p.id}')" title="عرض المرفقات (${p.attachments.length})" style="background:#4cc9f0; color:white;">
-                        <i class="fas fa-paperclip"></i> ${p.attachments.length}
-                    </button>` : 
-                    '<span style="font-size:0.8em; color:#999;">-</span>'}
-            </td>
-            <td>
-                ${p.status === 'pending' ? `
-                    <button class="action-btn edit" onclick="confirmPaymentInCloud('${p.id}')" title="تأكيد"><i class="fas fa-check"></i></button>
-                    <button class="action-btn delete" onclick="rejectPaymentPrompt('${p.id}')" title="رفض"><i class="fas fa-times"></i></button>
-                ` : ''}
-            </td>
-        </tr>`;
-    });
-    
-    html += `</tbody></table></div>`;
-    
-    document.getElementById('dataViewContainer').innerHTML = html;
-    
-    // ترقيم الصفحات
-    renderPaymentsPagination(totalPages);
-    updatePaymentsSummary();
+        pageData.forEach(p => {
+            console.log('🔹 معالجة السداد:', p.id);
+            const statusLabels = { 'pending': '⏳ قيد الانتظار', 'confirmed': '✅ مؤكد', 'rejected': '❌ مرفوض', 'cancelled': '🚫 ملغي' };
+            const statusColors = { 'pending': '#f39c12', 'confirmed': '#27ae60', 'rejected': '#e74c3c', 'cancelled': '#95a5a6' };
+            
+            html += `<tr>
+                <td>${p.id}</td>
+                <td>${p.customerId || '-'}</td>
+                <td>${formatNumberWithCommas(p.amount.toFixed(2))}</td>
+                <td>${p.currency}</td>
+                <td>${getPaymentMethodName(p.method)}</td>
+                <td>${p.date}</td>
+                <td><span style="background:${statusColors[p.status]}; color:white; padding:3px 10px; border-radius:50px; font-size:0.85em;">${statusLabels[p.status] || p.status}</span></td>
+                <td style="text-align:center;">
+                    ${p.attachments && p.attachments.length > 0 ? 
+                        `<button class="action-btn" onclick="viewAttachments('${p.id}')" title="عرض المرفقات (${p.attachments.length})" style="background:#4cc9f0; color:white;">
+                            <i class="fas fa-paperclip"></i> ${p.attachments.length}
+                        </button>` : 
+                        '<span style="font-size:0.8em; color:#999;">-</span>'}
+                </td>
+                <td>
+                    ${p.status === 'pending' ? `
+                        <button class="action-btn edit" onclick="confirmPaymentInCloud('${p.id}')" title="تأكيد"><i class="fas fa-check"></i></button>
+                        <button class="action-btn delete" onclick="rejectPaymentPrompt('${p.id}')" title="رفض"><i class="fas fa-times"></i></button>
+                    ` : ''}
+                </td>
+            </tr>`;
+        });
+        
+        html += `</tbody></table></div>`;
+        
+        console.log('📝 جاهز لوضع HTML');
+        
+        const container = document.getElementById('dataViewContainer');
+        if (!container) {
+            console.error('❌ dataViewContainer غير موجود!');
+            return;
+        }
+        
+        container.innerHTML = html;
+        console.log('✅ تم عرض السدادات بنجاح');
+        
+        // ترقيم الصفحات
+        renderPaymentsPagination(totalPages);
+        updatePaymentsSummary();
+        
+    } catch (error) {
+        console.error('❌ خطأ في renderPaymentsView:', error.message);
+        console.error(error);
+    }
 }
 
 // ترقيم صفحات السدادات
