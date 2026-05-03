@@ -7806,7 +7806,10 @@ function renderPaymentsView() {
         const hasInvoices = p.linkedInvoices && p.linkedInvoices.length > 0;
         
         html += `<tr onclick="togglePaymentInvoices('${p.id}')" style="cursor:pointer;">
-            <td>${p.id} ${hasInvoices ? '<i class="fas fa-chevron-down" id="paymentIcon-' + p.id + '" style="font-size:0.7em; margin-right:5px;"></i>' : ''}</td>
+            <td style="cursor:pointer; color:#4361ee; font-weight:600;">
+                ${p.id}
+                ${hasInvoices ? ` <i class="fas fa-chevron-down" id="paymentIcon-${p.id}" style="font-size:0.7em; color:#999;"></i>` : ''}
+            </td>
             <td>${p.customerId || '-'}</td>
             <td>${formatNumberWithCommas(p.amount.toFixed(2))}</td>
             <td>${p.currency}</td>
