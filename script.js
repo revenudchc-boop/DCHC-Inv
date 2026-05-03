@@ -8455,19 +8455,19 @@ window.viewAttachments = function(paymentId) {
 };
 
 // سداد سريع من جدول الفواتير
-window.quickPayInvoice = async function(invoiceKey, customerId, amount, currency) {
+window.quickPayInvoice = async function(invoiceKey, customerId, totalAmount, currency) {
     if (!currentUser) {
         showNotification('يرجى تسجيل الدخول', 'warning');
         return;
     }
     
-    // ✅ تحميل السدادات أولاً لحساب المبلغ المتبقي
+    // تحميل السدادات لحساب المبلغ المتبقي
     await loadPaymentsFromCloud(currentUser.username);
     
-    // حساب المبلغ المتبقي للفاتورة
+    // حساب المبلغ المدفوع لهذه الفاتورة
     let totalPaid = 0;
     paymentsData.forEach(p => {
-        if (p.customerId === customerId && (p.status === 'confirmed' || p.isOpeningBalance)) {
+        if (p.status === 'confirmed' || p.isOpeningBalance) {
             if (p.linkedInvoices && Array.isArray(p.linkedInvoices) && p.linkedInvoices.includes(invoiceKey)) {
                 const amountPerInvoice = p.linkedInvoices.length > 0 ? p.amount / p.linkedInvoices.length : p.amount;
                 totalPaid += amountPerInvoice;
@@ -8475,7 +8475,13 @@ window.quickPayInvoice = async function(invoiceKey, customerId, amount, currency
         }
     });
     
-    const remaining = amount - totalPaid;
+    const remaining = totalAmount - totalPaid;
+    
+    // إذا تم السداد كلياً، لا داعي لفتح النافذة
+    if (remaining <= 0.01) {
+        showNotification('✅ هذه الفاتورة مسددة بالكامل', 'success');
+        return;
+    }
     
     openPaymentModal();
     
@@ -8484,22 +8490,33 @@ window.quickPayInvoice = async function(invoiceKey, customerId, amount, currency
     
     // ملء الحقول تلقائياً
     document.getElementById('paymentCustomer').value = customerId;
-    document.getElementById('paymentAmount').value = remaining > 0 ? remaining.toFixed(2) : amount.toFixed(2);
+    document.getElementById('paymentAmount').value = remaining.toFixed(2);
     document.getElementById('paymentCurrency').value = currency || 'EGP';
     document.getElementById('paymentDate').value = new Date().toISOString().slice(0, 10);
     
-    // تحميل الفواتير وتحديد الفاتورة تلقائياً
-    await loadUnpaidInvoicesForPayment();
+    // البحث عن بيانات الفاتورة
+    const inv = invoicesData.find(i => getInvoiceKey(i) === invoiceKey);
+    const invNum = inv ? (inv['final-number'] || inv['draft-number'] || invoiceKey) : invoiceKey;
     
-    setTimeout(() => {
-        const checkboxes = document.querySelectorAll('.link-invoice-check');
-        checkboxes.forEach(cb => {
-            if (cb.value === invoiceKey) {
-                cb.checked = true;
-            }
-        });
-        updateLinkedTotal();
-    }, 800);
+    // ✅ عرض الفاتورة المحددة فقط بدلاً من كل الفواتير
+    const container = document.getElementById('linkedInvoicesContainer');
+    container.innerHTML = `
+        <table style="width:100%; font-size:0.85em;">
+            <thead><tr><th>تحديد</th><th>رقم الفاتورة</th><th>الإجمالي</th><th>المدفوع</th><th>المتبقي</th></tr></thead>
+            <tbody>
+                <tr>
+                    <td><input type="checkbox" class="link-invoice-check" value="${invoiceKey}" checked onchange="updateLinkedTotal()" data-remaining="${remaining.toFixed(2)}"></td>
+                    <td><strong>${invNum}</strong></td>
+                    <td>${formatNumberWithCommas(totalAmount.toFixed(2))}</td>
+                    <td style="color:var(--success);">${formatNumberWithCommas(totalPaid.toFixed(2))}</td>
+                    <td style="color:var(--danger); font-weight:700;">${formatNumberWithCommas(remaining.toFixed(2))}</td>
+                </tr>
+            </tbody>
+        </table>
+    `;
+    
+    // تحديث إجمالي المبلغ
+    updateLinkedTotal();
 };
 
 // حساب حالة السداد لفاتورة
