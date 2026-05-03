@@ -7114,7 +7114,10 @@ window.openPaymentModal = function() {
         return;
     }
     
+    // ✅ إعداد التاريخ الافتراضي (اليوم)
     document.getElementById('paymentDate').value = new Date().toISOString().slice(0, 10);
+    
+    // ✅ تفريغ جميع الحقول
     document.getElementById('paymentAmount').value = '';
     document.getElementById('paymentReference').value = '';
     document.getElementById('paymentNotes').value = '';
@@ -7127,12 +7130,21 @@ window.openPaymentModal = function() {
     document.getElementById('paymentMethod').value = 'bank_transfer';
     document.getElementById('paymentMessage').style.display = 'none';
     
+    // ✅ إظهار/إخفاء الحقول حسب طريقة السداد
     onPaymentMethodChange();
+    
+    // ✅ تحميل قائمة العملاء في القائمة المنسدلة
     loadPaymentCustomers();
     
-    // ✅ لا نقوم بتحميل أي شيء هنا - الـ quickPayInvoice ستتولى ذلك
-    // ✅ سيتم تحميل الفواتير فقط عند تغيير العميل في onPaymentCustomerChange
+    // ✅ تحميل السدادات ثم الفواتير غير المسددة
+    //    لكن فقط إذا لم يكن سداداً سريعاً
+    if (!isQuickPayment) {
+        loadPaymentsFromCloud(currentUser.username).then(() => {
+            loadUnpaidInvoicesForPayment();
+        });
+    }
     
+    // ✅ إظهار النافذة
     document.getElementById('paymentModal').style.display = 'block';
 };
 
@@ -8473,10 +8485,10 @@ window.quickPayInvoice = async function(invoiceKey, customerId, totalAmount, cur
     let correctedCurrency = currency || 'EGP';
     if (correctedCurrency === 'USAD') correctedCurrency = 'USD';
     
-    // ✅ تحميل السدادات لحساب المبلغ المتبقي
+    // ✅ تحميل السدادات من السحابة لحساب المبلغ المدفوع
     await loadPaymentsFromCloud(currentUser.username);
     
-    // ✅ حساب المبلغ المدفوع لهذه الفاتورة
+    // ✅ حساب إجمالي المدفوع لهذه الفاتورة من جميع السدادات المؤكدة
     let totalPaid = 0;
     paymentsData.forEach(p => {
         if (p.status === 'confirmed' || p.isOpeningBalance) {
@@ -8487,16 +8499,17 @@ window.quickPayInvoice = async function(invoiceKey, customerId, totalAmount, cur
         }
     });
     
+    // ✅ حساب المبلغ المتبقي
     const remaining = totalAmount - totalPaid;
     
+    // ✅ إذا تم السداد كلياً، لا داعي لفتح النافذة
     if (remaining <= 0.01) {
         showNotification('✅ هذه الفاتورة مسددة بالكامل', 'success');
         return;
     }
     
-    // ✅ تحديد العميل الصحيح من customerIds
+    // ✅ تحديد العميل الصحيح من customerIds الخاصة بالمستخدم
     let finalCustomerId = customerId;
-    
     if (currentUser && currentUser.customerIds && currentUser.customerIds.length > 0) {
         const customerLower = customerId.toLowerCase();
         const matched = currentUser.customerIds.find(id => 
@@ -8512,15 +8525,16 @@ window.quickPayInvoice = async function(invoiceKey, customerId, totalAmount, cur
         finalCustomerId = currentUser.contractCustomerId;
     }
     
-    // ✅ تعيين مؤشر السداد السريع
+    // ✅ تفعيل مؤشر السداد السريع - يمنع openPaymentModal من تحميل الفواتير
     isQuickPayment = true;
     
-    // ✅ فتح النافذة
+    // ✅ فتح النافذة (لن تحمل الفواتير بسبب isQuickPayment = true)
     openPaymentModal();
     
-    await new Promise(resolve => setTimeout(resolve, 400));
+    // ✅ انتظار فتح النافذة بالكامل
+    await new Promise(resolve => setTimeout(resolve, 300));
     
-    // ✅ ملء الحقول تلقائياً
+    // ✅ تعبئة الحقول تلقائياً
     document.getElementById('paymentCustomer').value = finalCustomerId;
     document.getElementById('paymentAmount').value = remaining.toFixed(2);
     document.getElementById('paymentCurrency').value = correctedCurrency;
@@ -8530,7 +8544,7 @@ window.quickPayInvoice = async function(invoiceKey, customerId, totalAmount, cur
     const inv = invoicesData.find(i => getInvoiceKey(i) === invoiceKey);
     const invNum = inv ? (inv['final-number'] || inv['draft-number'] || invoiceKey) : invoiceKey;
     
-    // ✅ عرض الفاتورة المحددة فقط
+    // ✅ عرض الفاتورة المحددة فقط (وليس كل الفواتير)
     const container = document.getElementById('linkedInvoicesContainer');
     container.innerHTML = `
         <table style="width:100%; font-size:0.85em;">
@@ -8547,10 +8561,11 @@ window.quickPayInvoice = async function(invoiceKey, customerId, totalAmount, cur
         </table>
     `;
     
+    // ✅ تحديث إجمالي المبلغ
     updateLinkedTotal();
     
-    // ✅ إعادة تعيين المؤشر
-    setTimeout(() => { isQuickPayment = false; }, 1000);
+    // ✅ إعادة تعيين المؤشر بعد الانتهاء
+    isQuickPayment = false;
 };
 
 // حساب حالة السداد لفاتورة
