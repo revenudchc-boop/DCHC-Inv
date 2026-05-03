@@ -4302,10 +4302,14 @@ function renderTableView(data) {
         const paymentCurrency = displayCurrency;
         
         let paymentCell = '';
-        if (remainingOriginal <= 0.01) {
+        if (remainingOriginal <= 0.01 && !paymentStatus.hasRejected) {
             paymentCell = `<span style="background:rgba(34,197,94,0.15); color:#4ade80; padding:4px 10px; border-radius:8px; font-size:0.75em; font-weight:700;">
                 <i class="fas fa-check-circle"></i> تم السداد
             </span>`;
+        } else if (paymentStatus.hasRejected) {
+            paymentCell = `<button class="pay-btn" onclick="event.stopPropagation(); quickPayInvoice('${key}', '${customer}', ${remainingOriginal.toFixed(2)}, '${displayCurrency}')" title="إعادة السداد">
+                <i class="fas fa-redo"></i> إعادة سداد
+            </button>`;
         } else if (paymentStatus.hasPending) {
             paymentCell = `<span style="background:rgba(245,158,11,0.15); color:#fbbf24; padding:4px 10px; border-radius:8px; font-size:0.75em; font-weight:700;">
                 <i class="fas fa-hourglass-half"></i> في انتظار الموافقة
@@ -7203,15 +7207,17 @@ function loadUnpaidInvoicesForPayment() {
         return;
     }
     
-    // ✅ جمع الفواتير التي لها أي سداد (مؤكد أو معلق)
-    const invoicesWithPayment = new Set();
+    // ✅ جمع الفواتير التي لها سداد مؤكد أو معلق فقط (المرفوض لا يستبعد)
+    const invoicesWithActivePayment = new Set();
     const invoicePaidAmounts = {};
     
     paymentsData.forEach(p => {
         if (p.linkedInvoices && Array.isArray(p.linkedInvoices)) {
             p.linkedInvoices.forEach(key => {
-                // ✅ الفاتورة التي لها أي سداد (معلق أو مؤكد) تستبعد
-                invoicesWithPayment.add(key);
+                // ✅ فقط المؤكد والمعلق يستبعدان. المرفوض لا يستبعد
+                if (p.status === 'confirmed' || p.status === 'pending' || p.isOpeningBalance) {
+                    invoicesWithActivePayment.add(key);
+                }
                 
                 if (p.status === 'confirmed' || p.isOpeningBalance) {
                     const amountPerInvoice = p.linkedInvoices.length > 0 ? p.amount / p.linkedInvoices.length : p.amount;
@@ -7222,13 +7228,13 @@ function loadUnpaidInvoicesForPayment() {
         }
     });
     
-    // ✅ تصفية الفواتير التي ليس لها أي سداد
+    // ✅ تصفية الفواتير: المؤكد والمعلق يستبعدان، المرفوض يظهر
     const unpaidInvoices = [];
     customerInvoices.forEach(inv => {
         const key = getInvoiceKey(inv);
         
-        // ✅ إذا كان للفاتورة أي سداد (معلق أو مؤكد)، لا تظهر
-        if (invoicesWithPayment.has(key)) return;
+        // ✅ فقط المؤكد والمعلق يستبعدان. المرفوض يظهر
+        if (invoicesWithActivePayment.has(key)) return;
         
         const total = (inv['total-total'] || 0) + ((inv['final-number'] || '').startsWith('P') ? 0 : 5);
         unpaidInvoices.push({
@@ -8554,11 +8560,12 @@ window.quickPayInvoice = async function(invoiceKey, customerId, totalAmount, cur
 // حساب حالة السداد لفاتورة
 function getInvoicePaymentStatus(invoiceKey, customerId) {
     if (!paymentsData || paymentsData.length === 0) {
-        return { status: 'unpaid', paid: 0, hasPending: false };
+        return { status: 'unpaid', paid: 0, hasPending: false, hasRejected: false };
     }
     
     let totalPaid = 0;
     let hasPending = false;
+    let hasRejected = false;
     
     paymentsData.forEach(p => {
         if (p.linkedInvoices && Array.isArray(p.linkedInvoices) && p.linkedInvoices.includes(invoiceKey)) {
@@ -8567,9 +8574,11 @@ function getInvoicePaymentStatus(invoiceKey, customerId) {
                 totalPaid += amountPerInvoice;
             } else if (p.status === 'pending') {
                 hasPending = true;
+            } else if (p.status === 'rejected') {
+                hasRejected = true;
             }
         }
     });
     
-    return { paid: totalPaid, status: totalPaid <= 0 ? 'unpaid' : 'partial', hasPending: hasPending };
+    return { paid: totalPaid, status: totalPaid <= 0 ? 'unpaid' : 'partial', hasPending: hasPending, hasRejected: hasRejected };
 }
