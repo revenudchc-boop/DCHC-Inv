@@ -802,6 +802,16 @@
                     <select id="statementAccount" onchange="updateStatement()">
                         <option value="">اختر الحساب...</option>
                     </select>
+					                <div class="row" style="margin-bottom:10px;">
+                    <div class="col">
+                        <label style="font-size:0.8em;">من تاريخ</label>
+                        <input type="date" id="statementDateFrom" onchange="updateStatement()" style="width:100%; padding:6px; border-radius:6px;">
+                    </div>
+                    <div class="col">
+                        <label style="font-size:0.8em;">إلى تاريخ</label>
+                        <input type="date" id="statementDateTo" onchange="updateStatement()" style="width:100%; padding:6px; border-radius:6px;">
+                    </div>
+                </div>
                 </div>
                 <div id="statementBody"></div>
             </div>

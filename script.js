@@ -7567,7 +7567,7 @@ window.closeStatementModal = function() {
 };
 
 // بناء كشف الحساب
-function buildAccountStatement(invoices, payments, accountId) {
+function buildAccountStatement(invoices, payments, accountId, dateFrom, dateTo) {
     let transactions = [];
     
     // إضافة الفواتير
@@ -7593,30 +7593,33 @@ function buildAccountStatement(invoices, payments, accountId) {
             ref: getInvoiceKey(inv),
             debit: amount,
             credit: 0,
-            currency: curr
+            currency: curr,
+            isOpening: false
         });
     });
     
     // إضافة السدادات
     payments.forEach(p => {
- if (p.isOpeningBalance) {
-            const isCredit = p.balanceType !== 'debit'; // credit = دائن (لصالح العميل)
+        if (p.isOpeningBalance && !dateFrom) {
+            const isCredit = p.balanceType !== 'debit';
             transactions.push({
                 date: p.date,
                 desc: 'رصيد افتتاحي',
                 ref: 'OPEN',
                 debit: isCredit ? 0 : p.amount,
                 credit: isCredit ? p.amount : 0,
-                currency: p.currency
+                currency: p.currency,
+                isOpening: true
             });
-        } else {
+        } else if (!p.isOpeningBalance) {
             transactions.push({
                 date: p.date,
                 desc: `سداد - ${getPaymentMethodName(p.method)}`,
                 ref: p.id,
                 debit: 0,
                 credit: p.amount,
-                currency: p.currency
+                currency: p.currency,
+                isOpening: false
             });
         }
     });
@@ -7624,34 +7627,94 @@ function buildAccountStatement(invoices, payments, accountId) {
     // ترتيب حسب التاريخ
     transactions.sort((a, b) => new Date(a.date) - new Date(b.date));
     
+    // ✅ حساب الرصيد المرحل (السابق للفترة)
+    let openingBalance = 0;
+    let openingCurrency = 'EGP';
+    
+    if (dateFrom) {
+        // جمع كل الحركات قبل تاريخ البداية
+        const allInvoices = invoicesData.filter(inv => {
+            const payee = (inv['payee-customer-id'] || '').toLowerCase();
+            const contract = (inv['contract-customer-id'] || '').toLowerCase();
+            const acc = accountId.toLowerCase();
+            return payee.includes(acc) || contract.includes(acc);
+        });
+        
+        const allPayments = paymentsData.filter(p => 
+            p.customerId === accountId && (p.status === 'confirmed' || p.isOpeningBalance)
+        );
+        
+        allInvoices.forEach(inv => {
+            const invDate = (inv['finalized-date'] || inv['created'] || '').slice(0, 10);
+            if (invDate && invDate < dateFrom) {
+                const currency = inv['currency'] || 'EGP';
+                const exRate = inv['flex-string-06'] || 48.0215;
+                const originalTotal = inv['total-total'] || 0;
+                const martyr = (inv['final-number'] || '').startsWith('P') ? 0 : 5;
+                const total = originalTotal + martyr;
+                
+                if (currency === 'USAD') {
+                    openingBalance -= total / exRate;
+                    openingCurrency = 'USD';
+                } else {
+                    openingBalance -= total;
+                    openingCurrency = 'EGP';
+                }
+            }
+        });
+        
+        allPayments.forEach(p => {
+            if (p.isOpeningBalance) {
+                const isCredit = p.balanceType !== 'debit';
+                openingBalance += isCredit ? p.amount : -p.amount;
+            } else {
+                const payDate = p.date || '';
+                if (payDate && payDate < dateFrom) {
+                    openingBalance += p.amount;
+                }
+            }
+        });
+    }
+    
     // بناء HTML
-    let balance = 0;
+    let balance = openingBalance;
     let html = `
         <h3>كشف حساب: ${accountId}</h3>
         <p>تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG')}</p>
+        ${dateFrom || dateTo ? `<p>الفترة: ${dateFrom || 'البداية'} إلى ${dateTo || 'النهاية'}</p>` : ''}
         <table class="data-table" style="width:100%; margin-top:15px;">
             <thead><tr>
-                <th>التاريخ</th><th>البيان</th><th>الرقم المرجعي</th>
-                <th>مدين</th><th>دائن</th><th>الرصيد</th>
+                <th>التاريخ</th><th>البيان</th><th>مدين</th><th>دائن</th><th>الرصيد</th>
             </tr></thead><tbody>`;
+    
+    // ✅ إضافة صف الرصيد المرحل
+    if (dateFrom && openingBalance !== 0) {
+        html += `<tr style="background:var(--bg-hover); font-weight:700;">
+            <td>${dateFrom}</td>
+            <td>رصيد مرحل</td>
+            <td>${openingBalance < 0 ? formatNumberWithCommas(Math.abs(openingBalance).toFixed(2)) + ' ' + openingCurrency : '-'}</td>
+            <td>${openingBalance > 0 ? formatNumberWithCommas(openingBalance.toFixed(2)) + ' ' + openingCurrency : '-'}</td>
+            <td>${formatNumberWithCommas(Math.abs(openingBalance).toFixed(2))} ${openingBalance >= 0 ? 'دائن' : 'مدين'}</td>
+        </tr>`;
+    }
     
     transactions.forEach(t => {
         balance = balance - t.debit + t.credit;
         html += `<tr>
-            <td>${t.date}</td><td>${t.desc}</td><td>${t.ref}</td>
+            <td>${t.date}</td><td>${t.desc}</td>
             <td>${t.debit > 0 ? formatNumberWithCommas(t.debit.toFixed(2)) + ' ' + t.currency : '-'}</td>
             <td>${t.credit > 0 ? formatNumberWithCommas(t.credit.toFixed(2)) + ' ' + t.currency : '-'}</td>
-            <td style="font-weight:700; color:${balance >= 0 ? 'var(--success)' : 'var(--danger)'};">${formatNumberWithCommas(Math.abs(balance).toFixed(2))}</td>
+            <td style="font-weight:700;">${formatNumberWithCommas(Math.abs(balance).toFixed(2))} ${t.currency}</td>
         </tr>`;
     });
     
     html += `</tbody></table>
         <div style="margin-top:15px; padding:12px; background:${balance >= 0 ? 'rgba(34,197,94,0.1)' : 'rgba(239,68,68,0.1)'}; border-radius:8px; text-align:center;">
-            <strong>الرصيد: ${formatNumberWithCommas(Math.abs(balance).toFixed(2))} ${balance >= 0 ? 'دائن' : 'مدين'}</strong>
+            <strong>الرصيد النهائي: ${formatNumberWithCommas(Math.abs(balance).toFixed(2))} ${balance >= 0 ? 'دائن (لصالحك)' : 'مدين (عليك)'}</strong>
         </div>`;
     
     document.getElementById('statementBody').innerHTML = html;
-};
+}
 
 // الحصول على اسم طريقة السداد بالعربية
 function getPaymentMethodName(method) {
@@ -8724,24 +8787,49 @@ window.updateStatement = async function() {
     const accountId = document.getElementById('statementAccount').value;
     if (!accountId) return;
     
+    const dateFrom = document.getElementById('statementDateFrom').value;
+    const dateTo = document.getElementById('statementDateTo').value;
+    
     document.getElementById('statementBody').innerHTML = '<div style="text-align:center;padding:40px;"><i class="fas fa-spinner fa-spin"></i> جاري تحميل...</div>';
     
     await loadPaymentsFromCloud(currentUser.username);
     
     // تصفية فواتير هذا الحساب
-    const accountInvoices = invoicesData.filter(inv => {
+    let accountInvoices = invoicesData.filter(inv => {
         const payee = (inv['payee-customer-id'] || '').toLowerCase();
         const contract = (inv['contract-customer-id'] || '').toLowerCase();
         const acc = accountId.toLowerCase();
         return payee.includes(acc) || contract.includes(acc);
     });
     
+    // تصفية حسب التاريخ (finalized-date)
+    if (dateFrom || dateTo) {
+        accountInvoices = accountInvoices.filter(inv => {
+            const invDate = (inv['finalized-date'] || inv['created'] || '').slice(0, 10);
+            if (!invDate) return true;
+            if (dateFrom && invDate < dateFrom) return false;
+            if (dateTo && invDate > dateTo) return false;
+            return true;
+        });
+    }
+    
     // تصفية سدادات هذا الحساب
-    const accountPayments = paymentsData.filter(p => 
+    let accountPayments = paymentsData.filter(p => 
         p.customerId === accountId && (p.status === 'confirmed' || p.isOpeningBalance)
     );
     
-    buildAccountStatement(accountInvoices, accountPayments, accountId);
+    if (dateFrom || dateTo) {
+        accountPayments = accountPayments.filter(p => {
+            if (p.isOpeningBalance && !dateFrom) return true; // الرصيد الافتتاحي يظهر دائماً
+            if (p.isOpeningBalance && dateFrom) return false; // إلا إذا كان هناك تاريخ بداية
+            const payDate = p.date || '';
+            if (dateFrom && payDate < dateFrom) return false;
+            if (dateTo && payDate > dateTo) return false;
+            return true;
+        });
+    }
+    
+    buildAccountStatement(accountInvoices, accountPayments, accountId, dateFrom, dateTo);
 };
 
 window.saveOpeningBalance = async function() {
