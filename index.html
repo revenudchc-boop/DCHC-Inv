@@ -734,6 +734,15 @@
                     <span class="close-button" onclick="closeStatementModal()">&times;</span>
                 </div>
             </div>
+			            <div class="modal-body">
+                <div class="form-group" style="margin-bottom:15px;">
+                    <label>اختر الحساب</label>
+                    <select id="statementAccount" onchange="updateStatement()">
+                        <option value="">اختر الحساب...</option>
+                    </select>
+                </div>
+                <div id="statementBody"></div>
+            </div>
             <div class="modal-body" id="statementBody"></div>
         </div>
     </div>
