@@ -8894,3 +8894,47 @@ function showOpeningMessage(msg, type) {
     div.className = `login-message ${type}`;
     div.style.display = 'block';
 }
+
+window.printStatement = function() {
+    const content = document.getElementById('statementBody');
+    if (!content || !content.innerHTML.trim()) {
+        showNotification('لا يوجد كشف حساب للطباعة', 'error');
+        return;
+    }
+    
+    const accountId = document.getElementById('statementAccount').value || '';
+    const dateFrom = document.getElementById('statementDateFrom').value;
+    const dateTo = document.getElementById('statementDateTo').value;
+    
+    const printWindow = window.open('', '_blank', 'width=1100,height=800');
+    printWindow.document.write(`
+        <html dir="rtl">
+        <head>
+            <meta charset="UTF-8">
+            <title>كشف حساب - ${accountId}</title>
+            <style>
+                @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;600;700&display=swap');
+                body { font-family: 'Cairo', sans-serif; padding: 20px; direction: rtl; }
+                table { width: 100%; border-collapse: collapse; margin-top: 10px; }
+                th { background: #1e3c72; color: white; padding: 10px; text-align: right; }
+                td { padding: 8px; border-bottom: 1px solid #ddd; }
+                h3, h4 { color: #1e3c72; }
+                .footer { margin-top: 20px; text-align: center; font-size: 0.8em; color: #666; }
+                @media print { body { padding: 0; } }
+            </style>
+        </head>
+        <body>
+            <h3>شركة دمياط لتداول الحاويات و البضائع</h3>
+            <h4>كشف حساب: ${accountId}</h4>
+            <p>تاريخ التقرير: ${new Date().toLocaleDateString('ar-EG')}</p>
+            ${dateFrom || dateTo ? `<p>الفترة: ${dateFrom || 'البداية'} إلى ${dateTo || 'النهاية'}</p>` : ''}
+            ${content.innerHTML}
+            <div class="footer">
+                <p>شكراً لتعاملكم مع شركة دمياط لتداول الحاويات و البضائع</p>
+            </div>
+            <script>window.onload = function() { window.print(); }</script>
+        </body>
+        </html>
+    `);
+    printWindow.document.close();
+};
