@@ -1628,6 +1628,8 @@ function updateUserInterface() {
     const paymentBtn = document.querySelector('[onclick="openPaymentModal()"]');
     const statementBtn = document.querySelector('[onclick="openAccountStatement()"]');
     const myPaymentsBtn = document.querySelector('[onclick="openMyPayments()"]');
+	const openingBtn = document.getElementById('openingBalanceBtn');
+    if (openingBtn) openingBtn.style.display = isAdmin ? 'flex' : 'none';
     
     if (paymentBtn) paymentBtn.style.display = 'flex';
     if (statementBtn) statementBtn.style.display = 'flex';

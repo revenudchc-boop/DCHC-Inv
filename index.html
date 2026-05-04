@@ -103,7 +103,10 @@
 				<button class="user-btn" onclick="openPaymentModal()" title="تسجيل سداد جديد">
                     <i class="fas fa-money-bill-wave"></i>
                 </button>
-				                <button class="user-btn" onclick="openMyPayments()" title="سدادتي">
+				<button class="user-btn" id="openingBalanceBtn" onclick="openOpeningBalanceModal()" title="رصيد افتتاحي" style="display:none;">
+                    <i class="fas fa-plus-circle"></i>
+                </button>
+				<button class="user-btn" onclick="openMyPayments()" title="سدادتي">
                     <i class="fas fa-list-check"></i>
                 </button>
                 <button class="user-btn" onclick="openAccountStatement()" title="كشف الحساب">
