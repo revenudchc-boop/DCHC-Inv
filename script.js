@@ -7558,7 +7558,7 @@ window.openAccountStatement = async function(customerId) {
         p.customerId === customerId && (p.status === 'confirmed' || p.isOpeningBalance)
     );
     
-    buildAccountStatement(customerInvoices, customerPayments, customerId);
+    buildAccountStatement(customerInvoices, customerPayments, customerId, '', '');
 };
 
 // إغلاق كشف الحساب
