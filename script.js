@@ -7599,13 +7599,14 @@ function buildAccountStatement(invoices, payments, accountId) {
     
     // إضافة السدادات
     payments.forEach(p => {
-        if (p.isOpeningBalance) {
+ if (p.isOpeningBalance) {
+            const isCredit = p.balanceType !== 'debit'; // credit = دائن (لصالح العميل)
             transactions.push({
                 date: p.date,
                 desc: 'رصيد افتتاحي',
                 ref: 'OPEN',
-                debit: 0,
-                credit: p.amount,
+                debit: isCredit ? 0 : p.amount,
+                credit: isCredit ? p.amount : 0,
                 currency: p.currency
             });
         } else {
