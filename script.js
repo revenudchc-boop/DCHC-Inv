@@ -7521,16 +7521,31 @@ window.openAccountStatement = async function(customerId) {
     document.getElementById('statementBody').innerHTML = '<div style="text-align:center; padding: 50px;"><i class="fas fa-spinner fa-spin"></i> جاري تحميل كشف الحساب...</div>';
     document.getElementById('accountStatementModal').style.display = 'block';
     
-    // ملء قائمة الحسابات
+    // ✅ ملء قائمة الحسابات
     const select = document.getElementById('statementAccount');
     if (select && select.options.length <= 1) {
         select.innerHTML = '<option value="">اختر الحساب...</option>';
-        if (currentUser.customerIds && currentUser.customerIds.length > 0) {
+        
+        if (currentUser?.userType === 'admin') {
+            // ✅ المدير يرى كل العملاء
+            const allCustomers = [...new Set(invoicesData.map(inv => 
+                inv['payee-customer-id'] || inv['contract-customer-id'] || ''
+            ).filter(c => c))];
+            allCustomers.sort();
+            allCustomers.forEach(id => {
+                select.innerHTML += `<option value="${id}" ${id === customerId ? 'selected' : ''}>${id}</option>`;
+            });
+        } else if (currentUser.customerIds && currentUser.customerIds.length > 0) {
             currentUser.customerIds.forEach(id => {
                 select.innerHTML += `<option value="${id}" ${id === customerId ? 'selected' : ''}>${id}</option>`;
             });
+        } else if (currentUser.contractCustomerId) {
+            select.innerHTML += `<option value="${currentUser.contractCustomerId}" selected>${currentUser.contractCustomerId}</option>`;
+        } else {
+            select.innerHTML += `<option value="${currentUser.taxNumber}" selected>${currentUser.taxNumber}</option>`;
         }
-    }    
+    }
+    
     await loadPaymentsFromCloud(currentUser?.username);
     
     const customerInvoices = invoicesData.filter(inv => {
