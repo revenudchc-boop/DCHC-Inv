@@ -7958,6 +7958,31 @@ window.openOpeningBalanceModal = function() {
         });
     }
     
+    // ✅ عند تغيير العميل، تحميل رصيده الحالي
+    select.onchange = async function() {
+        const customerId = this.value;
+        if (!customerId) return;
+        
+        await loadPaymentsFromCloud(currentUser.username);
+        
+        const existing = paymentsData.find(p => 
+            p.isOpeningBalance === true && p.customerId === customerId
+        );
+        
+        if (existing) {
+            document.getElementById('openingAmount').value = existing.amount;
+            document.getElementById('openingCurrency').value = existing.currency || 'EGP';
+            document.getElementById('openingDate').value = existing.date || '';
+            document.getElementById('openingNotes').value = existing.notes || '';
+            document.getElementById('openingType').value = existing.balanceType || 'credit';
+            showOpeningMessage('⚠️ يوجد رصيد افتتاحي سابق. سيتم تحديثه.', 'info');
+        } else {
+            document.getElementById('openingAmount').value = '';
+            document.getElementById('openingNotes').value = '';
+            document.getElementById('openingMessage').style.display = 'none';
+        }
+    };
+    
     document.getElementById('openingBalanceModal').style.display = 'block';
 };
 
