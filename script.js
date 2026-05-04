@@ -1497,10 +1497,13 @@ function checkSession() {
             addDatabaseControls();
 
             // ✅ تحميل البيانات فوراً
+            console.log('🟢 بدء تحميل البيانات من Drive...');
             loadInvoicesFromDrive().then(async () => {
                 console.log('✅ تم التحميل الأولي بنجاح');
-                // تحميل السدادات لتحديث حالة الفواتير
+                // ✅ تحميل السدادات لتحديث حالة الفواتير
+                console.log('🔄 جاري تحميل السدادات...');
                 await loadPaymentsFromCloud(currentUser.username);
+                console.log('📋 السدادات بعد التحميل:', paymentsData.length);
                 // إعادة عرض البيانات لتحديث الأيقونات
                 if (currentUser?.isGuest) {
                     filterInvoicesByGuest(currentUser.taxNumber, currentUser.blNumber);
