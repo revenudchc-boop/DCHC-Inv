@@ -1780,12 +1780,7 @@ function updateDataSource() {
     el.innerHTML = `${db ? '📦' : '💾'} ${formatNumberWithCommas(count)} فاتورة - ${db ? 'قاعدة بيانات محلية' : 'تخزين مؤقت'}${date}`;
 }
 
-// ============================================
-// دوال التبديل بين أنواع الفواتير
-// ============================================
-// ============================================
-// دوال التبديل بين أنواع الفواتير
-// ============================================
+
 // ============================================
 // دوال التبديل بين أنواع الفواتير
 // ============================================
@@ -1793,6 +1788,10 @@ window.switchInvoiceType = async function(type) {
     console.log('التبويب المحدد:', type);
     currentInvoiceType = type;
     
+	 // ✅ تحميل السدادات أولاً لتحديث حالة الفواتير
+    if (paymentsData.length === 0) {
+        await loadPaymentsFromCloud(currentUser.username);
+    }
     // تحديث مظهر الأزرار
     document.querySelectorAll('.type-tab').forEach((btn, i) => {
         if (type === INVOICE_TYPES.CASH && i === 0) btn.classList.add('active');
