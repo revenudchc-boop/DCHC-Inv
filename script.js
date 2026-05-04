@@ -7939,47 +7939,30 @@ window.openOpeningBalanceModal = function() {
         return;
     }
     
-    const customerId = prompt('أدخل الرقم الضريبي للعميل:');
-    if (!customerId) return;
+    document.getElementById('openingDate').value = new Date().toISOString().slice(0, 10);
+    document.getElementById('openingAmount').value = '';
+    document.getElementById('openingNotes').value = '';
+    document.getElementById('openingMessage').style.display = 'none';
     
-    const amount = prompt('أدخل مبلغ الرصيد الافتتاحي:');
-    if (!amount || isNaN(parseFloat(amount)) || parseFloat(amount) <= 0) {
-        showNotification('مبلغ غير صحيح', 'error');
-        return;
+    // ملء قائمة العملاء
+    const select = document.getElementById('openingCustomer');
+    select.innerHTML = '<option value="">اختر العميل...</option>';
+    
+    if (currentUser?.userType === 'admin') {
+        const customers = [...new Set(invoicesData.map(inv => 
+            inv['payee-customer-id'] || inv['contract-customer-id'] || ''
+        ).filter(c => c))];
+        customers.sort();
+        customers.forEach(c => {
+            select.innerHTML += `<option value="${c}">${c}</option>`;
+        });
     }
     
-    const currency = confirm('هل العملة دولار؟ (موافق = دولار، إلغاء = جنيه)') ? 'USD' : 'EGP';
-    const exchangeRate = currency === 'USD' ? parseFloat(prompt('أدخل سعر الصرف:', '48.0215')) || 48.0215 : 1;
-    
-    const body = {
-        action: 'opening_balance',
-        customerId: customerId,
-        username: 'admin',
-        amount: parseFloat(amount),
-        currency: currency,
-        exchangeRate: exchangeRate,
-        date: new Date().toISOString().slice(0, 10),
-        notes: 'رصيد افتتاحي',
-        createdBy: currentUser.username,
-        balanceType: 'credit'
-    };
-    
-    fetch(PAYMENTS_API_URL, {
-        method: 'POST',
-        headers: { 'Content-Type': 'text/plain' },
-        body: JSON.stringify(body)
-    })
-    .then(r => r.json())
-    .then(data => {
-        if (data.success) {
-            showNotification('✅ تم إضافة الرصيد الافتتاحي بنجاح', 'success');
-        } else {
-            showNotification('❌ فشل: ' + data.error, 'error');
-        }
-    })
-    .catch(error => {
-        showNotification('❌ خطأ في الاتصال', 'error');
-    });
+    document.getElementById('openingBalanceModal').style.display = 'block';
+};
+
+window.closeOpeningBalanceModal = function() {
+    document.getElementById('openingBalanceModal').style.display = 'none';
 };
 
 // عرض سداداته (للعميل والمحاسب)
@@ -8719,3 +8702,55 @@ window.updateStatement = async function() {
     
     buildAccountStatement(accountInvoices, accountPayments, accountId);
 };
+
+window.saveOpeningBalance = async function() {
+    const customerId = document.getElementById('openingCustomer').value;
+    const amount = parseFloat(document.getElementById('openingAmount').value);
+    const currency = document.getElementById('openingCurrency').value;
+    const date = document.getElementById('openingDate').value;
+    const type = document.getElementById('openingType').value;
+    const notes = document.getElementById('openingNotes').value;
+    
+    if (!customerId) return showOpeningMessage('اختر العميل', 'error');
+    if (!amount || amount <= 0) return showOpeningMessage('أدخل مبلغ صحيح', 'error');
+    if (!date) return showOpeningMessage('اختر التاريخ', 'error');
+    
+    showOpeningMessage('جاري الحفظ...', 'info');
+    
+    const body = {
+        action: 'opening_balance',
+        customerId: customerId,
+        username: 'admin',
+        amount: amount,
+        currency: currency,
+        exchangeRate: currency === 'USD' ? 48.0215 : 1,
+        date: date,
+        notes: notes || 'رصيد افتتاحي',
+        createdBy: currentUser.username,
+        balanceType: type
+    };
+    
+    try {
+        const response = await fetch(PAYMENTS_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify(body)
+        });
+        const data = await response.json();
+        if (data.success) {
+            showOpeningMessage('✅ تم إضافة الرصيد الافتتاحي', 'success');
+            setTimeout(() => closeOpeningBalanceModal(), 1500);
+        } else {
+            showOpeningMessage('❌ فشل: ' + data.error, 'error');
+        }
+    } catch (e) {
+        showOpeningMessage('❌ خطأ في الاتصال', 'error');
+    }
+};
+
+function showOpeningMessage(msg, type) {
+    const div = document.getElementById('openingMessage');
+    div.textContent = msg;
+    div.className = `login-message ${type}`;
+    div.style.display = 'block';
+}

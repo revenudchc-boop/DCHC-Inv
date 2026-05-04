@@ -598,6 +598,65 @@
         </div>
     </div>
 	
+	    <!-- نافذة الرصيد الافتتاحي -->
+    <div id="openingBalanceModal" class="modal">
+        <div class="modal-content" style="max-width: 550px;">
+            <div class="modal-header">
+                <h2><i class="fas fa-plus-circle"></i> إضافة رصيد افتتاحي</h2>
+                <span class="close-button" onclick="closeOpeningBalanceModal()">&times;</span>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>العميل</label>
+                    <select id="openingCustomer"></select>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <div class="form-group">
+                            <label>المبلغ</label>
+                            <input type="number" id="openingAmount" placeholder="0.00" step="0.01">
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="form-group">
+                            <label>العملة</label>
+                            <select id="openingCurrency">
+                                <option value="EGP">جنيه مصري (EGP)</option>
+                                <option value="USD">دولار أمريكي (USD)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col">
+                        <div class="form-group">
+                            <label>التاريخ</label>
+                            <input type="date" id="openingDate">
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="form-group">
+                            <label>النوع</label>
+                            <select id="openingType">
+                                <option value="credit">دائن (لصالح العميل)</option>
+                                <option value="debit">مدين (على العميل)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>ملاحظات</label>
+                    <input type="text" id="openingNotes" placeholder="ملاحظات (اختياري)">
+                </div>
+                <div style="display:flex; gap:10px; margin-top:20px;">
+                    <button class="btn btn-accent btn-sm" onclick="saveOpeningBalance()" style="flex:1;"><i class="fas fa-save"></i> حفظ</button>
+                    <button class="btn btn-outline btn-sm" onclick="closeOpeningBalanceModal()" style="flex:1;">إلغاء</button>
+                </div>
+                <div id="openingMessage" class="login-message"></div>
+            </div>
+        </div>
+    </div>
+	
     <!-- نافذة تسجيل سداد جديد -->
     <div id="paymentModal" class="modal">
         <div class="modal-content" style="max-width: 700px;">
