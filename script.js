@@ -95,8 +95,7 @@ const SYNC_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwhI-WpSqD2jmS
 // إعدادات التخزين السحابي لحالة المعاينة (Google Apps Script)
 const VIEWED_CLOUD_URL = 'https://script.google.com/macros/s/AKfycbwXfSeRg3JAxsgCTDedaspLe9SVEAn5gpInrs-TLGkbgq9599UOhXRQX2DR3cjW7X0R1A/exec';
 // إعدادات نظام السدادات (Google Apps Script)
-const PAYMENTS_API_URL = 'https://script.google.com/macros/s/AKfycbwCqn_K47hIZNiduMOy_qJdb5ClODIzt-Sy9UlRvQwtskExQwAynW-Pwp08RoCK1wc0/exec';
-
+const PAYMENTS_API_URL = 'https://script.google.com/macros/s/AKfycbzy9GqPotfkBmVcbBqQsqcyUEGSoTkGGxZDiEi8qjvX4yoxW6BgAGC83KI3xYDJMSDn/exec';
 // متغيرات نظام السدادات
 let paymentsData = [];
 let filteredPayments = [];
