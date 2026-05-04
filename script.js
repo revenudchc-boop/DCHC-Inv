@@ -6938,28 +6938,30 @@ function loadViewedInvoices() {
 // تحميل السدادات من السحابة
 async function loadPaymentsFromCloud(username) {
     console.log('🔄 جاري تحميل السدادات...');
-    try {
-        let url = PAYMENTS_API_URL;
-        
-        // المدير يرى الكل، وغيره يرى سداداته فقط
-        if (currentUser?.userType !== 'admin') {
-            url += `?action=by_user&username=${encodeURIComponent(username || currentUser?.username)}`;
+    
+    for (let attempt = 1; attempt <= 3; attempt++) {
+        try {
+            // ✅ دائماً نحمل كل السدادات بدون فلتر
+            const response = await fetch(PAYMENTS_API_URL);
+            if (!response.ok) throw new Error(`HTTP ${response.status}`);
+            
+            const data = await response.json();
+            if (data.success) {
+                paymentsData = data.payments || [];
+                console.log(`✅ تم تحميل ${paymentsData.length} سداد`);
+                return true;
+            }
+            return false;
+        } catch (error) {
+            console.warn(`⚠️ محاولة ${attempt} فشلت:`, error.message);
+            if (attempt < 3) {
+                await new Promise(resolve => setTimeout(resolve, 1000));
+            }
         }
-        
-        const response = await fetch(url);
-        if (!response.ok) throw new Error(`HTTP ${response.status}`);
-        
-        const data = await response.json();
-        if (data.success) {
-            paymentsData = data.payments || [];
-            console.log(`✅ تم تحميل ${paymentsData.length} سداد`);
-            return true;
-        }
-        return false;
-    } catch (error) {
-        console.error('❌ فشل تحميل السدادات:', error);
-        return false;
     }
+    
+    console.error('❌ فشلت جميع محاولات تحميل السدادات');
+    return false;
 }
 
 // حفظ سداد جديد
