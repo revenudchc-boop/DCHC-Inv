@@ -7505,8 +7505,10 @@ function showPaymentMessage(msg, type) {
 
 // فتح كشف الحساب
 window.openAccountStatement = async function(customerId) {
+    // إذا لم يتم تحديد عميل، استخدم الافتراضي
     if (!customerId && currentUser) {
-        customerId = currentUser.taxNumber || currentUser.contractCustomerId || '';
+        customerId = currentUser.taxNumber || currentUser.contractCustomerId || 
+                    (currentUser.customerIds && currentUser.customerIds.length > 0 ? currentUser.customerIds[0] : '');
     }
     
     if (!customerId) {
@@ -7517,6 +7519,16 @@ window.openAccountStatement = async function(customerId) {
     document.getElementById('statementBody').innerHTML = '<div style="text-align:center; padding: 50px;"><i class="fas fa-spinner fa-spin"></i> جاري تحميل كشف الحساب...</div>';
     document.getElementById('accountStatementModal').style.display = 'block';
     
+    // ملء قائمة الحسابات
+    const select = document.getElementById('statementAccount');
+    if (select && select.options.length <= 1) {
+        select.innerHTML = '<option value="">اختر الحساب...</option>';
+        if (currentUser.customerIds && currentUser.customerIds.length > 0) {
+            currentUser.customerIds.forEach(id => {
+                select.innerHTML += `<option value="${id}" ${id === customerId ? 'selected' : ''}>${id}</option>`;
+            });
+        }
+    }    
     await loadPaymentsFromCloud(currentUser?.username);
     
     const customerInvoices = invoicesData.filter(inv => {
