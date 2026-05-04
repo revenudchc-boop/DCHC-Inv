@@ -7700,7 +7700,18 @@ function buildAccountStatement(invoices, payments, accountId, dateFrom, dateTo) 
     
     transactions.forEach(t => {
         balance = balance - t.debit + t.credit;
-        html += `<tr>
+        
+        // ✅ تحديد اللون حسب النوع
+        let rowStyle = '';
+        if (t.isOpening) {
+            rowStyle = 'background: rgba(99,102,241,0.08); font-weight:600;'; // بنفسجي للرصيد الافتتاحي
+        } else if (t.desc.startsWith('سداد')) {
+            rowStyle = 'background: rgba(34,197,94,0.06);'; // أخضر فاتح للسداد
+        } else if (t.desc.startsWith('فاتورة')) {
+            rowStyle = ''; // عادي للفواتير
+        }
+        
+        html += `<tr style="${rowStyle}">
             <td>${t.date}</td><td>${t.desc}</td>
             <td>${t.debit > 0 ? formatNumberWithCommas(t.debit.toFixed(2)) + ' ' + t.currency : '-'}</td>
             <td>${t.credit > 0 ? formatNumberWithCommas(t.credit.toFixed(2)) + ' ' + t.currency : '-'}</td>
