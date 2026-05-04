@@ -7409,22 +7409,25 @@ window.submitPayment = async function() {
             await uploadPaymentAttachments(paymentId, attachmentInput.files);
         }
         
+        // ✅ تحديث فوري للسدادات
+        await loadPaymentsFromCloud(currentUser.username);
+        
         const statusText = isPartial ? 'سداد جزئي' : (linkedInvoices.length > 0 ? 'سداد كلي' : 'سداد بدون فواتير');
         showPaymentMessage(`✅ تم تسجيل ${statusText} بنجاح!`, 'success');
         setTimeout(() => closePaymentModal(), 1500);
         
-        // تحديث عرض السدادات إذا كان التبويب مفتوحاً
+        // ✅ تحديث عرض السدادات إذا كان التبويب مفتوحاً
         if (document.querySelector('.type-tab.active')?.textContent?.includes('السدادات')) {
-            setTimeout(() => openAllPaymentsView(), 500);
+            filteredPayments = [...paymentsData];
+            renderPaymentsView();
         }
-        // تحديث عرض الفواتير
-        setTimeout(() => {
-            if (currentUser?.isGuest) {
-                filterInvoicesByGuest(currentUser.taxNumber, currentUser.blNumber);
-            } else {
-                filterInvoicesByUser();
-            }
-        }, 500);
+        
+        // ✅ تحديث عرض الفواتير فوراً (حالة السداد)
+        if (currentUser?.isGuest) {
+            filterInvoicesByGuest(currentUser.taxNumber, currentUser.blNumber);
+        } else {
+            filterInvoicesByUser();
+        }
     } else {
         showPaymentMessage('❌ فشل حفظ السداد', 'error');
     }
