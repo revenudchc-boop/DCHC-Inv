@@ -7504,25 +7504,32 @@ function showPaymentMessage(msg, type) {
 // ============================================
 
 // فتح كشف الحساب
-window.openAccountStatement = async function() {
-    if (!currentUser) return;
+window.openAccountStatement = async function(customerId) {
+    if (!customerId && currentUser) {
+        customerId = currentUser.taxNumber || currentUser.contractCustomerId || '';
+    }
     
-    document.getElementById('statementBody').innerHTML = '';
+    if (!customerId) {
+        showNotification('لا يمكن تحديد العميل', 'error');
+        return;
+    }
+    
+    document.getElementById('statementBody').innerHTML = '<div style="text-align:center; padding: 50px;"><i class="fas fa-spinner fa-spin"></i> جاري تحميل كشف الحساب...</div>';
     document.getElementById('accountStatementModal').style.display = 'block';
     
-    // ملء قائمة الحسابات
-    const select = document.getElementById('statementAccount');
-    select.innerHTML = '<option value="">اختر الحساب...</option>';
+    await loadPaymentsFromCloud(currentUser?.username);
     
-    if (currentUser.customerIds && currentUser.customerIds.length > 0) {
-        currentUser.customerIds.forEach(id => {
-            select.innerHTML += `<option value="${id}">${id}</option>`;
-        });
-    } else if (currentUser.contractCustomerId) {
-        select.innerHTML += `<option value="${currentUser.contractCustomerId}">${currentUser.contractCustomerId}</option>`;
-    } else if (currentUser.taxNumber) {
-        select.innerHTML += `<option value="${currentUser.taxNumber}">${currentUser.taxNumber}</option>`;
-    }
+    const customerInvoices = invoicesData.filter(inv => {
+        const payee = inv['payee-customer-id'] || '';
+        const contract = inv['contract-customer-id'] || '';
+        return payee.includes(customerId) || contract.includes(customerId);
+    });
+    
+    const customerPayments = paymentsData.filter(p => 
+        p.customerId === customerId && (p.status === 'confirmed' || p.isOpeningBalance)
+    );
+    
+    buildAccountStatement(customerInvoices, customerPayments, customerId);
 };
 
 // إغلاق كشف الحساب
