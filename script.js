@@ -7227,32 +7227,53 @@ function loadUnpaidInvoicesForPayment() {
         return;
     }
     
-    // ✅ جمع الفواتير التي لها سداد مؤكد أو معلق فقط (المرفوض لا يستبعد)
-    const invoicesWithActivePayment = new Set();
+    // ✅ جمع المبالغ المدفوعة والمعلقة لكل فاتورة
     const invoicePaidAmounts = {};
+    const invoiceHasPending = {};
     
     paymentsData.forEach(p => {
         if (p.linkedInvoices && Array.isArray(p.linkedInvoices)) {
             p.linkedInvoices.forEach(key => {
-                if (p.status === 'confirmed' || p.status === 'pending' || p.isOpeningBalance) {
-                    invoicesWithActivePayment.add(key);
-                }
-                
                 if (p.status === 'confirmed' || p.isOpeningBalance) {
                     const amountPerInvoice = p.linkedInvoices.length > 0 ? p.amount / p.linkedInvoices.length : p.amount;
                     if (!invoicePaidAmounts[key]) invoicePaidAmounts[key] = 0;
                     invoicePaidAmounts[key] += amountPerInvoice;
                 }
+                if (p.status === 'pending') {
+                    invoiceHasPending[key] = true;
+                }
             });
         }
     });
     
-    // ✅ تصفية الفواتير: المؤكد والمعلق يستبعدان، المرفوض يظهر
+    // ✅ تصفية الفواتير
     const unpaidInvoices = [];
     filteredByDate.forEach(inv => {
         const key = getInvoiceKey(inv);
         
-        if (invoicesWithActivePayment.has(key)) return;
+        // ✅ الفاتورة التي لها سداد معلق لا تظهر
+        if (invoiceHasPending[key]) return;
+        
+        const currency = inv['currency'] || 'EGP';
+        const exRate = inv['flex-string-06'] || 48.0215;
+        const originalTotal = inv['total-total'] || 0;
+        const martyr = (inv['final-number'] || '').startsWith('P') ? 0 : 5;
+        const total = originalTotal + martyr;
+        
+        let invoiceTotal, displayCurrency;
+        if (currency === 'USAD') {
+            invoiceTotal = total / exRate;
+            displayCurrency = 'USD';
+        } else {
+            invoiceTotal = total;
+            displayCurrency = 'EGP';
+        }
+        
+        const paid = invoicePaidAmounts[key] || 0;
+        const remaining = invoiceTotal - paid;
+        
+        // ✅ الفاتورة المسددة كلياً لا تظهر
+        if (remaining <= 0.01) return;
         
         const currency = inv['currency'] || 'EGP';
         const exRate = inv['flex-string-06'] || 48.0215;
@@ -7271,10 +7292,10 @@ function loadUnpaidInvoicesForPayment() {
         unpaidInvoices.push({
             invoice: inv,
             key: key,
-            total: displayTotal,
+            total: invoiceTotal,
             currency: displayCurrency,
-            paid: 0,
-            remaining: displayTotal
+            paid: paid,
+            remaining: remaining
         });
     });
     
@@ -8675,7 +8696,10 @@ window.quickPayInvoice = async function(invoiceKey, customerId, totalAmount, cur
     // ✅ تحميل السدادات من السحابة لحساب المبلغ المدفوع
     await loadPaymentsFromCloud(currentUser.username);
     
-    // ✅ حساب إجمالي المدفوع لهذه الفاتورة من جميع السدادات المؤكدة
+    // ✅ المبلغ المرسل هو المتبقي بالفعل، لا نحتاج لخصم المدفوع مرة أخرى
+    const remaining = totalAmount;
+    
+    // ✅ لكن نحتاج حساب المدفوع للعرض فقط
     let totalPaid = 0;
     paymentsData.forEach(p => {
         if (p.status === 'confirmed' || p.isOpeningBalance) {
@@ -8685,9 +8709,6 @@ window.quickPayInvoice = async function(invoiceKey, customerId, totalAmount, cur
             }
         }
     });
-    
-    // ✅ حساب المبلغ المتبقي
-    const remaining = totalAmount - totalPaid;
     
     // ✅ إذا تم السداد كلياً، لا داعي لفتح النافذة
     if (remaining <= 0.01) {
