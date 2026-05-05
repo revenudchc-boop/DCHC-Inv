@@ -7254,25 +7254,26 @@ function loadUnpaidInvoicesForPayment() {
         // ✅ الفاتورة التي لها سداد معلق لا تظهر
         if (invoiceHasPending[key]) return;
         
-        const paid = invoicePaidAmounts[key] || 0;
-        const remaining = invoiceTotal - paid;
-        
-        // ✅ الفاتورة المسددة كلياً لا تظهر
-        if (remaining <= 0.01) return;
-        
+        // ✅ حساب المبلغ بالعملة الأصلية
         const currency = inv['currency'] || 'EGP';
         const exRate = inv['flex-string-06'] || 48.0215;
         const originalTotal = inv['total-total'] || 0;
         const martyr = (inv['final-number'] || '').startsWith('P') ? 0 : 5;
         
-        let displayTotal, displayCurrency;
+        let invoiceTotal, displayCurrency;
         if (currency === 'USAD') {
-            displayTotal = (originalTotal + martyr) / exRate;
+            invoiceTotal = (originalTotal + martyr) / exRate;
             displayCurrency = 'USD';
         } else {
-            displayTotal = originalTotal + martyr;
+            invoiceTotal = originalTotal + martyr;
             displayCurrency = 'EGP';
         }
+        
+        const paid = invoicePaidAmounts[key] || 0;
+        const remaining = invoiceTotal - paid;
+        
+        // ✅ الفاتورة المسددة كلياً لا تظهر
+        if (remaining <= 0.01) return;
         
         unpaidInvoices.push({
             invoice: inv,
