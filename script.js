@@ -7935,16 +7935,44 @@ function renderPaymentsView() {
                 <td colspan="9" style="padding:15px;">
                     <div style="background:var(--bg-card); border-radius:8px; padding:12px; border:1px solid var(--border);">
                         <h4 style="margin-bottom:10px; color:var(--primary);">الفواتير المرتبطة بالسداد</h4>
-                        <table style="width:100%; font-size:0.85em;">
-                            <thead><tr><th>رقم الفاتورة</th><th>الإجمالي</th></tr></thead>
+                        <table style="width:100%; font-size:0.8em;">
+                            <thead><tr>
+                                <th>رقم الفاتورة</th>
+                                <th>التاريخ</th>
+                                <th>السفينة</th>
+                                <th>${currentInvoiceType === INVOICE_TYPES.POSTPONED ? 'IB/OB ID' : 'البوليصة'}</th>
+                                <th>تاريخ الرحلة</th>
+                                <th>الإجمالي</th>
+                            </tr></thead>
                             <tbody>
                                 ${p.linkedInvoices.map(key => {
                                     const inv = invoicesData.find(i => getInvoiceKey(i) === key);
                                     if (inv) {
+                                        const currency = inv['currency'] || 'EGP';
+                                        const exRate = inv['flex-string-06'] || 48.0215;
                                         const total = (inv['total-total'] || 0) + ((inv['final-number'] || '').startsWith('P') ? 0 : 5);
-                                        return `<tr><td>${inv['final-number'] || inv['draft-number'] || key}</td><td>${formatNumberWithCommas(total.toFixed(2))}</td></tr>`;
+                                        const invDate = (inv['finalized-date'] || inv['created'] || '').slice(0, 10);
+                                        const voyageDate = inv['flex-date-02'] ? inv['flex-date-02'].slice(0, 10) : '-';
+                                        
+                                        let displayTotal, displayCurrency;
+                                        if (currency === 'USAD') {
+                                            displayTotal = (total / exRate).toFixed(2);
+                                            displayCurrency = 'USD';
+                                        } else {
+                                            displayTotal = total.toFixed(2);
+                                            displayCurrency = 'EGP';
+                                        }
+                                        
+                                        return `<tr>
+                                            <td><strong>${inv['final-number'] || inv['draft-number'] || key}</strong></td>
+                                            <td>${invDate}</td>
+                                            <td>${inv['key-word1'] || '-'}</td>
+                                            <td>${inv['key-word2'] || '-'}</td>
+                                            <td>${voyageDate}</td>
+                                            <td style="font-weight:600;">${formatNumberWithCommas(displayTotal)} ${displayCurrency}</td>
+                                        </tr>`;
                                     }
-                                    return `<tr><td>${key}</td><td>-</td></tr>`;
+                                    return `<tr><td>${key}</td><td>-</td><td>-</td><td>-</td><td>-</td><td>-</td></tr>`;
                                 }).join('')}
                             </tbody>
                         </table>
