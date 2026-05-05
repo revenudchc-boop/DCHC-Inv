@@ -7309,7 +7309,7 @@ function loadUnpaidInvoicesForPayment() {
         ${unpaidInvoices.length} فاتورة متاحة للسداد من أصل ${filteredByDate.length}
     </p>`;
     html += '<table style="width:100%; font-size:0.8em;">';
-    html += '<thead><tr><th>تحديد</th><th>رقم الفاتورة</th><th>التاريخ</th><th>السفينة</th><th>تاريخ الرحلة</th><th>الإجمالي</th><th>العملة</th></tr></thead><tbody>';
+    html += '<thead><tr><th>تحديد</th><th>رقم الفاتورة</th><th>التاريخ</th><th>السفينة</th><th>تاريخ الرحلة</th><th>الإجمالي</th><th>العملة</th><th>الحالة</th></tr></thead><tbody>';
     
     unpaidInvoices.forEach(item => {
         const invDate = (item.invoice['finalized-date'] || item.invoice['created'] || '').slice(0, 10);
@@ -7323,6 +7323,7 @@ function loadUnpaidInvoicesForPayment() {
             <td>${voyageDate}</td>
             <td>${formatNumberWithCommas(item.total.toFixed(2))}</td>
             <td>${item.currency}</td>
+            <td>${item.paid > 0 ? '<span style="background:rgba(245,158,11,0.15); color:#fbbf24; padding:2px 8px; border-radius:4px; font-size:0.7em; font-weight:600;">مسدد جزئياً</span>' : '-'}</td>
         </tr>`;
     });
     
