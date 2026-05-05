@@ -659,7 +659,7 @@
 	
     <!-- نافذة تسجيل سداد جديد -->
     <div id="paymentModal" class="modal">
-        <div class="modal-content" style="max-width: 700px;">
+        <div class="modal-content" style="max-width: 800px;">
             <div class="modal-header">
                 <h2><i class="fas fa-money-bill-wave"></i> تسجيل سداد جديد</h2>
                 <span class="close-button" onclick="closePaymentModal()">&times;</span>
@@ -756,8 +756,18 @@
                 
                 <div class="form-group">
                     <label><i class="fas fa-file-invoice"></i> ربط بفواتير (اختياري)</label>
-                    <div id="linkedInvoicesContainer" style="border: 1px solid #ddd; border-radius: 8px; padding: 10px; max-height: 200px; overflow-y: auto;">
-                        <p style="color: #999; font-size: 0.9em;">سيتم تحميل الفواتير غير المسددة...</p>
+                    <div class="row" style="margin-bottom:8px;">
+                        <div class="col">
+                            <label style="font-size:0.72em;">من تاريخ</label>
+                            <input type="date" id="paymentDateFrom" onchange="loadUnpaidInvoicesForPayment()">
+                        </div>
+                        <div class="col">
+                            <label style="font-size:0.72em;">إلى تاريخ</label>
+                            <input type="date" id="paymentDateTo" onchange="loadUnpaidInvoicesForPayment()">
+                        </div>
+                    </div>
+                    <div id="linkedInvoicesContainer" style="border: 1px solid #ddd; border-radius: 8px; padding: 10px; max-height: 250px; overflow-y: auto;">
+                        <p style="color: #999; font-size: 0.9em;">اختر العميل لعرض فواتيره</p>
                     </div>
                 </div>
                 

@@ -7207,8 +7207,23 @@ function loadUnpaidInvoicesForPayment() {
         return payee.includes(customerId) || contract.includes(customerId);
     });
     
-    if (customerInvoices.length === 0) {
-        container.innerHTML = '<p style="color:var(--text-muted);">لا توجد فواتير لهذا العميل</p>';
+    // ✅ تصفية حسب تاريخ الفاتورة (finalized-date)
+    const dateFrom = document.getElementById('paymentDateFrom')?.value;
+    const dateTo = document.getElementById('paymentDateTo')?.value;
+    
+    let filteredByDate = customerInvoices;
+    if (dateFrom || dateTo) {
+        filteredByDate = customerInvoices.filter(inv => {
+            const invDate = (inv['finalized-date'] || inv['created'] || '').slice(0, 10);
+            if (!invDate) return true;
+            if (dateFrom && invDate < dateFrom) return false;
+            if (dateTo && invDate > dateTo) return false;
+            return true;
+        });
+    }
+    
+    if (filteredByDate.length === 0) {
+        container.innerHTML = '<p style="color:var(--text-muted);">لا توجد فواتير لهذا العميل في هذه الفترة</p>';
         return;
     }
     
@@ -7219,7 +7234,6 @@ function loadUnpaidInvoicesForPayment() {
     paymentsData.forEach(p => {
         if (p.linkedInvoices && Array.isArray(p.linkedInvoices)) {
             p.linkedInvoices.forEach(key => {
-                // ✅ فقط المؤكد والمعلق يستبعدان. المرفوض لا يستبعد
                 if (p.status === 'confirmed' || p.status === 'pending' || p.isOpeningBalance) {
                     invoicesWithActivePayment.add(key);
                 }
@@ -7235,13 +7249,11 @@ function loadUnpaidInvoicesForPayment() {
     
     // ✅ تصفية الفواتير: المؤكد والمعلق يستبعدان، المرفوض يظهر
     const unpaidInvoices = [];
-    customerInvoices.forEach(inv => {
+    filteredByDate.forEach(inv => {
         const key = getInvoiceKey(inv);
         
-        // ✅ فقط المؤكد والمعلق يستبعدان. المرفوض يظهر
         if (invoicesWithActivePayment.has(key)) return;
         
-        // ✅ حساب المبلغ بالعملة الأصلية
         const currency = inv['currency'] || 'EGP';
         const exRate = inv['flex-string-06'] || 48.0215;
         const originalTotal = inv['total-total'] || 0;
@@ -7276,10 +7288,9 @@ function loadUnpaidInvoicesForPayment() {
             }
             return 0;
         };
-        
         const numA = getNum(a.invoice['final-number']);
         const numB = getNum(b.invoice['final-number']);
-        return numB - numA; // تنازلياً: الأكبر أولاً
+        return numB - numA;
     });
     
     if (unpaidInvoices.length === 0) {
@@ -7288,15 +7299,21 @@ function loadUnpaidInvoicesForPayment() {
     }
     
     let html = `<p style="font-size:0.8em; color:var(--text-muted); margin-bottom:8px;">
-        ${unpaidInvoices.length} فاتورة متاحة للسداد من أصل ${customerInvoices.length}
+        ${unpaidInvoices.length} فاتورة متاحة للسداد من أصل ${filteredByDate.length}
     </p>`;
-    html += '<table style="width:100%; font-size:0.85em;">';
-    html += '<thead><tr><th>تحديد</th><th>رقم الفاتورة</th><th>الإجمالي</th><th>العملة</th></tr></thead><tbody>';
+    html += '<table style="width:100%; font-size:0.8em;">';
+    html += '<thead><tr><th>تحديد</th><th>رقم الفاتورة</th><th>التاريخ</th><th>السفينة</th><th>تاريخ الرحلة</th><th>الإجمالي</th><th>العملة</th></tr></thead><tbody>';
     
     unpaidInvoices.forEach(item => {
+        const invDate = (item.invoice['finalized-date'] || item.invoice['created'] || '').slice(0, 10);
+        const voyageDate = item.invoice['flex-date-02'] ? item.invoice['flex-date-02'].slice(0, 10) : '-';
+        
         html += `<tr>
             <td><input type="checkbox" class="link-invoice-check" value="${item.key}" onchange="updateLinkedTotal()" data-remaining="${item.remaining.toFixed(2)}"></td>
             <td>${item.invoice['final-number'] || item.invoice['draft-number'] || '-'}</td>
+            <td>${invDate || '-'}</td>
+            <td>${item.invoice['key-word1'] || '-'}</td>
+            <td>${voyageDate}</td>
             <td>${formatNumberWithCommas(item.total.toFixed(2))}</td>
             <td>${item.currency}</td>
         </tr>`;
