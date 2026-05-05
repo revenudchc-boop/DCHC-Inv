@@ -7254,21 +7254,6 @@ function loadUnpaidInvoicesForPayment() {
         // ✅ الفاتورة التي لها سداد معلق لا تظهر
         if (invoiceHasPending[key]) return;
         
-        const currency = inv['currency'] || 'EGP';
-        const exRate = inv['flex-string-06'] || 48.0215;
-        const originalTotal = inv['total-total'] || 0;
-        const martyr = (inv['final-number'] || '').startsWith('P') ? 0 : 5;
-        const total = originalTotal + martyr;
-        
-        let invoiceTotal, displayCurrency;
-        if (currency === 'USAD') {
-            invoiceTotal = total / exRate;
-            displayCurrency = 'USD';
-        } else {
-            invoiceTotal = total;
-            displayCurrency = 'EGP';
-        }
-        
         const paid = invoicePaidAmounts[key] || 0;
         const remaining = invoiceTotal - paid;
         
@@ -8761,7 +8746,7 @@ window.quickPayInvoice = async function(invoiceKey, customerId, totalAmount, cur
                 <tr>
                     <td><input type="checkbox" class="link-invoice-check" value="${invoiceKey}" checked onchange="updateLinkedTotal()" data-remaining="${remaining.toFixed(2)}"></td>
                     <td><strong>${invNum}</strong></td>
-                    <td>${formatNumberWithCommas(totalAmount.toFixed(2))} ${correctedCurrency}</td>
+					<td>${formatNumberWithCommas((totalAmount + totalPaid).toFixed(2))} ${correctedCurrency}</td>
                     <td style="color:var(--success);">${formatNumberWithCommas(totalPaid.toFixed(2))} ${correctedCurrency}</td>
                     <td style="color:var(--danger); font-weight:700;">${formatNumberWithCommas(remaining.toFixed(2))} ${correctedCurrency}</td>
                 </tr>
