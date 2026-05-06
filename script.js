@@ -2,6 +2,10 @@
 // نظام الفواتير المتقدم - النسخة النهائية مع تحسين الترتيب وإضافة فواصل الألف
 // جميع الحقوق محفوظة لشركة دمياط لتداول الحاويات و البضائع
 // ============================================
+window.onerror = function(msg, url, line, col, error) {
+    console.error('❌ خطأ في السطر ' + line + ':', msg);
+    return false;
+};
 
 // بيانات الشركة
 const COMPANY_INFO = {
@@ -8271,6 +8275,24 @@ window.openPaymentsTab = async function() {
     currentPaymentPage = 1;
     renderPaymentsView();
 };
+
+// ✅ تشخيص العناصر المفقودة
+const originalSetInnerHTML = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
+if (originalSetInnerHTML && originalSetInnerHTML.set) {
+    Object.defineProperty(Element.prototype, 'innerHTML', {
+        set: function(value) {
+            try {
+                originalSetInnerHTML.set.call(this, value);
+            } catch(e) {
+                console.log('❌ innerHTML خطأ:', e.message);
+            }
+        },
+        get: function() {
+            return originalSetInnerHTML.get.call(this);
+        },
+        configurable: true
+    });
+}
 // ============================================
 // التهيئة الرئيسية
 // ============================================
@@ -9165,3 +9187,9 @@ function closeModal(id) {
         modal.classList.remove('show');
     }
 }
+
+console.log('✅ script.js تم تحميله بالكامل');
+console.log('العناصر الحرجة:');
+['dataSource', 'fileStatus', 'totalEGPWithoutTax', 'totalMartyr', 'totalValueHeader', 'dataViewInfo', 'selectedCount', 'dbControls', 'exportSelectedBtn', 'exportSelectedExcelBtn', 'exportContainersBtn', 'selectAllCheckbox'].forEach(id => {
+    console.log(id + ':', document.getElementById(id) ? '✅' : '❌ مفقود');
+});
