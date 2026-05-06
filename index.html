@@ -496,6 +496,9 @@
                     <div class="row"><div class="col"><div class="form-group"><label>رقم الشيك</label><input type="text" id="paymentChequeNumber"></div></div><div class="col"><div class="form-group"><label>تاريخ الشيك</label><input type="date" id="paymentChequeDate"></div></div></div>
                     <div class="form-group"><label>بنك الشيك</label><input type="text" id="paymentChequeBank"></div>
                 </div>
+				                <div id="cardFields" style="display: none;">
+                    <div class="row"><div class="col"><div class="form-group"><label>نوع البطاقة</label><select id="paymentCardType"><option value="visa">Visa</option><option value="mastercard">Mastercard</option></select></div></div><div class="col"><div class="form-group"><label>آخر 4 أرقام</label><input type="text" id="paymentCardLast4" maxlength="4"></div></div></div>
+                </div>
                 <div class="form-group">
                     <label><i class="fas fa-file-invoice"></i> ربط بفواتير (اختياري)</label>
                     <div class="row" style="margin-bottom:8px;">

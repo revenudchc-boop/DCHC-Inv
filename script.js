@@ -7211,7 +7211,11 @@ openModal('paymentModal');
 
 // إغلاق نافذة السداد
 window.closePaymentModal = function() {
-    closeModal('paymentModal');
+    const modal = document.getElementById('paymentModal');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('show');
+    }
 };
 
 // تغيير طريقة السداد - إظهار/إخفاء الحقول المناسبة
