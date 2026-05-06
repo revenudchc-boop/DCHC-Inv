@@ -1596,6 +1596,21 @@ window.logout = function() {
 
 function updateUserInterface() {
     if (!currentUser) return;
+    
+    // ✅ تحديث الشريط الجانبي
+    const sidebarAvatar = document.getElementById('sidebarAvatar');
+    const sidebarName = document.getElementById('sidebarName');
+    const sidebarRole = document.getElementById('sidebarRole');
+    const sidebarAdminLink = document.getElementById('sidebarAdminLink');
+    
+    if (sidebarAvatar) sidebarAvatar.textContent = (currentUser.username || 'م')[0];
+    if (sidebarName) sidebarName.textContent = currentUser.username || 'مستخدم';
+    
+    const roleMap = { admin: 'مدير', accountant: 'محاسب', customer: 'عميل' };
+    if (sidebarRole) sidebarRole.textContent = '● ' + (roleMap[currentUser.userType] || 'مستخدم');
+    if (sidebarAdminLink) sidebarAdminLink.style.display = currentUser.userType === 'admin' ? '' : 'none';
+    
+    // ✅ تحديث العناصر العلوية (إن وجدت)
     let displayName = currentUser.username, taxDisplay = '', badgeClass = '', badgeText = '';
     if (currentUser.isGuest) {
         displayName = 'زائر';
@@ -1605,42 +1620,49 @@ function updateUserInterface() {
         taxDisplay = `الرقم الضريبي: ${currentUser.taxNumber || 'غير محدد'}`;
         if (currentUser.contractCustomerId) taxDisplay += ` | رقم العقد: ${currentUser.contractCustomerId}`;
         badgeClass = currentUser.userType;
-        badgeText = { admin: 'مدير', accountant: 'محاسب', customer: 'عميل' }[currentUser.userType] || currentUser.userType;
+        badgeText = roleMap[currentUser.userType] || currentUser.userType;
     }
-    document.getElementById('currentUserDisplay').textContent = displayName;
-    document.getElementById('userTaxDisplay').textContent = taxDisplay;
-    const badge = document.getElementById('userTypeBadge');
-    badge.textContent = badgeText; badge.className = `user-badge ${badgeClass}`;
+    
+    const currentUserDisplay = document.getElementById('currentUserDisplay');
+    const userTaxDisplay = document.getElementById('userTaxDisplay');
+    const userTypeBadge = document.getElementById('userTypeBadge');
+    
+    if (currentUserDisplay) currentUserDisplay.textContent = displayName;
+    if (userTaxDisplay) userTaxDisplay.textContent = taxDisplay;
+    if (userTypeBadge) {
+        userTypeBadge.textContent = badgeText;
+        userTypeBadge.className = `user-badge ${badgeClass}`;
+    }
 
     const isAdmin = currentUser.userType === 'admin';
     const isGuest = currentUser.isGuest;
 
-    // الأزرار القديمة
-    document.getElementById('driveSettingsBtn').style.display = isAdmin ? 'flex' : 'none';
-    document.querySelector('[onclick="showChangePassword()"]').style.display = isGuest ? 'none' : 'flex';
-    document.getElementById('adminPanelBtn').style.display = isAdmin ? 'flex' : 'none';
-    document.querySelector('label[for="fileInput"]').style.display = isAdmin ? 'inline-flex' : 'none';
-    document.querySelector('.btn-drive').style.display = isAdmin ? 'inline-flex' : 'none';
-    document.getElementById('dbControls').style.display = isAdmin ? 'flex' : 'none';
-
-    // ✅ أزرار السداد وكشف الحساب - متاحة للجميع
-    const paymentBtn = document.querySelector('[onclick="openPaymentModal()"]');
-    const statementBtn = document.querySelector('[onclick="openAccountStatement()"]');
-    const myPaymentsBtn = document.querySelector('[onclick="openMyPayments()"]');
-	const openingBtn = document.getElementById('openingBalanceBtn');
-    if (openingBtn) openingBtn.style.display = isAdmin ? 'flex' : 'none';
+    const driveSettingsBtn = document.getElementById('driveSettingsBtn');
+    const adminPanelBtn = document.getElementById('adminPanelBtn');
+    const openingBalanceBtn = document.getElementById('openingBalanceBtn');
+    const uploadXmlBtn = document.getElementById('uploadXmlBtn');
+    const driveUpdateBtn = document.getElementById('driveUpdateBtn');
     
-    if (paymentBtn) paymentBtn.style.display = 'flex';
-    if (statementBtn) statementBtn.style.display = 'flex';
-    if (myPaymentsBtn) myPaymentsBtn.style.display = 'flex';
+    if (driveSettingsBtn) driveSettingsBtn.style.display = isAdmin ? 'flex' : 'none';
+    if (adminPanelBtn) adminPanelBtn.style.display = isAdmin ? 'flex' : 'none';
+    if (openingBalanceBtn) openingBalanceBtn.style.display = isAdmin ? 'flex' : 'none';
+    if (uploadXmlBtn) uploadXmlBtn.style.display = isAdmin ? 'inline-flex' : 'none';
+    if (driveUpdateBtn) driveUpdateBtn.style.display = isAdmin ? 'inline-flex' : 'none';
 
-    // ✅ بناء واجهة البحث المتقدم لكل المستخدمين (الدالة الداخلية ستقرر القائمة أو النص)
-    buildInvoiceSearchUI();
+    const showChangePasswordBtn = document.querySelector('[onclick="showChangePassword()"]');
+    if (showChangePasswordBtn) showChangePasswordBtn.style.display = isGuest ? 'none' : 'flex';
+
+    // بناء واجهة البحث المتقدم
+    if (typeof buildInvoiceSearchUI === 'function') {
+        buildInvoiceSearchUI();
+    }
     
     // تحميل شريط الأخبار
     if (currentUser) {
         setTimeout(function() {
-            initNewsBar();
+            if (typeof initNewsBar === 'function') {
+                initNewsBar();
+            }
         }, 1000);
     }
 }
@@ -1672,16 +1694,23 @@ window.updatePassword = async function() {
 function initDatabase() {
     return new Promise(resolve => {
         try {
-            const req = indexedDB.open('InvoiceDB', 2);
+            const req = indexedDB.open('InvoiceDB', 3);
             req.onerror = () => { useLocalStorageFallback(); resolve(); };
             req.onsuccess = e => { db = e.target.result; console.log('✅ تم فتح قاعدة البيانات'); resolve(); };
             req.onupgradeneeded = e => {
                 const db = e.target.result;
-                if (db.objectStoreNames.contains('invoices')) db.deleteObjectStore('invoices');
-                if (db.objectStoreNames.contains('settings')) db.deleteObjectStore('settings');
-                const store = db.createObjectStore('invoices', { keyPath: 'id', autoIncrement: true });
-                ['final-number', 'draft-number', 'payee-customer-id', 'contract-customer-id', 'created', 'finalized-date'].forEach(idx => store.createIndex(idx, idx, { unique: false }));
-                db.createObjectStore('settings', { keyPath: 'key' });
+                try {
+                    if (db.objectStoreNames.contains('invoices')) db.deleteObjectStore('invoices');
+                    if (db.objectStoreNames.contains('settings')) db.deleteObjectStore('settings');
+                    const store = db.createObjectStore('invoices', { keyPath: 'id', autoIncrement: true });
+                    try { store.createIndex('final-number', 'final-number', { unique: false }); } catch(e) {}
+                    try { store.createIndex('draft-number', 'draft-number', { unique: false }); } catch(e) {}
+                    try { store.createIndex('payee-customer-id', 'payee-customer-id', { unique: false }); } catch(e) {}
+                    try { store.createIndex('contract-customer-id', 'contract-customer-id', { unique: false }); } catch(e) {}
+                    db.createObjectStore('settings', { keyPath: 'key' });
+                } catch(err) {
+                    console.warn('خطأ في IndexedDB:', err);
+                }
             };
         } catch { useLocalStorageFallback(); resolve(); }
     });
@@ -2611,18 +2640,26 @@ function updateSummary() {
         else { totalEGP += total; taxEGP += taxes; totalEGPWithoutTax += (total - taxes); }
     });
 
-    // عرض الأرقام بدون فواصل الألف وبدون كلمات جنيه/دولار
-    document.getElementById('invoiceCount').textContent = count;
-    document.getElementById('totalSum').innerHTML = totalEGP.toFixed(2);
-    document.getElementById('taxSum').innerHTML = taxEGP.toFixed(2);
-    document.getElementById('totalUSD').innerHTML = totalUSD.toFixed(2);
-    document.getElementById('totalEGPWithoutTax').innerHTML = totalEGPWithoutTax.toFixed(2);
-    document.getElementById('totalMartyr').innerHTML = totalMartyr.toFixed(2);
+    // ✅ استخدام optional chaining لتجنب الخطأ
+    const invoiceCount = document.getElementById('invoiceCount');
+    const totalSum = document.getElementById('totalSum');
+    const taxSum = document.getElementById('taxSum');
+    const totalUSDEl = document.getElementById('totalUSD');
+    const totalEGPWithoutTaxEl = document.getElementById('totalEGPWithoutTax');
+    const totalMartyrEl = document.getElementById('totalMartyr');
+    const totalInvoicesHeader = document.getElementById('totalInvoicesHeader');
+    const totalCustomers = document.getElementById('totalCustomers');
+    const totalVessels = document.getElementById('totalVessels');
     
-    // تحديث الإحصائيات في الهيدر
-    document.getElementById('totalInvoicesHeader').textContent = count;
-    document.getElementById('totalCustomers').textContent = new Set(filteredInvoices.map(i => i['payee-customer-id'])).size;
-    document.getElementById('totalVessels').textContent = new Set(filteredInvoices.map(i => i['key-word1']).filter(v => v)).size;
+    if (invoiceCount) invoiceCount.textContent = count;
+    if (totalSum) totalSum.innerHTML = totalEGP.toFixed(2);
+    if (taxSum) taxSum.innerHTML = taxEGP.toFixed(2);
+    if (totalUSDEl) totalUSDEl.innerHTML = totalUSD.toFixed(2);
+    if (totalEGPWithoutTaxEl) totalEGPWithoutTaxEl.innerHTML = totalEGPWithoutTax.toFixed(2);
+    if (totalMartyrEl) totalMartyrEl.innerHTML = totalMartyr.toFixed(2);
+    if (totalInvoicesHeader) totalInvoicesHeader.textContent = count;
+    if (totalCustomers) totalCustomers.textContent = new Set(filteredInvoices.map(i => i['payee-customer-id'])).size;
+    if (totalVessels) totalVessels.textContent = new Set(filteredInvoices.map(i => i['key-word1']).filter(v => v)).size;
 }
 
 function renderPagination(totalPages) {
@@ -4869,16 +4906,25 @@ function updateCreditSummary() {
         totalGross += (item.displayAmount + item.displayTax);
     });
 
-    document.getElementById('invoiceCount').textContent = count;
-    document.getElementById('totalSum').innerHTML = totalNet.toFixed(2);
-    document.getElementById('taxSum').innerHTML = totalTax.toFixed(2);
-    document.getElementById('totalUSD').innerHTML = totalGross.toFixed(2);
-    document.getElementById('totalEGPWithoutTax').innerHTML = '0.00';
-    document.getElementById('totalMartyr').innerHTML = '0.00';
+    const invoiceCount = document.getElementById('invoiceCount');
+    const totalSum = document.getElementById('totalSum');
+    const taxSum = document.getElementById('taxSum');
+    const totalUSDEl = document.getElementById('totalUSD');
+    const totalEGPWithoutTaxEl = document.getElementById('totalEGPWithoutTax');
+    const totalMartyrEl = document.getElementById('totalMartyr');
+    const totalInvoicesHeader = document.getElementById('totalInvoicesHeader');
+    const totalCustomers = document.getElementById('totalCustomers');
+    const totalVessels = document.getElementById('totalVessels');
 
-    document.getElementById('totalInvoicesHeader').textContent = count;
-    document.getElementById('totalCustomers').textContent = new Set(filteredCreditData.map(i => i.customer)).size;
-    document.getElementById('totalVessels').textContent = '-';
+    if (invoiceCount) invoiceCount.textContent = count;
+    if (totalSum) totalSum.innerHTML = totalNet.toFixed(2);
+    if (taxSum) taxSum.innerHTML = totalTax.toFixed(2);
+    if (totalUSDEl) totalUSDEl.innerHTML = totalGross.toFixed(2);
+    if (totalEGPWithoutTaxEl) totalEGPWithoutTaxEl.innerHTML = '0.00';
+    if (totalMartyrEl) totalMartyrEl.innerHTML = '0.00';
+    if (totalInvoicesHeader) totalInvoicesHeader.textContent = count;
+    if (totalCustomers) totalCustomers.textContent = new Set(filteredCreditData.map(i => i.customer)).size;
+    if (totalVessels) totalVessels.textContent = '-';
 }
 
 function renderCreditCardsView(data) {
@@ -8212,6 +8258,14 @@ window.openPaymentsTab = async function() {
 // ============================================
 document.addEventListener('DOMContentLoaded', async () => {
     console.log('بدء تشغيل النظام...');
+	    // ✅ استعادة الوضع المحفوظ (داكن/فاتح)
+    const savedTheme = localStorage.getItem('theme');
+    if (savedTheme === 'light') {
+        document.body.classList.remove('dark-mode');
+        document.body.classList.add('light-mode');
+        const icon = document.getElementById('themeIcon');
+        if (icon) icon.className = 'fas fa-sun';
+    }
     loadDriveSettings();
 	
 	
@@ -8604,13 +8658,70 @@ function escapeHtmlNews(str) {
 // تهيئة شريط الأخبار (يتم استدعاؤها بعد تسجيل الدخول)
 function initNewsBar() {
     const newsBar = document.getElementById('newsBar');
-    if (!newsBar) {
-        console.error('❌ لم يتم العثور على شريط الأخبار');
+    const newsContent = document.getElementById('newsTickerContent');
+    
+    if (!newsBar && !newsContent) {
+        console.warn('⚠️ عناصر شريط الأخبار غير موجودة، تجاهل التحميل');
         return;
     }
-    console.log('🔄 جاري تهيئة شريط الأخبار...');
-    newsBar.style.display = 'flex';
-    loadNewsFromDrive();
+
+    const newsUrl = 'https://raw.githubusercontent.com/revenudchc-boop/dataconnect/main/news.txt';
+
+    try {
+        if (newsContent) {
+            newsContent.innerHTML = '<div class="news-item"><i class="fas fa-spinner fa-spin"></i> جاري تحميل الأخبار...</div>';
+        }
+        if (newsBar) {
+            newsBar.style.display = 'flex';
+        }
+        
+        fetch(newsUrl)
+            .then(response => {
+                if (!response.ok) throw new Error(`HTTP ${response.status}`);
+                return response.text();
+            })
+            .then(content => {
+                let newsItems = content.split(/\r?\n/).filter(line => line.trim() !== '');
+                if (newsItems.length === 0) newsItems = ['مرحباً بك في نظام الفواتير المتقدم'];
+                
+                let html = '';
+                for (let repeat = 0; repeat < 3; repeat++) {
+                    newsItems.forEach((item, idx) => {
+                        let icon = 'fas fa-star';
+                        if (item.includes('عاجل') || item.includes('هام')) icon = 'fas fa-bolt';
+                        else if (item.includes('تحديث')) icon = 'fas fa-sync-alt';
+                        else if (item.includes('جديد')) icon = 'fas fa-gift';
+                        else if (item.includes('🎉')) icon = 'fas fa-party-horn';
+                        
+                        html += `<div class="news-item"><i class="${icon} news-icon"></i><span>${escapeHtmlNews(item)}</span></div>`;
+                        if (idx < newsItems.length - 1) html += `<span class="news-separator">✦</span>`;
+                    });
+                    if (repeat < 2) html += `<span class="news-separator" style="margin:0 25px;">◆ ◆ ◆</span>`;
+                }
+                
+                if (newsContent) {
+                    newsContent.innerHTML = html;
+                }
+                
+                const ticker = document.querySelector('.news-ticker');
+                if (ticker) {
+                    ticker.style.animation = 'none';
+                    ticker.offsetHeight;
+                    const contentWidth = newsContent ? newsContent.scrollWidth : 1000;
+                    const duration = Math.max(30, Math.min(80, contentWidth / 40));
+                    ticker.style.animation = `tickerScroll ${duration}s linear infinite`;
+                }
+            })
+            .catch(error => {
+                console.error('خطأ في تحميل الأخبار:', error);
+                if (newsContent) {
+                    newsContent.innerHTML = '<div class="news-item">⚠️ تعذر تحميل الأخبار</div>';
+                }
+            });
+            
+    } catch (error) {
+        console.error('خطأ في تهيئة شريط الأخبار:', error);
+    }
 }
 
 // دالة إعادة ضبط سرعة الشريط (اختيارية - يمكن استدعاؤها يدوياً)
@@ -8994,4 +9105,28 @@ window.printStatement = function() {
         </html>
     `);
     printWindow.document.close();
+};
+
+function toggleTheme() {
+    const body = document.body;
+    const icon = document.getElementById('themeIcon');
+    if (body.classList.contains('dark-mode')) {
+        body.classList.remove('dark-mode');
+        body.classList.add('light-mode');
+        if (icon) icon.className = 'fas fa-sun';
+        localStorage.setItem('theme', 'light');
+    } else {
+        body.classList.remove('light-mode');
+        body.classList.add('dark-mode');
+        if (icon) icon.className = 'fas fa-moon';
+        localStorage.setItem('theme', 'dark');
+    }
+}
+
+window.closeOpeningBalanceModal = function() {
+    document.getElementById('openingBalanceModal').style.display = 'none';
+};
+
+window.closeStatementModal = function() {
+    document.getElementById('accountStatementModal').style.display = 'none';
 };
