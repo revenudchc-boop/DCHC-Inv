@@ -112,7 +112,7 @@
             <div id="loginMessage" class="login-message"></div>
         </div>
     </div>
-	
+
     <!-- ==================== التطبيق الرئيسي ==================== -->
     <main class="main-content" id="mainApp" style="display: none;">
         
@@ -318,10 +318,14 @@
             <button class="tab" onclick="showReports('vessel')">سفن</button>
         </div>
     </main>
-	
+
+    <!-- عناصر مخفية للتوافق مع التصميم الجديد -->
+    <span id="totalEGPWithoutTax" style="display:none;"></span>
+    <span id="totalMartyr" style="display:none;"></span>
+
     <!-- ==================== نافذة تفاصيل الفاتورة ==================== -->
     <div id="invoiceModal" class="modal">
-        <div class="modal-content" style="max-width: 1100px;">
+        <div class="modal-content modal-lg">
             <div class="modal-header">
                 <h2 id="modalTitle">فاتورة رقم: <span id="modalInvoiceNumber"></span></h2>
                 <div class="modal-actions">
@@ -337,7 +341,7 @@
         </div>
     </div>
 
-    <!-- ==================== نافذة تغيير كلمة المرور ==================== -->
+    <!-- نافذة تغيير كلمة المرور -->
     <div id="changePasswordModal" class="modal">
         <div class="modal-content" style="max-width: 400px;">
             <div class="modal-header">
@@ -365,7 +369,7 @@
         </div>
     </div>
 
-    <!-- ==================== نافذة إدارة المستخدمين ==================== -->
+    <!-- نافذة إدارة المستخدمين -->
     <div id="userManagementModal" class="modal">
         <div class="modal-content" style="max-width: 1100px;">
             <div class="modal-header">
@@ -374,11 +378,11 @@
             </div>
             <div class="modal-body">
                 <div style="margin-bottom: 20px; display: flex; gap: 10px; flex-wrap: wrap;">
-                    <button class="btn btn-primary btn-sm" onclick="showAddUserForm()"><i class="fas fa-user-plus"></i> إضافة مستخدم</button>
-                    <button class="btn btn-outline btn-sm" onclick="saveUsersManually()"><i class="fab fa-google-drive"></i> حفظ في Drive</button>
+                    <button class="btn btn-primary" onclick="showAddUserForm()"><i class="fas fa-user-plus"></i> إضافة مستخدم</button>
+                    <button class="btn btn-success" onclick="saveUsersManually()"><i class="fab fa-google-drive"></i> حفظ في Drive</button>
                 </div>
-                <div class="table-responsive">
-                    <table class="data-table">
+                <div class="users-table-container">
+                    <table class="users-table">
                         <thead>
                             <tr>
                                 <th>اسم المستخدم</th>
@@ -388,58 +392,142 @@
                                 <th>نوع المستخدم</th>
                                 <th>الحالة</th>
                                 <th>آخر دخول</th>
-                                <th>إجراءات</th>
+                                <th>الإجراءات</th>
                             </tr>
                         </thead>
                         <tbody id="usersTableBody"></tbody>
                     </table>
                 </div>
                 <!-- نموذج إضافة/تعديل مستخدم -->
-                <div id="userForm" style="display: none; margin-top: 20px; padding: 20px; background: var(--bg-hover); border-radius: 10px;">
+                <div id="userForm" style="display: none; margin-top: 30px; padding: 20px; background: #f8f9fa; border-radius: 10px;">
                     <h3 id="userFormTitle">إضافة مستخدم جديد</h3>
-                    <div class="form-group"><label>اسم المستخدم</label><input type="text" id="editUsername"></div>
-                    <div class="form-group"><label>البريد الإلكتروني</label><input type="email" id="editEmail"></div>
-                    <div class="form-group"><label>الرقم الضريبي</label><input type="text" id="editTaxNumber"></div>
-                    <div class="form-group"><label>رقم العقد</label><input type="text" id="editContractCustomerId"></div>
-                    <div class="form-group"><label>المعرفات الإضافية</label><input type="text" id="editCustomerIds"></div>
-                    <div class="form-group"><label>نوع المستخدم</label><select id="editUserType"><option value="admin">مدير</option><option value="accountant">محاسب</option><option value="customer">عميل</option></select></div>
-                    <div class="form-group"><label>كلمة المرور</label><input type="password" id="editPassword"></div>
-                    <div class="form-group"><label>الحالة</label><select id="editStatus"><option value="active">نشط</option><option value="inactive">غير نشط</option></select></div>
+                    <div class="form-group">
+                        <label>اسم المستخدم</label>
+                        <input type="text" id="editUsername" placeholder="أدخل اسم المستخدم">
+                    </div>
+                    <div class="form-group">
+                        <label>البريد الإلكتروني</label>
+                        <input type="email" id="editEmail" placeholder="أدخل البريد الإلكتروني">
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-building"></i> الرقم الضريبي (للفواتير النقدية)</label>
+                        <input type="text" id="editTaxNumber" placeholder="أدخل الرقم الضريبي">
+                    </div>
+                    <div class="form-group">
+                        <label><i class="fas fa-file-contract"></i> رقم العقد (للفواتير الآجلة)</label>
+                        <input type="text" id="editContractCustomerId" placeholder="أدخل رقم العقد">
+                        <small class="form-text">هذا الرقم يربط الفواتير الآجلة بالمستخدم</small>
+                    </div>
+					<div class="form-group">
+						<label><i class="fas fa-id-card"></i> المعرفات الإضافية (customer-id)</label>
+						<input type="text" id="editCustomerIds" placeholder="أدخل المعرفات مفصولة بفواصل، مثال: MSC,202487288,user001">
+						<small class="form-text">هذه المعرفات تسمح للمستخدم برؤية الفواتير التي تحتوي على أي منها (سواء في payee-customer-id أو contract-customer-id).</small>
+					</div>
+                    <div class="form-group">
+                        <label>نوع المستخدم</label>
+                        <select id="editUserType">
+                            <option value="admin">مدير</option>
+                            <option value="accountant">محاسب</option>
+                            <option value="customer">عميل</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label>كلمة المرور</label>
+                        <input type="password" id="editPassword" placeholder="أدخل كلمة المرور">
+                        <small class="form-text">اتركها فارغة إذا لم ترد التغيير (في حالة التعديل)</small>
+                    </div>
+                    <div class="form-group">
+                        <label>الحالة</label>
+                        <select id="editStatus">
+                            <option value="active">نشط</option>
+                            <option value="inactive">غير نشط</option>
+                        </select>
+                    </div>
                     <div style="display: flex; gap: 10px;">
-                        <button class="btn btn-primary btn-sm" onclick="saveUserFromForm()"><i class="fas fa-save"></i> حفظ</button>
-                        <button class="btn btn-outline btn-sm" onclick="cancelUserForm()">إلغاء</button>
+                        <button class="btn btn-primary" onclick="saveUserFromForm()"><i class="fas fa-save"></i> حفظ</button>
+                        <button class="btn btn-secondary" onclick="cancelUserForm()"><i class="fas fa-times"></i> إلغاء</button>
                     </div>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- ==================== نافذة إعدادات Drive ==================== -->
+    <!-- نافذة إعدادات Google Drive -->
     <div id="driveSettingsModal" class="modal">
-        <div class="modal-content" style="max-width: 600px;">
+        <div class="modal-content" style="max-width: 650px;">
             <div class="modal-header">
                 <h2><i class="fab fa-google-drive"></i> إعدادات Google Drive</h2>
                 <span class="close-button" onclick="closeDriveSettings()">&times;</span>
             </div>
             <div class="modal-body">
-                <div class="form-group"><label>مفتاح API</label><input type="text" id="driveApiKey"></div>
-                <div class="form-group"><label>معرف المجلد</label><input type="text" id="driveFolderId"></div>
-                <div class="form-group"><label>ملف البيانات (XML)</label><input type="text" id="driveFileName"></div>
-                <div class="form-group"><label>معرف ملف البيانات</label><input type="text" id="driveFileId"></div>
-                <div class="form-group"><label>ملف المستخدمين</label><input type="text" id="driveUsersFileName"></div>
-                <div class="form-group"><label>معرف ملف المستخدمين</label><input type="text" id="driveUsersFileId"></div>
-                <div class="form-group"><label>ملف إشعارات الخصم</label><input type="text" id="driveCreditFileName"></div>
-                <div class="form-group"><label>معرف ملف إشعارات الخصم</label><input type="text" id="driveCreditFileId"></div>
-                <div style="display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;">
-                    <button class="btn btn-outline btn-sm" onclick="testDriveConnection()"><i class="fas fa-plug"></i> اختبار</button>
-                    <button class="btn btn-primary btn-sm" onclick="saveDriveSettings()"><i class="fas fa-save"></i> حفظ</button>
+                <div class="form-group">
+                    <label><i class="fas fa-key"></i> مفتاح API</label>
+                    <input type="text" id="driveApiKey" placeholder="أدخل مفتاح API" value="AIzaSyBy4WRI3zkUwlCvbrXpB8o9ZbFMuH4AdGA">
+                    <small class="form-text">المفتاح: AIzaSyBy4WRI3zkUwlCvbrXpB8o9ZbFMuH4AdGA</small>
                 </div>
-                <div id="driveTestResult" style="margin-top: 15px; padding: 15px; background: var(--bg-hover); border-radius: 10px; display: none; white-space: pre-wrap; font-family: monospace; max-height: 300px; overflow-y: auto;"></div>
+                <div class="form-group">
+                    <label><i class="fas fa-folder"></i> معرف المجلد</label>
+                    <input type="text" id="driveFolderId" placeholder="أدخل معرف المجلد" value="1FlBXLupfXCICs6xt7xxEE02wr_cjAapC">
+                    <small class="form-text">معرف المجلد: 1FlBXLupfXCICs6xt7xxEE02wr_cjAapC</small>
+                </div>
+                
+                <hr>
+                <h3><i class="fas fa-file-alt"></i> ملف البيانات (XML)</h3>
+                <div class="form-group">
+                    <label><i class="fas fa-file"></i> اسم ملف البيانات</label>
+                    <input type="text" id="driveFileName" placeholder="أدخل اسم ملف البيانات" value="datatxt.txt">
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-id-card"></i> معرف ملف البيانات</label>
+                    <input type="text" id="driveFileId" placeholder="معرف ملف البيانات" value="1xZSobMThbWKcZ53OmZEWlbn6mzz5Nsnr">
+                    <small class="form-text">المعرف: 1xZSobMThbWKcZ53OmZEWlbn6mzz5Nsnr</small>
+                </div>
+                
+                <hr>
+                <h3><i class="fas fa-users"></i> ملف المستخدمين</h3>
+                <div class="form-group">
+                    <label><i class="fas fa-file"></i> اسم ملف المستخدمين</label>
+                    <input type="text" id="driveUsersFileName" placeholder="أدخل اسم ملف المستخدمين" value="users.json">
+                </div>
+                <div class="form-group">
+                    <label><i class="fas fa-id-card"></i> معرف ملف المستخدمين</label>
+                    <input type="text" id="driveUsersFileId" placeholder="معرف ملف المستخدمين" value="1-ktLLXz1Febs44lB-aqfuNmTRs1GNB0w">
+                    <small class="form-text">المعرف: 1-ktLLXz1Febs44lB-aqfuNmTRs1GNB0w</small>
+                </div>
+				
+				<hr>
+				<h3><i class="fas fa-tags"></i> ملف إشعارات الخصم</h3>
+				<div class="form-group">
+					<label><i class="fas fa-file"></i> اسم ملف إشعارات الخصم</label>
+					<input type="text" id="driveCreditFileName" placeholder="creditdata.txt" value="creditdata.txt">
+				</div>
+				<div class="form-group">
+					<label><i class="fas fa-id-card"></i> معرف ملف إشعارات الخصم</label>
+					<input type="text" id="driveCreditFileId" placeholder="معرف الملف" value="1WU9R9Yby0_QoJeulIgYRuCQk9XV-N_e1">
+					<small class="form-text">اتركه فارغًا للبحث التلقائي عند أول تحميل.</small>
+				</div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 20px; flex-wrap: wrap;">
+                    <button class="btn btn-secondary" onclick="testDriveConnection()" style="flex: 1;">
+                        <i class="fas fa-plug"></i> اختبار الاتصال
+                    </button>
+                    <button class="btn btn-info" onclick="findDataFileId()" style="flex: 1;">
+                        <i class="fas fa-search"></i> بحث عن ملف البيانات
+                    </button>
+                    <button class="btn btn-info" onclick="findUsersFileId()" style="flex: 1;">
+                        <i class="fas fa-search"></i> بحث عن ملف المستخدمين
+                    </button>
+                    <button class="btn btn-primary" onclick="saveDriveSettings()" style="flex: 1;">
+                        <i class="fas fa-save"></i> حفظ الإعدادات
+                    </button>
+                </div>
+                <div id="driveTestResult" class="drive-result-box" style="margin-top: 15px; padding: 15px; background: #1e293b; color: #e2e8f0; border-radius: 10px; display: none; white-space: pre-wrap; font-family: monospace; max-height: 300px; overflow-y: auto;"></div>
+                <div id="driveMessage" class="login-message" style="margin-top: 15px;"></div>
             </div>
         </div>
     </div>
-
-    <!-- ==================== نافذة الرصيد الافتتاحي ==================== -->
+	
+	    <!-- نافذة الرصيد الافتتاحي -->
     <div id="openingBalanceModal" class="modal">
         <div class="modal-content" style="max-width: 550px;">
             <div class="modal-header">
@@ -447,16 +535,48 @@
                 <span class="close-button" onclick="closeOpeningBalanceModal()">&times;</span>
             </div>
             <div class="modal-body">
-                <div class="form-group"><label>العميل</label><select id="openingCustomer"></select></div>
-                <div class="row">
-                    <div class="col"><div class="form-group"><label>المبلغ</label><input type="number" id="openingAmount" step="0.01"></div></div>
-                    <div class="col"><div class="form-group"><label>العملة</label><select id="openingCurrency"><option value="EGP">EGP</option><option value="USD">USD</option></select></div></div>
+                <div class="form-group">
+                    <label>العميل</label>
+                    <select id="openingCustomer"></select>
                 </div>
                 <div class="row">
-                    <div class="col"><div class="form-group"><label>التاريخ</label><input type="date" id="openingDate"></div></div>
-                    <div class="col"><div class="form-group"><label>النوع</label><select id="openingType"><option value="credit">دائن</option><option value="debit">مدين</option></select></div></div>
+                    <div class="col">
+                        <div class="form-group">
+                            <label>المبلغ</label>
+                            <input type="number" id="openingAmount" placeholder="0.00" step="0.01">
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="form-group">
+                            <label>العملة</label>
+                            <select id="openingCurrency">
+                                <option value="EGP">جنيه مصري (EGP)</option>
+                                <option value="USD">دولار أمريكي (USD)</option>
+                            </select>
+                        </div>
+                    </div>
                 </div>
-                <div class="form-group"><label>ملاحظات</label><input type="text" id="openingNotes"></div>
+                <div class="row">
+                    <div class="col">
+                        <div class="form-group">
+                            <label>التاريخ</label>
+                            <input type="date" id="openingDate">
+                        </div>
+                    </div>
+                    <div class="col">
+                        <div class="form-group">
+                            <label>النوع</label>
+                            <select id="openingType">
+                                <option value="credit">دائن (لصالح العميل)</option>
+                                <option value="debit">مدين (على العميل)</option>
+                            </select>
+                        </div>
+                    </div>
+                </div>
+                <div class="form-group">
+                    <label>ملاحظات</label>
+                    <input type="text" id="openingNotes" placeholder="ملاحظات (اختياري)">
+                </div>
                 <div style="display:flex; gap:10px; margin-top:20px;">
                     <button class="btn btn-accent btn-sm" onclick="saveOpeningBalance()" style="flex:1;"><i class="fas fa-save"></i> حفظ</button>
                     <button class="btn btn-outline btn-sm" onclick="closeOpeningBalanceModal()" style="flex:1;">إلغاء</button>
@@ -466,7 +586,7 @@
         </div>
     </div>
 	
-    <!-- ==================== نافذة تسجيل سداد جديد ==================== -->
+    <!-- نافذة تسجيل سداد جديد -->
     <div id="paymentModal" class="modal">
         <div class="modal-content" style="max-width: 800px;">
             <div class="modal-header">
@@ -474,119 +594,213 @@
                 <span class="close-button" onclick="closePaymentModal()">&times;</span>
             </div>
             <div class="modal-body">
-                <div class="row">
-                    <div class="col"><div class="form-group"><label>العميل</label><select id="paymentCustomer" onchange="onPaymentCustomerChange()"><option value="">اختر العميل...</option></select></div></div>
-                    <div class="col"><div class="form-group"><label>رقم المرجع</label><input type="text" id="paymentReference" placeholder="اختياري"></div></div>
+                <div class="form-group">
+                    <label><i class="fas fa-user"></i> العميل</label>
+                    <select id="paymentCustomer" onchange="onPaymentCustomerChange()">
+                        <option value="">اختر العميل...</option>
+                    </select>
                 </div>
-                <div class="row">
-                    <div class="col"><div class="form-group"><label>المبلغ</label><input type="number" id="paymentAmount" step="0.01"></div></div>
-                    <div class="col"><div class="form-group"><label>العملة</label><select id="paymentCurrency"><option value="EGP">EGP</option><option value="USD">USD</option></select></div></div>
+                
+                <div class="form-group">
+                    <label><i class="fas fa-hashtag"></i> رقم المرجع</label>
+                    <input type="text" id="paymentReference" placeholder="مثال: TRX-12345 (اختياري)">
                 </div>
-                <div class="row">
-                    <div class="col"><div class="form-group"><label>التاريخ</label><input type="date" id="paymentDate"></div></div>
-                    <div class="col"><div class="form-group"><label>الطريقة</label><select id="paymentMethod" onchange="onPaymentMethodChange()">
-                        <option value="bank_transfer">تحويل بنكي</option><option value="cash">نقدي</option>
-                        <option value="cheque">شيك</option><option value="credit_card">بطاقة ائتمان</option>
-                        <option value="direct_deposit">إيداع مباشر</option><option value="postal_order">حوالة بريدية</option>
-                        <option value="other">أخرى</option>
-                    </select></div></div>
+                
+                <div class="form-row" style="display: flex; gap: 15px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label><i class="fas fa-coins"></i> المبلغ</label>
+                        <input type="number" id="paymentAmount" placeholder="0.00" step="0.01" min="0">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label><i class="fas fa-dollar-sign"></i> العملة</label>
+                        <select id="paymentCurrency">
+                            <option value="EGP">جنيه مصري (EGP)</option>
+                            <option value="USD">دولار أمريكي (USD)</option>
+                        </select>
+                    </div>
                 </div>
-                <div id="bankFields"><div class="form-group"><label>اسم البنك</label><input type="text" id="paymentBankName"></div></div>
-                <div id="chequeFields" style="display:none;">
-                    <div class="row"><div class="col"><div class="form-group"><label>رقم الشيك</label><input type="text" id="paymentChequeNumber"></div></div><div class="col"><div class="form-group"><label>تاريخ الشيك</label><input type="date" id="paymentChequeDate"></div></div></div>
-                    <div class="form-group"><label>بنك الشيك</label><input type="text" id="paymentChequeBank"></div>
+                
+                <div class="form-row" style="display: flex; gap: 15px;">
+                    <div class="form-group" style="flex: 1;">
+                        <label><i class="fas fa-calendar"></i> تاريخ السداد</label>
+                        <input type="date" id="paymentDate">
+                    </div>
+                    <div class="form-group" style="flex: 1;">
+                        <label><i class="fas fa-credit-card"></i> طريقة السداد</label>
+                        <select id="paymentMethod" onchange="onPaymentMethodChange()">
+                            <option value="bank_transfer">تحويل بنكي</option>
+                            <option value="cash">نقدي</option>
+                            <option value="cheque">شيك</option>
+                            <option value="credit_card">بطاقة ائتمان</option>
+                            <option value="direct_deposit">إيداع مباشر</option>
+                            <option value="postal_order">حوالة بريدية</option>
+                            <option value="other">أخرى</option>
+                        </select>
+                    </div>
                 </div>
-				                <div id="cardFields" style="display: none;">
-                    <div class="row"><div class="col"><div class="form-group"><label>نوع البطاقة</label><select id="paymentCardType"><option value="visa">Visa</option><option value="mastercard">Mastercard</option></select></div></div><div class="col"><div class="form-group"><label>آخر 4 أرقام</label><input type="text" id="paymentCardLast4" maxlength="4"></div></div></div>
+                
+                <!-- حقول خاصة بالتحويل البنكي -->
+                <div id="bankFields" style="display: block;">
+                    <div class="form-group">
+                        <label><i class="fas fa-university"></i> اسم البنك</label>
+                        <input type="text" id="paymentBankName" placeholder="مثال: البنك الأهلي (اختياري)">
+                    </div>
                 </div>
+                
+                <!-- حقول خاصة بالشيك (مخفية افتراضياً) -->
+                <div id="chequeFields" style="display: none;">
+                    <div class="form-row" style="display: flex; gap: 15px;">
+                        <div class="form-group" style="flex: 1;">
+                            <label>رقم الشيك</label>
+                            <input type="text" id="paymentChequeNumber" placeholder="رقم الشيك">
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label>تاريخ الشيك</label>
+                            <input type="date" id="paymentChequeDate">
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>بنك الشيك</label>
+                        <input type="text" id="paymentChequeBank" placeholder="اسم البنك">
+                    </div>
+                </div>
+                
+                <!-- حقول خاصة ببطاقة الائتمان (مخفية افتراضياً) -->
+                <div id="cardFields" style="display: none;">
+                    <div class="form-row" style="display: flex; gap: 15px;">
+                        <div class="form-group" style="flex: 1;">
+                            <label>نوع البطاقة</label>
+                            <select id="paymentCardType">
+                                <option value="visa">Visa</option>
+                                <option value="mastercard">Mastercard</option>
+                                <option value="other">أخرى</option>
+                            </select>
+                        </div>
+                        <div class="form-group" style="flex: 1;">
+                            <label>آخر 4 أرقام</label>
+                            <input type="text" id="paymentCardLast4" placeholder="1234" maxlength="4">
+                        </div>
+                    </div>
+                </div>
+                
                 <div class="form-group">
                     <label><i class="fas fa-file-invoice"></i> ربط بفواتير (اختياري)</label>
                     <div class="row" style="margin-bottom:8px;">
-                        <div class="col"><label style="font-size:0.72em;">من تاريخ</label><input type="date" id="paymentDateFrom" onchange="loadUnpaidInvoicesForPayment()"></div>
-                        <div class="col"><label style="font-size:0.72em;">إلى تاريخ</label><input type="date" id="paymentDateTo" onchange="loadUnpaidInvoicesForPayment()"></div>
+                        <div class="col">
+                            <label style="font-size:0.72em;">من تاريخ</label>
+                            <input type="date" id="paymentDateFrom" onchange="loadUnpaidInvoicesForPayment()">
+                        </div>
+                        <div class="col">
+                            <label style="font-size:0.72em;">إلى تاريخ</label>
+                            <input type="date" id="paymentDateTo" onchange="loadUnpaidInvoicesForPayment()">
+                        </div>
                     </div>
-                    <div id="linkedInvoicesContainer" style="border:1px solid var(--border); border-radius:8px; padding:10px; max-height:250px; overflow-y:auto;">
-                        <p style="color:var(--text-muted);">اختر العميل لعرض فواتيره</p>
+                    <div id="linkedInvoicesContainer" style="border: 1px solid #ddd; border-radius: 8px; padding: 10px; max-height: 250px; overflow-y: auto;">
+                        <p style="color: #999; font-size: 0.9em;">اختر العميل لعرض فواتيره</p>
                     </div>
                 </div>
-                <div class="form-group"><label>ملاحظات</label><textarea id="paymentNotes" rows="2"></textarea></div>
-                <div class="form-group"><label>مرفقات (PDF/صور)</label><input type="file" id="paymentAttachment" multiple accept=".jpg,.jpeg,.png,.pdf"></div>
-                <div style="display:flex; gap:10px; margin-top:20px;">
-                    <button class="btn btn-accent btn-sm" onclick="submitPayment()" style="flex:1;"><i class="fas fa-save"></i> تسجيل</button>
-                    <button class="btn btn-outline btn-sm" onclick="closePaymentModal()" style="flex:1;">إلغاء</button>
+                
+                <div class="form-group">
+                    <label><i class="fas fa-sticky-note"></i> ملاحظات</label>
+                    <textarea id="paymentNotes" rows="3" placeholder="ملاحظات إضافية..."></textarea>
+                </div>
+                
+                <div class="form-group">
+                    <label><i class="fas fa-paperclip"></i> مرفقات</label>
+                    <input type="file" id="paymentAttachment" multiple accept=".jpg,.jpeg,.png,.pdf">
+                    <small>الحد الأقصى 3 ملفات. JPG, PNG, PDF</small>
+                </div>
+                
+                <div style="display: flex; gap: 10px; margin-top: 20px;">
+                    <button class="btn btn-primary" onclick="submitPayment()" style="flex: 1;">
+                        <i class="fas fa-save"></i> تسجيل السداد
+                    </button>
+                    <button class="btn btn-secondary" onclick="closePaymentModal()" style="flex: 1;">
+                        <i class="fas fa-times"></i> إلغاء
+                    </button>
                 </div>
                 <div id="paymentMessage" class="login-message"></div>
             </div>
         </div>
     </div>
-
-    <!-- ==================== نافذة كشف الحساب ==================== -->
+    
+    <!-- نافذة كشف الحساب -->
     <div id="accountStatementModal" class="modal">
         <div class="modal-content" style="max-width: 1000px;">
             <div class="modal-header">
                 <h2><i class="fas fa-file-invoice-dollar"></i> كشف حساب</h2>
                 <div class="modal-actions">
-                    <button class="btn btn-outline btn-sm" onclick="exportStatementPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
-                    <button class="btn btn-outline btn-sm" onclick="exportStatementExcel()"><i class="fas fa-file-excel"></i> Excel</button>
-                    <button class="btn btn-outline btn-sm" onclick="printStatement()"><i class="fas fa-print"></i> طباعة</button>
+                    <button class="btn btn-primary" onclick="exportStatementPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
+                    <button class="btn btn-success" onclick="exportStatementExcel()"><i class="fas fa-file-excel"></i> Excel</button>
+					<button class="btn btn-outline btn-sm" onclick="printStatement()"><i class="fas fa-print"></i> طباعة</button>
                     <span class="close-button" onclick="closeStatementModal()">&times;</span>
                 </div>
             </div>
-            <div class="modal-body">
+			            <div class="modal-body">
                 <div class="form-group" style="margin-bottom:15px;">
                     <label>اختر الحساب</label>
                     <select id="statementAccount" onchange="updateStatement()">
                         <option value="">اختر الحساب...</option>
                     </select>
-                </div>
-                <div class="row" style="margin-bottom:10px;">
+					                <div class="row" style="margin-bottom:10px;">
                     <div class="col">
                         <label style="font-size:0.8em;">من تاريخ</label>
-                        <input type="date" id="statementDateFrom" onchange="updateStatement()" style="width:100%; padding:6px; border-radius:6px; border:1px solid var(--border); background:var(--input-bg); color:var(--text);">
+                        <input type="date" id="statementDateFrom" onchange="updateStatement()" style="width:100%; padding:6px; border-radius:6px;">
                     </div>
                     <div class="col">
                         <label style="font-size:0.8em;">إلى تاريخ</label>
-                        <input type="date" id="statementDateTo" onchange="updateStatement()" style="width:100%; padding:6px; border-radius:6px; border:1px solid var(--border); background:var(--input-bg); color:var(--text);">
+                        <input type="date" id="statementDateTo" onchange="updateStatement()" style="width:100%; padding:6px; border-radius:6px;">
                     </div>
+                </div>
                 </div>
                 <div id="statementBody"></div>
             </div>
+            <div class="modal-body" id="statementBody"></div>
         </div>
     </div>
-
-    <!-- ==================== نافذة إعدادات التحديث التلقائي ==================== -->
-    <div id="refreshSettingsModal" class="modal">
-        <div class="modal-content" style="max-width: 450px;">
-            <div class="modal-header">
-                <h2><i class="fas fa-sync-alt"></i> إعدادات التحديث التلقائي</h2>
-                <span class="close-button" onclick="closeRefreshSettingsModal()">&times;</span>
+				<!-- نافذة إعدادات التحديث التلقائي -->
+<div id="refreshSettingsModal" class="modal">
+    <div class="modal-content" style="max-width: 450px;">
+        <div class="modal-header">
+            <h2><i class="fas fa-sync-alt"></i> إعدادات التحديث التلقائي</h2>
+            <span class="close-button" onclick="closeRefreshSettingsModal()">&times;</span>
+        </div>
+        <div class="modal-body">
+            <div class="form-group">
+                <label><i class="fas fa-clock"></i> تفعيل التحديث التلقائي</label>
+                <select id="refreshEnabled" class="form-control">
+                    <option value="false">معطل</option>
+                    <option value="true">مفعل</option>
+                </select>
+                <small class="form-text">سيتم تحديث البيانات من Google Drive تلقائياً</small>
             </div>
-            <div class="modal-body">
-                <div class="form-group"><label>تفعيل التحديث التلقائي</label><select id="refreshEnabled"><option value="false">معطل</option><option value="true">مفعل</option></select></div>
-                <div class="form-group"><label>الفاصل الزمني (بالدقائق)</label><input type="number" id="refreshInterval" min="30" max="1440" value="30"></div>
-                <div class="form-group"><label>حالة التحديث</label><div id="refreshStatus" style="padding:10px; border-radius:8px; background:var(--bg-hover);"></div></div>
-                <div style="display: flex; gap: 10px; margin-top: 20px;">
-                    <button class="btn btn-primary btn-sm" onclick="saveRefreshSettings()"><i class="fas fa-save"></i> حفظ</button>
-                    <button class="btn btn-outline btn-sm" onclick="closeRefreshSettingsModal()">إلغاء</button>
-                    <button class="btn btn-outline btn-sm" onclick="manualRefresh()"><i class="fas fa-sync-alt"></i> تحديث الآن</button>
+            <div class="form-group">
+                <label><i class="fas fa-hourglass-half"></i> الفاصل الزمني (بالدقائق)</label>
+                <input type="number" id="refreshInterval" min="30" max="1440" step="1" value="30">
+                <small class="form-text">أدخل عدد الدقائق بين كل تحديث (30 - 1440 دقيقة)</small>
+            </div>
+            <div class="form-group">
+                <label><i class="fas fa-info-circle"></i> حالة التحديث الحالية</label>
+                <div id="refreshStatus" class="alert alert-info">
+                    <i class="fas fa-info-circle"></i> جاري تحميل الإعدادات...
                 </div>
             </div>
+            <div class="form-actions" style="display: flex; gap: 10px; margin-top: 20px;">
+                <button class="btn btn-primary" onclick="saveRefreshSettings()"><i class="fas fa-save"></i> حفظ الإعدادات</button>
+                <button class="btn btn-secondary" onclick="closeRefreshSettingsModal()">إلغاء</button>
+                <button class="btn btn-info" onclick="manualRefresh()" style="background: #4cc9f0;"><i class="fas fa-sync-alt"></i> تحديث يدوي الآن</button>
+            </div>
         </div>
     </div>
+</div>
 
-    <!-- ==================== شريط التقدم ==================== -->
-    <div id="progressBarContainer" style="display:none; position:fixed; top:0; left:0; width:100%; height:4px; background:var(--border); z-index:10000;">
-        <div id="progressBar" style="height:100%; background:var(--primary); width:0%; transition:width 0.3s;"></div>
+    <!-- شريط التقدم -->
+    <div id="progressBarContainer" class="progress-bar-container" style="display: none;">
+        <div id="progressBar" class="progress-bar"></div>
     </div>
-    <div id="progressMessage" style="display:none; position:fixed; top:10px; left:50%; transform:translateX(-50%); background:var(--bg-card); padding:10px 20px; border-radius:20px; z-index:10001; font-size:0.9em; color:var(--text); border:1px solid var(--border);"></div>
+    <div id="progressMessage" class="progress-message" style="display: none;"></div>
 
     <!-- JavaScript File -->
     <script src="script.js"></script>
 </body>
 </html>
-
-    <!-- عناصر مخفية للتوافق -->
-    <span id="totalValueHeader" style="display:none;"></span>
-    <span id="totalEGPWithoutTax" style="display:none;"></span>
-    <span id="totalMartyr" style="display:none;"></span>
-    <span id="dataViewInfo" style="display:none;"></span>
