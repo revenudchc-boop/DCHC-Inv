@@ -8854,9 +8854,11 @@ window.quickPayInvoice = async function(invoiceKey, customerId, totalAmount, cur
         return;
     }
     
-    // ✅ تحديد العميل الصحيح من customerIds الخاصة بالمستخدم
+    // ✅ تحديد العميل الصحيح
     let finalCustomerId = customerId;
-    if (currentUser && currentUser.customerIds && currentUser.customerIds.length > 0) {
+    if (currentUser?.userType === 'admin') {
+        finalCustomerId = customerId;
+    } else if (currentUser && currentUser.customerIds && currentUser.customerIds.length > 0) {
         const customerLower = customerId.toLowerCase();
         const matched = currentUser.customerIds.find(id => 
             customerLower.includes(id.toLowerCase()) || 
