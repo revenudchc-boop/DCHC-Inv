@@ -54,6 +54,15 @@ let selectedCreditNotes = new Set();
 let viewedInvoices = new Set();
 const NEWS_VISIBLE_KEY = 'newsBarVisible';
 let isQuickPayment = false;
+
+// ✅ منع أخطاء العناصر المفقودة في التصميم الجديد
+window.addEventListener('error', function(e) {
+    if (e.message && e.message.includes("Cannot set properties of null")) {
+        console.warn('⚠️ خطأ عنصر مفقود (تم التجاهل):', e.message);
+        e.preventDefault();
+        return false;
+    }
+});
 // ============================================
 // إعدادات التحديث التلقائي (Auto Refresh)
 // ============================================
