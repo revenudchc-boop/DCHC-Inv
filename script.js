@@ -2618,8 +2618,15 @@ window.toggleAdvancedSearch = function() {
     const body = document.getElementById('advancedSearchBody');
     const icon = document.getElementById('searchToggleIcon');
     if (body && icon) {
-        body.classList.toggle('show');
-        icon.style.transform = body.classList.contains('show') ? 'rotate(180deg)' : 'rotate(0)';
+        if (body.classList.contains('show')) {
+            body.classList.remove('show');
+            body.style.display = 'none';
+            icon.style.transform = 'rotate(0)';
+        } else {
+            body.classList.add('show');
+            body.style.display = 'block';
+            icon.style.transform = 'rotate(180deg)';
+        }
     }
 };
 

@@ -2320,3 +2320,27 @@ html, body {
         margin-right: 12px !important;
     }
 }
+
+/* ========================================
+   إصلاح النوافذ المنبثقة
+======================================== */
+.modal {
+    display: none;
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background: var(--modal-overlay);
+    backdrop-filter: blur(4px);
+    z-index: 9999;
+    overflow-y: auto;
+    padding: 20px;
+}
+
+.modal[style*="display: block"],
+.modal.show {
+    display: flex !important;
+    justify-content: center;
+    align-items: center;
+}
