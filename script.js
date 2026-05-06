@@ -56,11 +56,17 @@ const NEWS_VISIBLE_KEY = 'newsBarVisible';
 let isQuickPayment = false;
 
 // ✅ منع أخطاء العناصر المفقودة في التصميم الجديد
-window.addEventListener('error', function(e) {
-    if (e.message && e.message.includes("Cannot set properties of null")) {
-        console.warn('⚠️ خطأ عنصر مفقود (تم التجاهل):', e.message);
-        e.preventDefault();
-        return false;
+const originalSetInnerHTML = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
+Object.defineProperty(Element.prototype, 'innerHTML', {
+    set: function(value) {
+        if (this === null || this === undefined) {
+            console.warn('⚠️ محاولة تعيين innerHTML لعنصر null (تم التجاهل)');
+            return;
+        }
+        originalSetInnerHTML.set.call(this, value);
+    },
+    get: function() {
+        return originalSetInnerHTML.get.call(this);
     }
 });
 // ============================================
@@ -7200,12 +7206,13 @@ window.openPaymentModal = function() {
     }
     
     // ✅ إظهار النافذة
-    document.getElementById('paymentModal').style.display = 'block';
+openModal('paymentModal');
 };
 
 // إغلاق نافذة السداد
 window.closePaymentModal = function() {
-    document.getElementById('paymentModal').style.display = 'none';
+    openModal('paymentModal');
+
 };
 
 // تغيير طريقة السداد - إظهار/إخفاء الحقول المناسبة
@@ -7610,7 +7617,8 @@ window.openAccountStatement = async function(customerId) {
     }
     
     document.getElementById('statementBody').innerHTML = '<div style="text-align:center; padding: 50px;"><i class="fas fa-spinner fa-spin"></i> جاري تحميل كشف الحساب...</div>';
-    document.getElementById('accountStatementModal').style.display = 'block';
+    openModal('accountStatementModal');
+
     
     // ✅ ملء قائمة الحسابات
     const select = document.getElementById('statementAccount');
@@ -9146,3 +9154,20 @@ window.closeOpeningBalanceModal = function() {
 window.closeStatementModal = function() {
     document.getElementById('accountStatementModal').style.display = 'none';
 };
+
+// ✅ دالة مساعدة لفتح النوافذ المنبثقة
+function openModal(id) {
+    const modal = document.getElementById(id);
+    if (modal) {
+        modal.style.display = 'flex';
+        modal.classList.add('show');
+    }
+}
+
+function closeModal(id) {
+    const modal = document.getElementById(id);
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('show');
+    }
+}
