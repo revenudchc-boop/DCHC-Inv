@@ -9169,9 +9169,6 @@ window.closeOpeningBalanceModal = function() {
     document.getElementById('openingBalanceModal').style.display = 'none';
 };
 
-window.closeStatementModal = function() {
-    document.getElementById('accountStatementModal').style.display = 'none';
-};
 
 // ✅ دالة مساعدة لفتح النوافذ المنبثقة
 function openModal(id) {
