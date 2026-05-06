@@ -2368,3 +2368,85 @@ html, body {
     display: flex !important;
 }
 
+/* ========================================
+   إصلاح تحديد الصفوف في الوضع الداكن
+======================================== */
+.dark-mode .data-table tbody tr.selected-row,
+.dark-mode .selected-row {
+    background-color: rgba(99,102,241,0.25) !important;
+    color: #fff !important;
+}
+
+.dark-mode .data-table tbody tr.selected-row td,
+.dark-mode .selected-row td {
+    color: #fff !important;
+}
+
+.dark-mode .data-table tbody tr:hover,
+.dark-mode table tbody tr:hover {
+    background-color: rgba(255,255,255,0.05) !important;
+}
+
+/* ========================================
+   إصلاح أزرار التبديل (جدول/بطاقات)
+======================================== */
+.tab.active {
+    background: var(--bg-card) !important;
+    color: var(--text) !important;
+    font-weight: 600 !important;
+}
+
+.dark-mode .tab.active {
+    background: rgba(99,102,241,0.2) !important;
+    color: #fff !important;
+}
+
+/* ========================================
+   ضبط الخطوط - إضافة أخيرة
+======================================== */
+* {
+    font-size: 15px;
+}
+
+table th {
+    font-size: 14px !important;
+    font-weight: 700 !important;
+}
+
+table td {
+    font-size: 14px !important;
+    font-weight: 500 !important;
+}
+
+.dark-mode table td {
+    color: #f1f5f9 !important;
+}
+
+.light-mode table td {
+    color: #0f172a !important;
+}
+
+.dark-mode table th {
+    color: #cbd5e1 !important;
+}
+
+.light-mode table th {
+    color: #334155 !important;
+}
+
+.btn {
+    font-size: 14px !important;
+}
+
+.tab {
+    font-size: 14px !important;
+}
+
+.tab.active {
+    background: var(--primary) !important;
+    color: #ffffff !important;
+}
+
+.tab:not(.active) {
+    color: var(--text-muted) !important;
+}

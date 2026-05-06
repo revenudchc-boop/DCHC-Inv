@@ -1826,7 +1826,7 @@ function updateDataSource() {
 window.switchInvoiceType = async function(type) {
     console.log('التبويب المحدد:', type);
     currentInvoiceType = type;
-    
+        updateSidebarActive(type);
 	 // ✅ تحميل السدادات أولاً لتحديث حالة الفواتير
     if (paymentsData.length === 0) {
         await loadPaymentsFromCloud(currentUser.username);
@@ -2597,14 +2597,13 @@ window.changeItemsPerPage = function() {
 };
 
 window.setViewMode = function(mode) {
-    // تحديث كلا المتغيرين
     viewMode = mode;
     viewModeCredit = mode;
     
     clearSelectedInvoices();
     
-    // تحديث مظهر الأزرار
-    document.querySelectorAll('.btn-view').forEach((btn, i) => {
+    // ✅ تحديث الأزرار في شريط التحكم
+    document.querySelectorAll('.card-header .tabs .tab').forEach((btn, i) => {
         if ((i === 0 && mode === 'table') || (i === 1 && mode === 'cards')) {
             btn.classList.add('active');
         } else {
@@ -2612,11 +2611,10 @@ window.setViewMode = function(mode) {
         }
     });
     
-    // إعادة العرض حسب النوع الحالي
     if (currentInvoiceType === INVOICE_TYPES.CREDIT) {
-        renderCreditData();  // ستستخدم viewModeCredit الجديدة
+        renderCreditData();
     } else {
-        renderData();       // ستستخدم viewMode الجديدة
+        renderData();
     }
 };
 
@@ -4409,6 +4407,7 @@ function renderTableView(data) {
 // ============================================
 window.showReports = function(type) {
     currentReportType = type;
+	 updateSidebarActive('reports');
     document.querySelectorAll('.report-tab').forEach(t => t.classList.remove('active'));
     event.target.classList.add('active');
     document.getElementById('dataViewContainer').style.display = 'none';
@@ -7612,6 +7611,7 @@ window.openAccountStatement = async function(customerId) {
     
     document.getElementById('statementBody').innerHTML = '<div style="text-align:center; padding: 50px;"><i class="fas fa-spinner fa-spin"></i> جاري تحميل كشف الحساب...</div>';
     openModal('accountStatementModal');
+	    updateSidebarActive('statement');
 
     
     // ✅ ملء قائمة الحسابات
@@ -7889,6 +7889,7 @@ window.openAllPaymentsView = async function() {
     document.querySelectorAll('.type-tab').forEach(tab => tab.classList.remove('active'));
     const paymentsTab = document.querySelector('[onclick="openAllPaymentsView()"]');
     if (paymentsTab) paymentsTab.classList.add('active');
+	    updateSidebarActive('payments');
     
     // إخفاء التقارير
     document.getElementById('reportsContainer').style.display = 'none';
@@ -9192,3 +9193,23 @@ console.log('العناصر الحرجة:');
 ['dataSource', 'fileStatus', 'totalEGPWithoutTax', 'totalMartyr', 'totalValueHeader', 'dataViewInfo', 'selectedCount', 'dbControls', 'exportSelectedBtn', 'exportSelectedExcelBtn', 'exportContainersBtn', 'selectAllCheckbox'].forEach(id => {
     console.log(id + ':', document.getElementById(id) ? '✅' : '❌ مفقود');
 });
+
+// ✅ تحديث الشريط الجانبي عند تغيير التبويب
+function updateSidebarActive(tab) {
+    document.querySelectorAll('.sidebar-nav a').forEach(a => a.classList.remove('active'));
+    const links = {
+        'cash': 0,
+        'postponed': 1,
+        'credit': 2,
+        'payments': 3,
+        'statement': 4,
+        'reports': 5,
+        'users': 6,
+        'settings': 7
+    };
+    const index = links[tab];
+    if (index !== undefined) {
+        const allLinks = document.querySelectorAll('.sidebar-nav a');
+        if (allLinks[index]) allLinks[index].classList.add('active');
+    }
+}
