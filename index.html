@@ -21,8 +21,46 @@
     <!-- CSS File -->
     <link rel="stylesheet" href="style.css">
 </head>
-<body>
-    <!-- شاشة تسجيل الدخول -->
+<body class="dark-mode">
+
+    <!-- زر القائمة للجوال -->
+    <button class="menu-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">
+        <i class="fas fa-bars"></i>
+    </button>
+
+    <!-- ==================== الشريط الجانبي ==================== -->
+    <aside class="sidebar" id="sidebar">
+        <div class="sidebar-header">
+            <div class="sidebar-logo"><i class="fas fa-ship"></i></div>
+            <h2>DCHC</h2>
+            <p>DAMIETTA CONTAINER</p>
+        </div>
+        <div class="sidebar-user">
+            <div class="user-avatar" id="sidebarAvatar">م</div>
+            <div class="user-info">
+                <div class="uname" id="sidebarName">مدير النظام</div>
+                <div class="urole" id="sidebarRole">● مدير عام</div>
+            </div>
+        </div>
+        <nav class="sidebar-nav">
+            <div class="nav-section">رئيسية</div>
+            <a href="#" class="active" onclick="switchInvoiceType('cash')"><i class="fas fa-file-invoice"></i> فواتير نقدية</a>
+            <a href="#" onclick="switchInvoiceType('postponed')"><i class="fas fa-clock"></i> فواتير آجلة</a>
+            <a href="#" onclick="switchInvoiceType('credit')"><i class="fas fa-tags"></i> إشعارات خصم</a>
+            <a href="#" onclick="openAllPaymentsView()"><i class="fas fa-money-bill-wave"></i> السدادات <span class="nav-badge" id="paymentsBadge" style="display:none;">0</span></a>
+            <a href="#" onclick="openAccountStatement()"><i class="fas fa-file-invoice-dollar"></i> كشف حساب</a>
+            <div class="nav-section">إدارة</div>
+            <a href="#" onclick="showReports('daily')"><i class="fas fa-chart-bar"></i> التقارير</a>
+            <a href="#" onclick="showUserManagement()" id="sidebarAdminLink"><i class="fas fa-users-cog"></i> المستخدمين</a>
+            <a href="#" onclick="openDriveSettings()"><i class="fas fa-cog"></i> الإعدادات</a>
+        </nav>
+        <div class="sidebar-footer">
+            <button onclick="showChangePassword()"><i class="fas fa-key"></i> المرور</button>
+            <button onclick="logout()"><i class="fas fa-sign-out-alt"></i> خروج</button>
+        </div>
+    </aside>
+
+    <!-- ==================== شاشة تسجيل الدخول ==================== -->
     <div id="loginScreen" class="login-screen">
         <div class="login-container">
             <div class="login-header">
@@ -393,8 +431,8 @@
             <div class="pagination" id="pagination"></div>
         </div>
     </div>
-
-    <!-- نافذة تفاصيل الفاتورة -->
+	
+    <!-- ==================== نافذة تفاصيل الفاتورة ==================== -->
     <div id="invoiceModal" class="modal">
         <div class="modal-content modal-lg">
             <div class="modal-header">
@@ -412,7 +450,7 @@
         </div>
     </div>
 
-    <!-- نافذة تغيير كلمة المرور -->
+    <!-- ==================== نافذة تغيير كلمة المرور ==================== -->
     <div id="changePasswordModal" class="modal">
         <div class="modal-content" style="max-width: 400px;">
             <div class="modal-header">
@@ -440,7 +478,7 @@
         </div>
     </div>
 
-    <!-- نافذة إدارة المستخدمين -->
+    <!-- ==================== نافذة إدارة المستخدمين ==================== -->
     <div id="userManagementModal" class="modal">
         <div class="modal-content" style="max-width: 1100px;">
             <div class="modal-header">
@@ -523,7 +561,7 @@
         </div>
     </div>
 
-    <!-- نافذة إعدادات Google Drive -->
+    <!-- ==================== نافذة إعدادات Google Drive ==================== -->
     <div id="driveSettingsModal" class="modal">
         <div class="modal-content" style="max-width: 650px;">
             <div class="modal-header">
@@ -598,7 +636,7 @@
         </div>
     </div>
 	
-	    <!-- نافذة الرصيد الافتتاحي -->
+	    <!-- ==================== نافذة الرصيد الافتتاحي ==================== -->
     <div id="openingBalanceModal" class="modal">
         <div class="modal-content" style="max-width: 550px;">
             <div class="modal-header">
@@ -657,7 +695,7 @@
         </div>
     </div>
 	
-    <!-- نافذة تسجيل سداد جديد -->
+    <!-- ==================== نافذة تسجيل سداد جديد ==================== -->
     <div id="paymentModal" class="modal">
         <div class="modal-content" style="max-width: 800px;">
             <div class="modal-header">
@@ -795,7 +833,7 @@
         </div>
     </div>
     
-    <!-- نافذة كشف الحساب -->
+    <!-- ==================== نافذة كشف الحساب ==================== -->
     <div id="accountStatementModal" class="modal">
         <div class="modal-content" style="max-width: 1000px;">
             <div class="modal-header">
@@ -829,7 +867,8 @@
             <div class="modal-body" id="statementBody"></div>
         </div>
     </div>
-				<!-- نافذة إعدادات التحديث التلقائي -->
+	
+				<!-- ==================== نافذة إعدادات التحديث التلقائي ==================== -->
 <div id="refreshSettingsModal" class="modal">
     <div class="modal-content" style="max-width: 450px;">
         <div class="modal-header">
@@ -865,11 +904,17 @@
     </div>
 </div>
 
-    <!-- شريط التقدم -->
+    <!-- ==================== شريط التقدم ==================== -->
     <div id="progressBarContainer" class="progress-bar-container" style="display: none;">
         <div id="progressBar" class="progress-bar"></div>
     </div>
     <div id="progressMessage" class="progress-message" style="display: none;"></div>
+
+    <!-- عناصر مخفية للتوافق مع التصميم الجديد -->
+    <span id="totalValueHeader" style="display:none;"></span>
+    <span id="totalEGPWithoutTax" style="display:none;"></span>
+    <span id="totalMartyr" style="display:none;"></span>
+    <span id="dataViewInfo" style="display:none;"></span>
 
     <!-- JavaScript File -->
     <script src="script.js"></script>

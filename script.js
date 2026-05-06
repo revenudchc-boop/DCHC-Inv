@@ -55,6 +55,19 @@ let viewedInvoices = new Set();
 const NEWS_VISIBLE_KEY = 'newsBarVisible';
 let isQuickPayment = false;
 
+// ✅ إنشاء عناصر مخفية للتوافق مع التصميم الجديد
+(function createMissingElements() {
+    const missing = ['totalValueHeader', 'totalEGPWithoutTax', 'totalMartyr', 'dataViewInfo'];
+    missing.forEach(id => {
+        if (!document.getElementById(id)) {
+            const el = document.createElement('span');
+            el.id = id;
+            el.style.display = 'none';
+            document.body.appendChild(el);
+        }
+    });
+})();
+
 // ✅ منع أخطاء العناصر المفقودة في التصميم الجديد
 const originalSetInnerHTML = Object.getOwnPropertyDescriptor(Element.prototype, 'innerHTML');
 Object.defineProperty(Element.prototype, 'innerHTML', {
@@ -7665,7 +7678,11 @@ window.openAccountStatement = async function(customerId) {
 
 // إغلاق كشف الحساب
 window.closeStatementModal = function() {
-    document.getElementById('accountStatementModal').style.display = 'none';
+    const modal = document.getElementById('accountStatementModal');
+    if (modal) {
+        modal.style.display = 'none';
+        modal.classList.remove('show');
+    }
 };
 
 // بناء كشف الحساب
