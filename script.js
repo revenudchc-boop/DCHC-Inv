@@ -7211,8 +7211,7 @@ openModal('paymentModal');
 
 // إغلاق نافذة السداد
 window.closePaymentModal = function() {
-    openModal('paymentModal');
-
+    closeModal('paymentModal');
 };
 
 // تغيير طريقة السداد - إظهار/إخفاء الحقول المناسبة
