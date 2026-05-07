@@ -132,6 +132,7 @@
                     <i class="fas fa-bell"></i>
                     <span class="notif-dot" id="notifDot" style="display:none;"></span>
                 </button>
+				<button class="btn-icon" onclick="toggleNewsBar()" title="إظهار/إخفاء الأخبار"><i class="fas fa-newspaper"></i></button>
                 <!-- زر تحديث -->
                 <button class="btn-icon" onclick="location.reload()" title="تحديث"><i class="fas fa-sync-alt"></i></button>
                 <!-- زر تحميل XML -->
@@ -151,7 +152,9 @@
         <!-- شريط الأخبار -->
         <div id="newsBarContainer" class="news-bar">
             <div class="news-dot"></div>
-            <span class="news-text" id="newsTickerContent">جاري تحميل الأخبار...</span>
+            <div class="news-ticker" id="newsTicker">
+                <div class="news-ticker-content" id="newsTickerContent">جاري تحميل الأخبار...</div>
+            </div>
         </div>
 
         <!-- بطاقات الإحصائيات -->
