@@ -2501,3 +2501,26 @@ table td, table th {
     color: #0f172a !important;
     font-weight: 700 !important;
 }
+
+/* ========================================
+   مطالبة التحصيل - نص أسود ثقيل
+======================================== */
+.report-content table td,
+.report-content table th,
+#reportContent table td,
+#reportContent table th {
+    color: #000000 !important;
+    font-weight: 700 !important;
+}
+
+.report-content .stat-value,
+#reportContent .stat-value {
+    color: #000000 !important;
+    font-weight: 800 !important;
+}
+
+.report-content .stat-label,
+#reportContent .stat-label {
+    color: #333333 !important;
+    font-weight: 600 !important;
+}
