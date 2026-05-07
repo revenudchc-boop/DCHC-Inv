@@ -2892,3 +2892,8 @@ body > div[style*="position: absolute"][style*="left: -9999px"] .page-total-row 
 body > div[style*="position: absolute"][style*="left: -9999px"] .grand-total-row td {
     color: #000000 !important;
 }
+
+.card-header label[for] + label,
+.card-header div[style*="display:flex"] label {
+    color: #ffffff !important;
+}
