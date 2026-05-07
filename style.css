@@ -2524,3 +2524,22 @@ table td, table th {
     color: #333333 !important;
     font-weight: 600 !important;
 }
+
+/* ========================================
+   إصلاح شريط الأخبار - حركة مستمرة
+======================================== */
+.news-bar {
+    overflow: hidden !important;
+}
+
+.news-text {
+    display: inline-block !important;
+    white-space: nowrap !important;
+    animation: scrollNews 50s linear infinite !important;
+    padding-right: 100% !important;
+}
+
+@keyframes scrollNews {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-100%); }
+}
