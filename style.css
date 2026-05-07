@@ -2369,6 +2369,63 @@ html, body {
 }
 
 /* ========================================
+   تثبيت شكل الفاتورة والمطالبة في كلا الوضعين
+======================================== */
+.invoice-container,
+#invoicePrint,
+#reportPreviewModalContent,
+.report-content > div {
+    background: #ffffff !important;
+    color: #000000 !important;
+}
+
+.invoice-container .info-box,
+#invoicePrint .info-box,
+.invoice-container .summary-box,
+#invoicePrint .summary-box {
+    background: #f8f9fa !important;
+}
+
+.invoice-container .info-row,
+#invoicePrint .info-row,
+.invoice-container .summary-row,
+#invoicePrint .summary-row,
+.invoice-container .info-row span,
+#invoicePrint .info-row span,
+.invoice-container .summary-row span,
+#invoicePrint .summary-row span {
+    color: #000000 !important;
+}
+
+.invoice-container .charges-table td,
+#invoicePrint .charges-table td,
+.report-content table td {
+    color: #000000 !important;
+}
+
+.invoice-container h3,
+.invoice-container h4,
+#invoicePrint h3,
+#invoicePrint h4 {
+    color: #1e3c72 !important;
+}
+
+.invoice-container .invoice-footer,
+#invoicePrint .invoice-footer {
+    color: #333333 !important;
+}
+
+#reportPreviewModal .report-header {
+    background: linear-gradient(135deg, #1e3c72, #2a5298) !important;
+    color: #ffffff !important;
+}
+
+#reportPreviewModal .report-footer {
+    background: #1e3c72 !important;
+    color: #ffffff !important;
+}
+
+/* ========================================
    إصلاح تحديد الصفوف في الوضع الداكن
 ======================================== */
 .dark-mode .data-table tbody tr.selected-row,
@@ -2402,51 +2459,27 @@ html, body {
 }
 
 /* ========================================
-   ضبط الخطوط - إضافة أخيرة
+   تحسين وضوح الخطوط
 ======================================== */
-* {
-    font-size: 15px;
+body {
+    font-weight: 500 !important;
+    -webkit-font-smoothing: antialiased !important;
+    -moz-osx-font-smoothing: grayscale !important;
+    text-rendering: optimizeLegibility !important;
 }
 
-table th {
-    font-size: 14px !important;
-    font-weight: 700 !important;
-}
-
-table td {
-    font-size: 14px !important;
+table td, table th {
     font-weight: 500 !important;
 }
 
+.card-header h3, .topbar-left h1, .stat-value {
+    font-weight: 700 !important;
+}
+
 .dark-mode table td {
-    color: #f1f5f9 !important;
+    color: #e2e8f0 !important;
 }
 
-.light-mode table td {
-    color: #0f172a !important;
-}
-
-.dark-mode table th {
-    color: #cbd5e1 !important;
-}
-
-.light-mode table th {
-    color: #334155 !important;
-}
-
-.btn {
-    font-size: 14px !important;
-}
-
-.tab {
-    font-size: 14px !important;
-}
-
-.tab.active {
-    background: var(--primary) !important;
-    color: #ffffff !important;
-}
-
-.tab:not(.active) {
-    color: var(--text-muted) !important;
+.dark-mode .stat-label, .dark-mode .text-muted {
+    color: #94a3b8 !important;
 }
