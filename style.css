@@ -2054,6 +2054,9 @@ table tr:last-child td {
 /* ========================================
    زر القائمة للجوال
 ======================================== */
+/* ========================================
+   زر القائمة الجانبية للجوال
+======================================== */
 .menu-toggle {
     display: none;
     position: fixed;
@@ -2066,11 +2069,31 @@ table tr:last-child td {
     color: #fff;
     border: none;
     border-radius: 12px;
-    font-size: 1.2em;
+    font-size: 1.3em;
     cursor: pointer;
-    box-shadow: var(--shadow);
+    box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    align-items: center;
+    justify-content: center;
 }
 
+@media (max-width: 1024px) {
+    .menu-toggle {
+        display: flex !important;
+    }
+
+    .sidebar {
+        transform: translateX(105%);
+        transition: transform 0.3s ease;
+    }
+
+    .sidebar.open {
+        transform: translateX(0);
+    }
+
+    .main-content {
+        margin-right: 0 !important;
+    }
+}
 /* ========================================
    شريط التمرير (Scrollbar)
 ======================================== */
