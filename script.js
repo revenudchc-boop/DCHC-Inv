@@ -8784,7 +8784,7 @@ function setNewsTickerSpeed(seconds) {
 window.initNewsBar = initNewsBar;
 
 function toggleNewsBar() {
-    const newsBar = document.getElementById('newsBar');
+    const newsBar = document.getElementById('newsBarContainer');
     if (newsBar) {
         if (newsBar.style.display === 'none') {
             newsBar.style.display = 'flex';
