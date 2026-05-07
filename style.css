@@ -2858,3 +2858,25 @@ body > div[style*="position: absolute"][style*="left: -9999px"] .report-footer +
 body > div[style*="position: absolute"][style*="left: -9999px"] .report-footer {
     margin-bottom: 25px !important;
 }
+
+/* ========================================
+   إصلاح ألوان التقرير في الوضع الداكن
+======================================== */
+
+body > div[style*="position: absolute"][style*="left: -9999px"] .report-info,
+body > div[style*="position: absolute"][style*="left: -9999px"] .report-info span,
+body > div[style*="position: absolute"][style*="left: -9999px"] .report-info strong {
+    color: #000000 !important;
+}
+
+body > div[style*="position: absolute"][style*="left: -9999px"] .summary-box,
+body > div[style*="position: absolute"][style*="left: -9999px"] .summary-box *,
+body > div[style*="position: absolute"][style*="left: -9999px"] .summary-row,
+body > div[style*="position: absolute"][style*="left: -9999px"] .summary-row span {
+    color: #000000 !important;
+    background: #f8f9fa !important;
+}
+
+body > div[style*="position: absolute"][style*="left: -9999px"] .summary-row.total {
+    color: #1e3c72 !important;
+}
