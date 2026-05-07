@@ -9228,3 +9228,48 @@ function updatePageTitle(title, count, value) {
     if (totalInvoicesHeader) totalInvoicesHeader.textContent = count || 0;
     if (totalValueHeader) totalValueHeader.textContent = (value || '0.00') + ' EGP';
 }
+
+// ========================================
+// إصلاح مزامنة وضع العرض مع الأزرار عند تحميل الصفحة
+// ========================================
+function syncViewModeButtons() {
+    // التأكد من أن viewMode هو 'cards' بشكل افتراضي
+    if (typeof viewMode === 'undefined' || viewMode === 'table') {
+        viewMode = 'cards';
+    }
+    
+    // العثور على أزرار التبديل بين جدول/بطاقات
+    const tableBtn = document.querySelector('.card-header .tabs .tab:first-child');
+    const cardsBtn = document.querySelector('.card-header .tabs .tab:last-child');
+    
+    if (tableBtn && cardsBtn) {
+        if (viewMode === 'cards') {
+            tableBtn.classList.remove('active');
+            cardsBtn.classList.add('active');
+        } else {
+            tableBtn.classList.add('active');
+            cardsBtn.classList.remove('active');
+        }
+    }
+    
+    console.log('✅ وضع العرض الحالي:', viewMode);
+}
+
+// استدعاء الدالة بعد تحميل الصفحة وبعد تسجيل الدخول
+// نضيفها في دالة checkSession بعد تحميل البيانات
+// ولكن لتجنب تعديل الكود الأصلي كثيراً، نضيف مستمع للحدث
+document.addEventListener('DOMContentLoaded', function() {
+    // ننتظر قليلاً حتى يتم تحميل كل شيء
+    setTimeout(function() {
+        syncViewModeButtons();
+    }, 500);
+});
+
+// أيضاً نضيف استدعاء بعد renderData
+const originalRenderData = window.renderData;
+if (originalRenderData) {
+    window.renderData = function() {
+        originalRenderData.apply(this, arguments);
+        syncViewModeButtons();
+    };
+}

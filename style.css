@@ -2546,3 +2546,81 @@ table td, table th {
 .light-mode .theme-toggle {
     color: #f59e0b !important;
 }
+
+
+/* ========================================
+   تحسين الخطوط لجعلها ثقيلة وواضحة
+======================================== */
+
+/* جعل الخط الأساسي أكثر ثقلاً */
+body,
+.main-content,
+.card,
+.modal-content {
+    font-weight: 600 !important;
+}
+
+/* جعل عناوين الجداول والأرقام ثقيلة */
+table td,
+table th,
+.data-table td,
+.data-table th {
+    font-weight: 600 !important;
+    font-size: 0.95rem !important;
+}
+
+/* جعل أرقام الإجماليات في البطاقات ثقيلة */
+.stat-value,
+#totalSum,
+#taxSum,
+#totalUSD,
+.invoiceCount {
+    font-weight: 800 !important;
+    font-size: 1.6rem !important;
+}
+
+/* جعل عناوين الصفحة ثقيلة */
+.topbar-left h1,
+.page-title,
+#pageTitle {
+    font-weight: 800 !important;
+    font-size: 1.6rem !important;
+}
+
+/* جعل نصوص الأزرار ثقيلة */
+.btn,
+.tab,
+.pagination-btn,
+.login-btn,
+.sidebar-nav a {
+    font-weight: 700 !important;
+}
+
+/* جعل أرقام الفواتير في البطاقات ثقيلة */
+.card-value,
+.card-total,
+.invoice-card .card-header h3 {
+    font-weight: 700 !important;
+}
+
+/* جعل محتوى الفاتورة المنبثقة ثقيلاً */
+#invoicePrint td,
+#invoicePrint th,
+#invoicePrint .info-row,
+#invoicePrint .summary-row {
+    font-weight: 600 !important;
+}
+
+/* جعل أرقام العملة والمبالغ ثقيلة */
+.currency-amount,
+.total-amount,
+.payment-amount {
+    font-weight: 800 !important;
+}
+
+/* جعل عناوين الأقسام ثقيلة */
+.card-header h3,
+.modal-header h2,
+.section-title {
+    font-weight: 800 !important;
+}
