@@ -1951,9 +1951,10 @@ window.parseXMLContent = async function(xmlString, source) {
 		});
 
 		const duplicateCount = newInvoices.length - uniqueInvoices.length;
-		if (duplicateCount > 0) {
-			console.log(`⚠️ تم إزالة ${duplicateCount} فاتورة مكررة`);
-		}
+			if (duplicateCount > 0 && currentUser?.userType === 'admin') {
+				showNotification(`⚠️ تم إزالة ${duplicateCount} فاتورة مكررة`, 'warning');
+				console.log(`⚠️ تم إزالة ${duplicateCount} فاتورة مكررة`);
+			}
 
 		invoicesData = uniqueInvoices;
         showProgress('تم التحديث', 100);
@@ -5616,9 +5617,9 @@ async function loadInvoicesFromDrive() {
 			});
 
 			const duplicateCountRemove = newInvoices.length - uniqueInvoicesRemove.length;
-			if (duplicateCountRemove > 0) {
-				showNotification(`⚠️ تم إزالة ${duplicateCountRemove} فاتورة مكررة`, 'warning');
-			}
+				if (duplicateCountRemove > 0 && currentUser?.userType === 'admin') {
+					showNotification(`⚠️ تم إزالة ${duplicateCountRemove} فاتورة مكررة`, 'warning');
+				}
 
 			invoicesData = uniqueInvoicesRemove;
         showProgress('تم التحميل', 100);
