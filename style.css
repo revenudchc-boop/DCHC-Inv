@@ -2624,3 +2624,202 @@ table th,
 .section-title {
     font-weight: 800 !important;
 }
+
+/* ========================================
+   تحسين البحث المتقدم - شكل احترافي عصري
+======================================== */
+
+/* تنسيق حاوية البحث المتقدم */
+.advanced-search {
+    background: var(--glass);
+    backdrop-filter: var(--blur);
+    border-radius: 16px;
+    border: 1px solid var(--border-light);
+    margin-bottom: 20px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+}
+
+/* رأس البحث */
+.advanced-search .card-header {
+    background: linear-gradient(135deg, var(--primary-light, #6366f1), var(--primary-dark, #4f46e5));
+    padding: 14px 20px;
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.advanced-search .card-header h3 {
+    color: white;
+    font-size: 0.95rem;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    margin: 0;
+}
+
+.advanced-search .card-header h3 i {
+    font-size: 1.1rem;
+}
+
+.advanced-search .card-header h3 i.fa-chevron-down {
+    transition: transform 0.3s ease;
+}
+
+/* جسم البحث */
+#advancedSearchBody {
+    padding: 20px;
+    background: var(--bg-card);
+    border-top: 1px solid var(--border-light);
+}
+
+/* شبكة الحقول - 3 أعمدة في الشاشات الكبيرة */
+.search-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 16px 20px;
+    margin-bottom: 20px;
+}
+
+/* تنسيق كل حقل */
+.search-field {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.search-field label {
+    font-size: 0.75rem;
+    font-weight: 700;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.search-field label i {
+    font-size: 0.8rem;
+    color: var(--primary);
+}
+
+/* حقول الإدخال */
+.search-field input,
+.search-field select {
+    width: 100%;
+    padding: 10px 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--input-bg);
+    color: var(--text);
+    font-size: 0.85rem;
+    font-weight: 500;
+    transition: all 0.2s ease;
+}
+
+.search-field input:focus,
+.search-field select:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.1);
+}
+
+.search-field input::placeholder {
+    color: var(--text-muted);
+    font-size: 0.8rem;
+}
+
+/* أزرار البحث */
+.search-actions {
+    display: flex;
+    gap: 12px;
+    justify-content: flex-end;
+    margin-top: 10px;
+    padding-top: 10px;
+    border-top: 1px solid var(--border-light);
+}
+
+.search-actions .btn {
+    padding: 10px 24px;
+    font-size: 0.85rem;
+    font-weight: 700;
+    border-radius: 10px;
+    transition: all 0.2s ease;
+}
+
+.search-actions .btn-primary {
+    background: var(--primary);
+    color: white;
+}
+
+.search-actions .btn-primary:hover {
+    background: var(--primary-dark);
+    transform: translateY(-2px);
+}
+
+.search-actions .btn-outline {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+}
+
+.search-actions .btn-outline:hover {
+    background: var(--bg-hover);
+    transform: translateY(-2px);
+}
+
+/* ========================================
+   استجابة للشاشات المختلفة
+======================================== */
+
+/* شاشات متوسطة (جهاز لوحي) */
+@media (max-width: 992px) {
+    .search-grid {
+        grid-template-columns: repeat(2, 1fr);
+        gap: 14px;
+    }
+}
+
+/* شاشات صغيرة (جوال) */
+@media (max-width: 576px) {
+    .search-grid {
+        grid-template-columns: 1fr;
+        gap: 12px;
+    }
+    
+    #advancedSearchBody {
+        padding: 15px;
+    }
+    
+    .search-actions {
+        flex-direction: column;
+    }
+    
+    .search-actions .btn {
+        width: 100%;
+        justify-content: center;
+    }
+    
+    .search-field input,
+    .search-field select {
+        padding: 8px 12px;
+    }
+}
+
+/* تحسين المظهر في الوضع الفاتح */
+.light-mode .advanced-search .card-header {
+    background: linear-gradient(135deg, #4f46e5, #4338ca);
+}
+
+.light-mode .search-field input,
+.light-mode .search-field select {
+    background: #ffffff;
+    border-color: #e2e8f0;
+}
+
+.light-mode .search-field input:focus,
+.light-mode .search-field select:focus {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.15);
+}
