@@ -1936,8 +1936,26 @@ window.parseXMLContent = async function(xmlString, source) {
             for (let i = 0; i < nodes.length; i++) { const inv = parseInvoiceNode(nodes[i]); if (inv) newInvoices.push(inv); }
         }
 
-        if (!newInvoices.length) throw new Error('لا توجد فواتير');
-        invoicesData = newInvoices;
+		if (!newInvoices.length) throw new Error('لا توجد فواتير');
+
+		// ✅ إزالة الفواتير المكررة
+		const uniqueInvoices = [];
+		const seenKeys = new Set();
+
+		newInvoices.forEach(inv => {
+			const key = getInvoiceKey(inv);
+			if (!seenKeys.has(key)) {
+				seenKeys.add(key);
+				uniqueInvoices.push(inv);
+			}
+		});
+
+		const duplicateCount = newInvoices.length - uniqueInvoices.length;
+		if (duplicateCount > 0) {
+			console.log(`⚠️ تم إزالة ${duplicateCount} فاتورة مكررة`);
+		}
+
+		invoicesData = uniqueInvoices;
         showProgress('تم التحديث', 100);
 		        // ✅ تحميل السدادات لتحديث حالة السداد في الجدول
         await loadPaymentsFromCloud(currentUser?.username);
@@ -5585,7 +5603,24 @@ async function loadInvoicesFromDrive() {
         }
 
         if (!newInvoices.length) throw new Error('لا توجد فواتير');
-        invoicesData = newInvoices;
+        // ✅ إزالة الفواتير المكررة
+			const uniqueInvoicesRemove = [];
+			const seenKeysRemove = new Set();
+
+			newInvoices.forEach(inv => {
+				const key = getInvoiceKey(inv);
+				if (!seenKeysRemove.has(key)) {
+					seenKeysRemove.add(key);
+					uniqueInvoicesRemove.push(inv);
+				}
+			});
+
+			const duplicateCountRemove = newInvoices.length - uniqueInvoicesRemove.length;
+			if (duplicateCountRemove > 0) {
+				showNotification(`⚠️ تم إزالة ${duplicateCountRemove} فاتورة مكررة`, 'warning');
+			}
+
+			invoicesData = uniqueInvoicesRemove;
         showProgress('تم التحميل', 100);
         
         // ✅ تطبيق تصفية المستخدم أولاً
