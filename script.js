@@ -58,7 +58,7 @@ let selectedCreditNotes = new Set();
 let viewedInvoices = new Set();
 const NEWS_VISIBLE_KEY = 'newsBarVisible';
 let isQuickPayment = false;
-
+let isSearching = false;  // منع تغيير وضع العرض أثناء البحث
 
 // ============================================
 // إعدادات التحديث التلقائي (Auto Refresh)
@@ -2228,6 +2228,7 @@ function parseCreditNode(creditElement) {
 // دوال البحث المتقدم - معدلة لاستخدام finalized-date
 // ============================================
 window.applyAdvancedSearch = async function() {
+	    isSearching = true;  // 👈 أضف هذا السطر هنا
     console.log('🔍 [بحث] بدء البحث');
     console.log('📊 عدد الفواتير الكلي:', invoicesData.length);
     
@@ -2348,9 +2349,14 @@ window.applyAdvancedSearch = async function() {
     
     console.log('📊 عدد الفواتير المعروضة (filteredInvoices):', filteredInvoices.length);
     showNotification(`تم العثور على ${formatNumberWithCommas(filteredInvoices.length)} فاتورة`, filteredInvoices.length ? 'success' : 'info');
+	    // 👇 أضف هذا السطر في النهاية
+    setTimeout(() => { isSearching = false; }, 500);
+
 };
 
 window.resetAdvancedSearch = function() {
+	    isSearching = true;  // 👈 أضف هذا
+
     const searchFields = ['searchFinalNumber', 'searchDraftNumber', 'searchCustomer', 'searchVessel', 
                       'searchBlNumber', 'searchContainer', 'searchStatus', 'searchDateFrom', 
                       'searchDateTo', 'searchInvoiceType', 'searchContractCustomerId', 'searchViewedStatus'];
@@ -2367,6 +2373,8 @@ window.resetAdvancedSearch = function() {
     currentUser?.isGuest ? filterInvoicesByGuest(currentUser.taxNumber, currentUser.blNumber) : filterInvoicesByUser();
     clearSelectedInvoices();
     showNotification('تم إعادة ضبط البحث', 'info');
+	setTimeout(() => { isSearching = false; }, 500);  // 👈 أضف هذا
+
 };
 
 // ============================================
@@ -9231,8 +9239,14 @@ function updatePageTitle(title, count, value) {
 // إصلاح مزامنة وضع العرض مع الأزرار عند تحميل الصفحة
 // ========================================
 function syncViewModeButtons() {
-    // التأكد من أن viewMode هو 'cards' بشكل افتراضي
-    if (typeof viewMode === 'undefined' || viewMode === 'table') {
+    // ✅ إذا كان البحث جارياً، لا تغير أي شيء
+    if (isSearching) {
+        console.log('⏸️ تم تخطي تغيير وضع العرض أثناء البحث');
+        return;
+    }
+    
+    // ✅ فقط تأكد من وجود قيمة افتراضية إذا كانت غير معرفة
+    if (typeof viewMode === 'undefined') {
         viewMode = 'cards';
     }
     

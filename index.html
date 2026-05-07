@@ -181,21 +181,14 @@
             </div>
         </div>
 
-        <!-- تبويبات أنواع الفواتير -->
-        <div class="tabs" style="margin-bottom:12px;">
-            <button class="tab active" onclick="switchInvoiceType('cash')">فواتير نقدية</button>
-            <button class="tab" onclick="switchInvoiceType('postponed')">فواتير آجلة</button>
-            <button class="tab" onclick="switchInvoiceType('credit')">إشعارات خصم</button>
-            <button class="tab" onclick="openAllPaymentsView()">السدادات</button>
-        </div>
-
         <!-- البحث المتقدم -->
         <div class="card" id="advancedSearch" style="margin-bottom:12px;">
             <div class="card-header" onclick="toggleAdvancedSearch()" style="cursor:pointer;">
                 <h3><i class="fas fa-search"></i> بحث متقدم <i class="fas fa-chevron-down" id="searchToggleIcon"></i></h3>
             </div>
             <div class="card-body padded" id="advancedSearchBody" style="display:none;">
-                <div class="search-grid" id="searchGridContainer">
+                <!-- الصف الأول -->
+                <div class="search-row">
                     <div class="search-field">
                         <label><i class="fas fa-hashtag"></i> رقم الفاتورة النهائي</label>
                         <input type="text" id="searchFinalNumber" placeholder="مثال: C25-22491">
@@ -216,17 +209,20 @@
                         <label><i class="fas fa-barcode"></i> رقم البوليصة</label>
                         <input type="text" id="searchBlNumber" placeholder="رقم البوليصة...">
                     </div>
+                </div>
+                <!-- الصف الثاني -->
+                <div class="search-row">
                     <div class="search-field">
                         <label><i class="fas fa-container-storage"></i> رقم الحاوية</label>
                         <input type="text" id="searchContainer" placeholder="رقم الحاوية...">
                     </div>
                     <div class="search-field">
                         <label><i class="fas fa-tag"></i> الحالة</label>
-					<select id="searchStatus">
-						<option value="">الكل</option>
-						<option value="viewed">تمت المعاينة ✓</option>
-						<option value="not_viewed">لم تتم المعاينة ☐</option>
-					</select>
+                        <select id="searchStatus">
+                            <option value="">الكل</option>
+                            <option value="viewed">تمت المعاينة ✓</option>
+                            <option value="not_viewed">لم تتم المعاينة ☐</option>
+                        </select>
                     </div>
                     <div class="search-field">
                         <label><i class="fas fa-calendar"></i> من تاريخ</label>
@@ -245,7 +241,8 @@
                         </select>
                     </div>
                 </div>
-                <div style="display:flex; gap:8px; margin-top:10px;">
+                <!-- أزرار البحث -->
+                <div style="display:flex; gap:8px; margin-top:15px; justify-content:flex-end;">
                     <button class="btn btn-primary btn-sm" onclick="applyAdvancedSearch()"><i class="fas fa-filter"></i> بحث</button>
                     <button class="btn btn-outline btn-sm" onclick="resetAdvancedSearch()"><i class="fas fa-undo"></i> إعادة</button>
                 </div>
@@ -313,13 +310,6 @@
             </div>
         </div>
 
-        <!-- تبويبات التقارير -->
-        <div class="tabs" style="margin-top:12px;">
-            <button class="tab" onclick="showReports('daily')">يومي</button>
-            <button class="tab" onclick="showReports('monthly')">شهري</button>
-            <button class="tab" onclick="showReports('customer')">عملاء</button>
-            <button class="tab" onclick="showReports('vessel')">سفن</button>
-        </div>
          <span id="dataSource" style="display:none;"></span>
     </main>
 
