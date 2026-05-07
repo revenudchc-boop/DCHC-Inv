@@ -2483,3 +2483,21 @@ table td, table th {
 .dark-mode .stat-label, .dark-mode .text-muted {
     color: #94a3b8 !important;
 }
+
+/* ========================================
+   شريط التحكم - نص أبيض ثقيل داكن و فاتح
+======================================== */
+.card-header label,
+.card-header span,
+.card-header .text-muted {
+    color: #ffffff !important;
+    font-weight: 700 !important;
+    font-size: 14px !important;
+}
+
+.light-mode .card-header label,
+.light-mode .card-header span,
+.light-mode .card-header .text-muted {
+    color: #0f172a !important;
+    font-weight: 700 !important;
+}
