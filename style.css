@@ -2859,24 +2859,36 @@ body > div[style*="position: absolute"][style*="left: -9999px"] .report-footer {
     margin-bottom: 25px !important;
 }
 
-/* ========================================
-   إصلاح ألوان التقرير في الوضع الداكن
-======================================== */
-
-body > div[style*="position: absolute"][style*="left: -9999px"] .report-info,
-body > div[style*="position: absolute"][style*="left: -9999px"] .report-info span,
-body > div[style*="position: absolute"][style*="left: -9999px"] .report-info strong {
+/* ✅ إجبار جميع نصوص التقرير على اللون الأسود */
+body > div[style*="position: absolute"][style*="left: -9999px"] {
     color: #000000 !important;
 }
 
-body > div[style*="position: absolute"][style*="left: -9999px"] .summary-box,
-body > div[style*="position: absolute"][style*="left: -9999px"] .summary-box *,
-body > div[style*="position: absolute"][style*="left: -9999px"] .summary-row,
-body > div[style*="position: absolute"][style*="left: -9999px"] .summary-row span {
+body > div[style*="position: absolute"][style*="left: -9999px"] * {
     color: #000000 !important;
-    background: #f8f9fa !important;
 }
 
-body > div[style*="position: absolute"][style*="left: -9999px"] .summary-row.total {
-    color: #1e3c72 !important;
+/* ✅ استثناء: headers تبقى بألوانها */
+body > div[style*="position: absolute"][style*="left: -9999px"] .report-header,
+body > div[style*="position: absolute"][style*="left: -9999px"] .report-header * {
+    color: #ffffff !important;
+}
+
+body > div[style*="position: absolute"][style*="left: -9999px"] .report-footer,
+body > div[style*="position: absolute"][style*="left: -9999px"] .report-footer * {
+    color: #ffffff !important;
+}
+
+/* ✅ رؤوس الجدول تبقى بيضاء */
+body > div[style*="position: absolute"][style*="left: -9999px"] table th {
+    color: #ffffff !important;
+}
+
+/* ✅ صفوف الإجمالي تبقى بألوانها */
+body > div[style*="position: absolute"][style*="left: -9999px"] .page-total-row td {
+    color: #000000 !important;
+}
+
+body > div[style*="position: absolute"][style*="left: -9999px"] .grand-total-row td {
+    color: #000000 !important;
 }
