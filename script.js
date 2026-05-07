@@ -2307,7 +2307,13 @@ window.applyAdvancedSearch = async function() {
             if (!found) return false;
         }
         if (contractCustomerId && !(inv['contract-customer-id'] || '').toLowerCase().includes(contractCustomerId)) return false;
-        if (status && inv['status'] !== status) return false;
+        // فلتر حالة المعاينة (بدلاً من فلتر FINAL/DRAFT)
+		if (status) {
+			const viewKey = getInvoiceKey(inv);
+			const isViewed = viewedInvoices.has(viewKey);
+			if (status === 'viewed' && !isViewed) return false;
+			if (status === 'not_viewed' && isViewed) return false;
+		}
         if (invType) {
             const num = inv['final-number'] || '';
             if (invType === 'cash' && !(num.startsWith('C') || num.startsWith('c'))) return false;
@@ -2329,14 +2335,6 @@ window.applyAdvancedSearch = async function() {
             }
         }
         
-        // ✅ شرط حالة المعاينة
-        if (viewedStatus) {
-            const viewKey = getInvoiceKey(inv);
-            const isViewed = viewedInvoices.has(viewKey);
-            
-            if (viewedStatus === 'viewed' && !isViewed) return false;
-            if (viewedStatus === 'not_viewed' && isViewed) return false;
-        }
         
         return true;
     });
