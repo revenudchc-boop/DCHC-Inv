@@ -2897,3 +2897,68 @@ body > div[style*="position: absolute"][style*="left: -9999px"] .grand-total-row
 .card-header div[style*="display:flex"] label {
     color: #ffffff !important;
 }
+
+/* ========================================
+   تأثيرات جمالية على بطاقات الفواتير
+======================================== */
+
+/* ظل وتحريك للبطاقات */
+.invoice-card {
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    border: 1px solid var(--border-light);
+}
+
+.invoice-card:hover {
+    transform: translateY(-5px);
+    box-shadow: 0 12px 30px rgba(0,0,0,0.15);
+}
+
+/* تدرج لوني لرأس البطاقة */
+.invoice-card .card-header {
+    background: linear-gradient(135deg, #4361ee, #3a0ca3);
+}
+
+/* تأثير نبض للأيقونات */
+.invoice-card .card-header i {
+    transition: transform 0.3s ease;
+}
+
+.invoice-card:hover .card-header i {
+    transform: scale(1.1);
+}
+
+/* تحسين مظهر المعلومات داخل البطاقة */
+.invoice-card .vessel-info {
+    background: linear-gradient(135deg, rgba(67,97,238,0.05), rgba(58,12,163,0.05));
+    border-radius: 10px;
+    transition: all 0.3s ease;
+}
+
+.invoice-card:hover .vessel-info {
+    background: linear-gradient(135deg, rgba(67,97,238,0.1), rgba(58,12,163,0.1));
+}
+
+/* تحسين تذييل البطاقة */
+.invoice-card .card-footer {
+    background: linear-gradient(135deg, rgba(67,97,238,0.03), rgba(58,12,163,0.03));
+}
+
+/* تنسيق سعر الصرف */
+.card-row .card-value {
+    transition: color 0.3s ease;
+}
+
+.invoice-card:hover .card-row .card-value {
+    color: var(--primary);
+}
+
+/* تنسيق تاريخ الرحلة */
+.voyage-date {
+    background: linear-gradient(135deg, #667eea, #764ba2);
+    transition: all 0.3s ease;
+}
+
+.invoice-card:hover .voyage-date {
+    transform: scale(1.05);
+}
+
