@@ -2525,3 +2525,24 @@ table td, table th {
     font-weight: 600 !important;
 }
 
+/* ========================================
+   أزرار الشريط العلوي في الوضع النهاري
+======================================== */
+.light-mode .btn-icon,
+.light-mode .notif-btn,
+.light-mode .theme-toggle {
+    color: #1e293b !important;
+    border-color: #cbd5e1 !important;
+    background: #ffffff !important;
+}
+
+.light-mode .btn-icon:hover,
+.light-mode .notif-btn:hover,
+.light-mode .theme-toggle:hover {
+    background: #f1f5f9 !important;
+    color: #0f172a !important;
+}
+
+.light-mode .theme-toggle {
+    color: #f59e0b !important;
+}
