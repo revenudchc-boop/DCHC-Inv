@@ -2962,3 +2962,158 @@ body > div[style*="position: absolute"][style*="left: -9999px"] .grand-total-row
     transform: scale(1.05);
 }
 
+/* ========================================
+   التقارير - ألوان الوضع الليلي + أزرار احترافية
+======================================== */
+
+/* ========== ألوان التقارير في الوضع الداكن ========== */
+.dark-mode #reportContent,
+.dark-mode #reportContent *,
+.dark-mode #reportContent table td,
+.dark-mode #reportContent p,
+.dark-mode #reportContent span,
+.dark-mode #reportContent div,
+.dark-mode #reportContent h3,
+.dark-mode #reportContent h4 {
+    color: #ffffff !important;
+}
+
+.dark-mode #reportContent table th {
+    background: #4361ee !important;
+    color: #ffffff !important;
+}
+
+.dark-mode #reportContent table td {
+    background: transparent !important;
+    color: #e2e8f0 !important;
+    border-bottom: 1px solid #334155 !important;
+}
+
+.dark-mode #reportContent table tr:hover td {
+    background: rgba(255,255,255,0.05) !important;
+}
+
+.dark-mode .report-stats .stat-item {
+    background: rgba(255,255,255,0.05) !important;
+    border: 1px solid #334155 !important;
+}
+
+.dark-mode .report-stats .stat-value {
+    color: #818cf8 !important;
+}
+
+.dark-mode .report-stats .stat-label {
+    color: #94a3b8 !important;
+}
+
+.dark-mode #reportTitle {
+    color: #ffffff !important;
+}
+
+/* ========== أزرار التقارير - تصميم عصري ========== */
+.reports-tabs {
+    display: flex;
+    gap: 6px;
+    padding: 12px 16px !important;
+    background: var(--bg-hover);
+    border-bottom: 1px solid var(--border);
+    flex-wrap: wrap;
+}
+
+.reports-tabs .report-tab {
+    padding: 10px 20px;
+    border: none;
+    background: transparent;
+    border-radius: 30px;
+    cursor: pointer;
+    font-size: 0.88em;
+    font-weight: 600;
+    color: var(--text-muted);
+    transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    position: relative;
+    overflow: hidden;
+}
+
+.reports-tabs .report-tab::before {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: var(--primary);
+    opacity: 0;
+    border-radius: 30px;
+    transition: opacity 0.3s ease;
+    z-index: 0;
+}
+
+.reports-tabs .report-tab:hover::before {
+    opacity: 0.08;
+}
+
+.reports-tabs .report-tab:hover {
+    color: var(--text);
+    transform: translateY(-1px);
+}
+
+.reports-tabs .report-tab.active {
+    background: linear-gradient(135deg, #4361ee, #3a0ca3);
+    color: #ffffff;
+    box-shadow: 0 4px 15px rgba(67, 97, 238, 0.35);
+}
+
+.reports-tabs .report-tab.active::before {
+    display: none;
+}
+
+/* أيقونات للتبويبات */
+.reports-tabs .report-tab::after {
+    font-family: "Font Awesome 6 Free";
+    font-weight: 900;
+    font-size: 0.85em;
+    opacity: 0.7;
+    transition: opacity 0.3s ease;
+}
+
+.reports-tabs .report-tab:nth-child(1)::after { content: "\f073"; }
+.reports-tabs .report-tab:nth-child(2)::after { content: "\f133"; }
+.reports-tabs .report-tab:nth-child(3)::after { content: "\f0c0"; }
+.reports-tabs .report-tab:nth-child(4)::after { content: "\f21a"; }
+
+.reports-tabs .report-tab:hover::after { opacity: 1; }
+
+.reports-tabs .report-tab.active::after {
+    opacity: 1;
+    color: #ffd700;
+}
+
+/* الوضع الداكن للأزرار */
+.dark-mode .reports-tabs {
+    background: rgba(255,255,255,0.02);
+}
+
+.dark-mode .reports-tabs .report-tab {
+    color: #94a3b8;
+}
+
+.dark-mode .reports-tabs .report-tab:hover {
+    color: #e2e8f0;
+    background: rgba(255,255,255,0.05);
+}
+
+.dark-mode .reports-tabs .report-tab.active {
+    background: linear-gradient(135deg, #4361ee, #3a0ca3);
+    color: #ffffff;
+}
+
+@media (max-width: 600px) {
+    .reports-tabs .report-tab {
+        padding: 8px 14px;
+        font-size: 0.78em;
+        gap: 4px;
+    }
+}

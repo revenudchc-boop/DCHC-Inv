@@ -315,19 +315,26 @@
         <div class="pagination" id="pagination"></div>
 
         <!-- منطقة عرض التقارير -->
-        <div id="reportsContainer" style="display: none;">
-            <div class="card">
-                <div class="card-header">
-                    <h2 id="reportTitle">التقارير</h2>
-                    <div style="display:flex; gap:8px;">
-                        <button class="btn btn-primary btn-sm" onclick="exportReportPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
-                        <button class="btn btn-outline btn-sm" onclick="exportReportExcel()"><i class="fas fa-file-excel"></i> Excel</button>
-                        <button class="btn btn-outline btn-sm" onclick="closeReports()"><i class="fas fa-times"></i> إغلاق</button>
-                    </div>
-                </div>
-                <div class="card-body padded" id="reportContent"></div>
-            </div>
-        </div>
+		<div id="reportsContainer" style="display: none;">
+			<div class="card">
+				<div class="card-header">
+					<h2 id="reportTitle">التقارير</h2>
+					<div style="display:flex; gap:8px;">
+						<button class="btn btn-primary btn-sm" onclick="exportReportPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
+						<button class="btn btn-outline btn-sm" onclick="exportReportExcel()"><i class="fas fa-file-excel"></i> Excel</button>
+						<button class="btn btn-outline btn-sm" onclick="closeReports()"><i class="fas fa-times"></i> إغلاق</button>
+					</div>
+				</div>
+				<!-- ✅ تبويبات التقارير -->
+				<div class="reports-tabs" style="padding:10px; display:flex; gap:8px; flex-wrap:wrap;">
+					<button class="report-tab active" onclick="showReports('daily')">التقارير اليومية</button>
+					<button class="report-tab" onclick="showReports('monthly')">التقارير الشهرية</button>
+					<button class="report-tab" onclick="showReports('customer')">تقارير العملاء</button>
+					<button class="report-tab" onclick="showReports('vessel')">تقارير السفن</button>
+				</div>
+				<div class="card-body padded" id="reportContent"></div>
+			</div>
+		</div>
 
          <span id="dataSource" style="display:none;"></span>
     </main>
