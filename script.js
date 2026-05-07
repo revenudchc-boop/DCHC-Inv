@@ -1827,6 +1827,9 @@ window.switchInvoiceType = async function(type) {
     console.log('التبويب المحدد:', type);
     currentInvoiceType = type;
         updateSidebarActive(type);
+		    if (type === 'cash') updatePageTitle('الفواتير النقدية', filteredInvoices.length, document.getElementById('totalSum')?.textContent);
+    if (type === 'postponed') updatePageTitle('الفواتير الآجلة', filteredInvoices.length, document.getElementById('totalSum')?.textContent);
+    if (type === 'credit') updatePageTitle('إشعارات الخصم', filteredCreditData.length, document.getElementById('totalSum')?.textContent);
 	 // ✅ تحميل السدادات أولاً لتحديث حالة الفواتير
     if (paymentsData.length === 0) {
         await loadPaymentsFromCloud(currentUser.username);
@@ -7611,6 +7614,7 @@ window.openAccountStatement = async function(customerId) {
     
     document.getElementById('statementBody').innerHTML = '<div style="text-align:center; padding: 50px;"><i class="fas fa-spinner fa-spin"></i> جاري تحميل كشف الحساب...</div>';
     openModal('accountStatementModal');
+	    updatePageTitle('كشف حساب', '', '');
 	    updateSidebarActive('statement');
 
     
@@ -7902,6 +7906,7 @@ window.openAllPaymentsView = async function() {
     
     // تحميل السدادات
     await loadPaymentsFromCloud(currentUser.username);
+	    updatePageTitle('السدادات', filteredPayments.length, document.getElementById('totalSum')?.textContent);
     
     // فلترة حسب صلاحيات المستخدم
     if (currentUser.userType !== 'admin') {
@@ -9212,4 +9217,14 @@ function updateSidebarActive(tab) {
         const allLinks = document.querySelectorAll('.sidebar-nav a');
         if (allLinks[index]) allLinks[index].classList.add('active');
     }
+}
+
+function updatePageTitle(title, count, value) {
+    const pageTitle = document.getElementById('pageTitle');
+    const totalInvoicesHeader = document.getElementById('totalInvoicesHeader');
+    const totalValueHeader = document.getElementById('totalValueHeader');
+    
+    if (pageTitle) pageTitle.textContent = title;
+    if (totalInvoicesHeader) totalInvoicesHeader.textContent = count || 0;
+    if (totalValueHeader) totalValueHeader.textContent = (value || '0.00') + ' EGP';
 }
