@@ -280,7 +280,13 @@ async function checkUnviewedInvoicesAndShowReport() {
         ).filter(id => id))];
         creditItems = creditData.filter(c => {
             if (!c.customerId) return false;
-            return customerIds.some(cid => c.customerId.toLowerCase().includes(cid));
+            const matchCustomer = customerIds.some(cid => c.customerId.toLowerCase().includes(cid));
+            if (!matchCustomer) return false;
+            
+            // ✅ إخفاء إشعارات الخصم التي تم تحديدها
+            const viewKey = 'credit_' + (c.serial || c.draftNumber || c.finalNumber);
+            const isViewed = viewedInvoices.has(viewKey);
+            return !isViewed;
         });
     }
     totals.credits = creditItems;
