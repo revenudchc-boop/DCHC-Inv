@@ -7710,7 +7710,7 @@ window.openAccountStatement = async function(customerId) {
         p.customerId === customerId && (p.status === 'confirmed' || p.isOpeningBalance)
     );
     
-    buildAccountStatement(customerInvoices, customerPayments, customerId, '', '');
+    await buildAccountStatement(customerInvoices, customerPayments, customerId, '', '');
 };
 
 // إغلاق كشف الحساب
@@ -7723,8 +7723,12 @@ window.closeStatementModal = function() {
 };
 
 // بناء كشف الحساب
-function buildAccountStatement(invoices, payments, accountId, dateFrom, dateTo) {
+async function buildAccountStatement(invoices, payments, accountId, dateFrom, dateTo) {
     let transactions = [];
+	    // ✅ تأكد من تحميل بيانات إشعارات الخصم
+    if (typeof creditData !== 'undefined' && creditData.length === 0) {
+        await loadCreditDataFromDrive();
+    }
     
     // إضافة الفواتير
     invoices.forEach(inv => {
@@ -7753,6 +7757,37 @@ function buildAccountStatement(invoices, payments, accountId, dateFrom, dateTo) 
             isOpening: false
         });
     });
+	
+	    // ✅ إضافة إشعارات الخصم كحركات دائنة
+    if (typeof creditData !== 'undefined' && creditData.length > 0) {
+        const customerCredits = creditData.filter(c => {
+            // التحقق من أن الإشعار يخص العميل
+            if (!c.customerId) return false;
+            const custId = c.customerId.toLowerCase();
+            const acc = accountId.toLowerCase();
+            return custId.includes(acc) || acc.includes(custId);
+        });
+        
+        customerCredits.forEach(c => {
+            const creditDate = c.date ? c.date.slice(0,10) : '';
+            // فلترة حسب التاريخ إن وجد
+            if (dateFrom && creditDate < dateFrom) return;
+            if (dateTo && creditDate > dateTo) return;
+            
+            const amount = c.displayAmount + c.displayTax; // المبلغ + الضريبة
+            const currency = c.currency === 'USAD' ? 'USD' : 'EGP';
+            
+            transactions.push({
+                date: creditDate,
+                desc: `إشعار خصم: ${c.finalNumber || c.draftNumber || c.serial || '-'}`,
+                ref: c.serial,
+                debit: 0,
+                credit: amount,
+                currency: currency,
+                isOpening: false
+            });
+        });
+    }
     
     // إضافة السدادات
     payments.forEach(p => {
@@ -7830,6 +7865,25 @@ function buildAccountStatement(invoices, payments, accountId, dateFrom, dateTo) 
                 }
             }
         });
+		
+		        // ✅ أضف هنا 👇
+        const allCredits = creditData.filter(c => {
+            if (!c.customerId) return false;
+            const custId = c.customerId.toLowerCase();
+            const acc = accountId.toLowerCase();
+            return custId.includes(acc) || acc.includes(custId);
+        });
+        
+        allCredits.forEach(c => {
+            const creditDate = (c.date || '').slice(0, 10);
+            if (creditDate && creditDate < dateFrom) {
+                const amount = c.displayAmount + c.displayTax;
+                const currency = c.currency === 'USAD' ? 'USD' : 'EGP';
+                openingBalance += amount;
+                openingCurrency = currency;
+            }
+        });
+
     }
     
     // بناء HTML
@@ -9111,7 +9165,7 @@ window.updateStatement = async function() {
         });
     }
     
-    buildAccountStatement(accountInvoices, accountPayments, accountId, dateFrom, dateTo);
+    await buildAccountStatement(accountInvoices, accountPayments, accountId, dateFrom, dateTo);
 };
 
 window.saveOpeningBalance = async function() {
