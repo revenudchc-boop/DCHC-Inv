@@ -124,8 +124,9 @@ async function loadViewedFromDrive() {
             
             const data = await response.json();
             const userKey = currentUser.username;
-            const userViewed = data[userKey] || [];
-            
+            const invoiceViewed = data[userKey] || [];
+			const creditViewed = data[userKey + '_credits'] || [];
+			const userViewed = [...invoiceViewed, ...creditViewed];
             viewedInvoices = new Set(userViewed);
             saveViewedInvoices(); // نسخة احتياطية محلية
             
@@ -162,7 +163,10 @@ async function saveViewedToDrive() {
             
             // 2. تحديث بيانات المستخدم الحالي
             const userKey = currentUser?.username || 'guest';
-            allData[userKey] = [...viewedInvoices];
+            // حفظ الفواتير المعاينة
+			allData[userKey] = [...viewedInvoices].filter(k => !k.startsWith('credit_'));
+			// حفظ إشعارات الخصم المعاينة
+			allData[userKey + '_credits'] = [...viewedInvoices].filter(k => k.startsWith('credit_'));
             allData.lastUpdated = new Date().toISOString();
             
             // 3. حفظ البيانات المحدثة
@@ -1765,8 +1769,7 @@ function updateUserInterface() {
     const adminPanelBtn = document.getElementById('adminPanelBtn');
     const openingBalanceBtn = document.getElementById('openingBalanceBtn');
     const uploadXmlBtn = document.getElementById('uploadXmlBtn');
-    const driveUpdateBtn = document.getElementById('driveUpdateBtn');
-    
+    const driveUpdateBtn = document.getElementById('driveUpdateBtn');    
     if (driveSettingsBtn) driveSettingsBtn.style.display = isAdmin ? 'flex' : 'none';
     if (adminPanelBtn) adminPanelBtn.style.display = isAdmin ? 'flex' : 'none';
     if (openingBalanceBtn) openingBalanceBtn.style.display = isAdmin ? 'flex' : 'none';
@@ -4436,6 +4439,7 @@ function renderTableView(data) {
             <div class="table-toolbar" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; padding:10px; background:#f8f9fa; border-radius:8px; flex-wrap: wrap; gap: 10px;">
                 <div>
                     <button class="btn btn-secondary" onclick="selectAllInvoices()" style="margin-left:10px;"><i class="fas fa-check-double"></i> تحديد الكل</button>
+					<button class="btn btn-secondary" onclick="markAllAsViewed()" style="margin-left:10px;"><i class="fas fa-eye"></i> معاينة الكل</button>
                     <button class="btn btn-secondary" onclick="deselectAllInvoices()"><i class="fas fa-times"></i> إلغاء الكل</button>
                 </div>
                 <div class="export-buttons">
@@ -9565,3 +9569,29 @@ async function loadCreditDataFromDriveSilent() {
         return false;
     }
 }
+
+async function markAllAsViewed() {
+    if (!currentUser) return;
+    
+    const pageCheckboxes = document.querySelectorAll('.viewed-checkbox');
+    let count = 0;
+    
+    pageCheckboxes.forEach(cb => {
+        if (!cb.checked) {
+            cb.checked = true;
+            const key = cb.dataset.key;
+            viewedInvoices.add(key);
+            count++;
+        }
+    });
+    
+    if (count > 0) {
+        saveViewedInvoices();
+        await saveViewedToDrive();
+        showNotification(`✅ تمت معاينة ${count} فاتورة`, 'success');
+    } else {
+        showNotification('جميع الفواتير معاينة مسبقاً', 'info');
+    }
+}
+
+window.markAllAsViewed = markAllAsViewed;
