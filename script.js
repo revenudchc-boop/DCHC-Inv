@@ -265,8 +265,44 @@ async function checkUnviewedInvoicesAndShowReport() {
     if (!companyLogoBase64) {
         await loadLogoFromDrive();
     }
+	
+	    // ✅ تحميل بيانات إشعارات الخصم
+    if (typeof creditData !== 'undefined' && creditData.length === 0) {
+        await loadCreditDataFromDrive();
+    }
     
     // إنشاء HTML التقرير (مع بطاقات الإجماليات)
+    // ✅ إضافة إشعارات الخصم
+    let creditItems = [];
+    if (typeof creditData !== 'undefined' && creditData.length > 0) {
+        const customerIds = [...new Set(sortedInvoices.map(inv =>
+            (inv['payee-customer-id'] || '').toLowerCase()
+        ).filter(id => id))];
+        creditItems = creditData.filter(c => {
+            if (!c.customerId) return false;
+            return customerIds.some(cid => c.customerId.toLowerCase().includes(cid));
+        });
+    }
+    totals.credits = creditItems;
+	
+	    // ✅ تحديث الإجماليات بعد خصم إشعارات الخصم
+    creditItems.forEach(c => {
+        const amount = c.displayAmount || 0;
+        const tax = c.displayTax || 0;
+        const total = amount + tax;
+        
+        if (c.currency === 'USAD') {
+            totals.usadCharges -= amount;
+            totals.usadTaxes -= tax;
+            totals.usadTotal -= total;
+        } else {
+            totals.egpCharges -= amount;
+            totals.egpTaxes -= tax;
+            totals.egpTotal -= total;
+        }
+        totals.grandTotal -= total;
+    });
+
     const reportHtmlWithSummary = generateReportHTML(sortedInvoices, {
         fromDate: '', toDate: '',
         lineOperatorsText,
@@ -557,6 +593,7 @@ function splitReportIntoPages(reportHtml, rowsPerPage = 15) {
 // دالة إنشاء HTML للتقرير المفصل
 function generateReportHTML(invoices, reportInfo, logoBase64) {
     const { fromDate, toDate, lineOperatorsText, totals, count } = reportInfo;
+	    const credits = reportInfo.totals.credits || [];
     const currentDate = new Date().toISOString().slice(0,10).replace(/-/g, '/');
     
     const logoSrc = logoBase64 || '';
@@ -662,7 +699,23 @@ function generateReportHTML(invoices, reportInfo, logoBase64) {
         </div>
         <table class="report-table">
             <thead><tr><th>م</th><th>رقم الفاتورة</th><th>تاريخ الفاتورة</th><th>اسم السفينة</th><th>تاريخ الرحلة</th><th>العملة</th><th>المبلغ (USAD)</th><th>الضريبة (USAD)</th><th>المبلغ (EGP)</th><th>الضريبة (EGP)</th><th>الإجمالي النهائي</th></tr></thead>
-            <tbody>${rows}</tbody>
+            <tbody>${rows}
+            ${credits.map((c, i) => 
+                '<tr style="background: rgba(247,37,133,0.05);">' +
+                '<td>' + (invoices.length + i + 1) + '</td>' +
+                '<td style="color:#f72585; font-weight:bold;">' + (c.finalNumber || c.draftNumber || c.serial || '-') + '</td>' +
+                '<td>' + (c.date || '').replace(/-/g, '/') + '</td>' +
+                '<td style="color:#f72585;">إشعار خصم</td>' +
+                '<td>-</td>' +
+                '<td>' + (c.currency || 'EGP') + '</td>' +
+                '<td>' + (c.currency === 'USAD' ? (-c.displayAmount || 0).toFixed(2) : '-') + '</td>' +
+                '<td>' + (c.currency === 'USAD' ? (-c.displayTax || 0).toFixed(2) : '-') + '</td>' +
+                '<td>' + (c.currency !== 'USAD' ? (-c.displayAmount || 0).toFixed(2) : '-') + '</td>' +
+                '<td>' + (c.currency !== 'USAD' ? (-c.displayTax || 0).toFixed(2) : '-') + '</td>' +
+                '<td style="color:#f72585; font-weight:bold;">' + (-(c.displayAmount + c.displayTax) || 0).toFixed(2) + ' ' + (c.currency === 'USAD' ? 'USAD' : 'EGP') + '</td>' +
+                '</tr>'
+            ).join('')}
+			</tbody>
         </table>
         
         <div class="summary-section">
@@ -754,8 +807,67 @@ async function exportSelectedReport() {
     if (!companyLogoBase64) {
         await loadLogoFromDrive();
     }
+	
+	    // ✅ تجميع إشعارات الخصم لنفس العملاء
+    let creditItems = [];
+
+    // ✅ ترتيب إشعارات الخصم حسب التاريخ (الأقدم أولاً)
+    creditData.sort((a, b) => (a.date || '').localeCompare(b.date || ''));
+
+    if (typeof creditData !== 'undefined' && creditData.length === 0) {
+        await loadCreditDataFromDrive();
+    }
+
+    if (typeof creditData !== 'undefined' && creditData.length > 0) {
+        // جمع معرفات العملاء من الفواتير المحددة
+        const customerIds = [...new Set(selectedInvoicesData.map(inv =>
+            (inv['payee-customer-id'] || '').toLowerCase()
+        ).filter(id => id))];
+
+        // ✅ تحديد نطاق التاريخ من الفواتير المحددة
+        const invDates = selectedInvoicesData.map(inv => 
+            (inv['finalized-date'] || inv['created'] || '').slice(0, 10)
+        ).filter(d => d);
+        const minDate = invDates.length ? invDates.sort()[0] : '';
+        const maxDate = invDates.length ? invDates.sort()[invDates.length - 1] : '';
+
+        // فلترة إشعارات الخصم (حسب العميل + حسب التاريخ)
+        creditItems = creditData.filter(c => {
+            if (!c.customerId) return false;
+            const matchCustomer = customerIds.some(cid => c.customerId.toLowerCase().includes(cid));
+            if (!matchCustomer) return false;
+            
+            // فلترة حسب التاريخ إن وجد
+            const creditDate = (c.date || '').slice(0, 10);
+            if (!creditDate) return true; // إذا لم يكن له تاريخ، يظهر
+            if (minDate && creditDate < minDate) return false;
+            if (maxDate && creditDate > maxDate) return false;
+            return true;
+        });
+    }
 
     // إنشاء HTML الكامل (مع بطاقات الإجماليات)
+    // ✅ إضافة creditItems إلى كائن totals
+    totals.credits = creditItems;
+	
+	    // ✅ تحديث الإجماليات بعد خصم إشعارات الخصم
+    creditItems.forEach(c => {
+        const amount = c.displayAmount || 0;
+        const tax = c.displayTax || 0;
+        const total = amount + tax;
+        
+        if (c.currency === 'USAD') {
+            totals.usadCharges -= amount;
+            totals.usadTaxes -= tax;
+            totals.usadTotal -= total;
+        } else {
+            totals.egpCharges -= amount;
+            totals.egpTaxes -= tax;
+            totals.egpTotal -= total;
+        }
+        totals.grandTotal -= total;
+    });
+
     const reportHtmlWithSummary = generateReportHTML(selectedInvoicesData, {
         fromDate, toDate,
         lineOperatorsText,

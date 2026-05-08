@@ -3117,3 +3117,89 @@ body > div[style*="position: absolute"][style*="left: -9999px"] .grand-total-row
         gap: 4px;
     }
 }
+
+/* ========================================
+   إصلاح ألوان الخلفية في الوضع الليلي
+======================================== */
+
+/* خلفية صفوف إشعارات الخصم */
+.dark-mode tr[style*="background: rgba(247,37,133,0.05)"] {
+    background: rgba(247,37,133,0.15) !important;
+}
+
+/* خلفية تفاصيل الحاويات */
+.dark-mode td[style*="background: rgb(248, 249, 250)"] {
+    background: #1e293b !important;
+}
+
+.dark-mode .containers-detail-table {
+    background: #1e293b !important;
+}
+
+.dark-mode .containers-detail-table td {
+    background: #1e293b !important;
+    color: #e2e8f0 !important;
+    border-bottom: 1px solid #334155 !important;
+}
+
+/* خلفية بيضاء للعناصر داخل تفاصيل الفاتورة */
+.dark-mode #invoicePrint {
+    background: #ffffff !important;
+    color: #000000 !important;
+}
+
+.dark-mode #invoicePrint .info-box {
+    background: #f8f9fa !important;
+}
+
+.dark-mode #invoicePrint .info-row {
+    color: #000000 !important;
+}
+
+.dark-mode #invoicePrint .charges-table td {
+    background: #ffffff !important;
+    color: #000000 !important;
+}
+
+.dark-mode #invoicePrint .summary-box {
+    background: #f8f9fa !important;
+}
+
+/* ========================================
+   إصلاح خلفية تفاصيل بنود إشعارات الخصم في الوضع الليلي
+======================================== */
+
+.dark-mode #creditPrint {
+    background: #ffffff !important;
+    color: #000000 !important;
+}
+
+.dark-mode #creditPrint .credit-info-box {
+    background: #f8f9fa !important;
+    color: #000000 !important;
+}
+
+.dark-mode #creditPrint .credit-summary-box {
+    background: #f8f9fa !important;
+    color: #000000 !important;
+}
+
+.dark-mode #creditPrint table td {
+    background: #ffffff !important;
+    color: #000000 !important;
+    border-bottom: 1px solid #e0e0e0 !important;
+}
+
+.dark-mode #creditPrint table th {
+    background: #f72585 !important;
+    color: #ffffff !important;
+}
+
+.dark-mode #creditPrint .notes-box {
+    background: #fff3cd !important;
+    color: #000000 !important;
+}
+
+.dark-mode #creditPrint .invoice-footer {
+    color: #6c757d !important;
+}
