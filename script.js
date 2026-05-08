@@ -268,7 +268,7 @@ async function checkUnviewedInvoicesAndShowReport() {
 	
 	    // ✅ تحميل بيانات إشعارات الخصم
     if (typeof creditData !== 'undefined' && creditData.length === 0) {
-        await loadCreditDataFromDrive();
+        await loadCreditDataFromDriveSilent();
     }
     
     // إنشاء HTML التقرير (مع بطاقات الإجماليات)
@@ -9513,4 +9513,55 @@ if (originalRenderData) {
         originalRenderData.apply(this, arguments);
         syncViewModeButtons();
     };
+}
+
+// تحميل إشعارات الخصم بصمت (بدون تغيير واجهة المستخدم)
+async function loadCreditDataFromDriveSilent() {
+    if (!driveConfig.apiKey || !driveConfig.folderId) return false;
+    let fileId = driveConfig.creditFileId;
+    if (!fileId && driveConfig.creditFileName) {
+        try {
+            const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(`'${driveConfig.folderId}' in parents and name='${driveConfig.creditFileName}'`)}&key=${driveConfig.apiKey}&fields=files(id,name)`);
+            if (!res.ok) return false;
+            const data = await res.json();
+            if (!data.files?.length) return false;
+            fileId = data.files[0].id;
+            driveConfig.creditFileId = fileId;
+        } catch { return false; }
+    } else if (!fileId) return false;
+
+    try {
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${driveConfig.apiKey}`);
+        if (!res.ok) return false;
+        const content = await res.text();
+        
+        const parser = new DOMParser();
+        const xmlDoc = parser.parseFromString(content, "text/xml");
+        const parseError = xmlDoc.querySelector('parsererror');
+        let newCredits = [];
+
+        if (parseError) {
+            const matches = content.match(/<credit[\s\S]*?<\/credit>/g);
+            if (!matches?.length) return false;
+            const wrapped = parser.parseFromString(`<root>${matches.join('')}</root>`, 'text/xml');
+            const nodes = wrapped.querySelectorAll('credit');
+            for (let i = 0; i < nodes.length; i++) {
+                const credit = parseCreditNode(nodes[i]);
+                if (credit) newCredits.push(credit);
+            }
+        } else {
+            const nodes = xmlDoc.getElementsByTagName('credit');
+            for (let i = 0; i < nodes.length; i++) {
+                const credit = parseCreditNode(nodes[i]);
+                if (credit) newCredits.push(credit);
+            }
+        }
+
+        if (newCredits.length) {
+            creditData = newCredits;
+        }
+        return true;
+    } catch {
+        return false;
+    }
 }
