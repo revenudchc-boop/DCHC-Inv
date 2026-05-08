@@ -5142,6 +5142,7 @@ function renderCreditTableView(data) {
                 <thead>
                     <tr>
                         <th style="width:40px;"><input type="checkbox" onclick="toggleAllCreditCheckboxes(this)" id="selectAllCreditCheckbox"></th>
+                        <th style="width:50px;">معاينة</th>
                         <th>رقم الإشعار</th>
                         <th>رقم المسودة</th>
                         <th>رقم الفاتورة الأصلية</th>
@@ -5165,8 +5166,15 @@ function renderCreditTableView(data) {
         const isSelected = selectedCreditNotes.has(item.serial);
         const selectedClass = isSelected ? 'selected-row' : '';
 
+        const viewKey = 'credit_' + (item.serial || item.draftNumber || item.finalNumber);
+        const isViewed = viewedInvoices.has(viewKey) ? 'checked' : '';
+
         html += `<tr onclick="showCreditDetails('${item.serial}')" class="${selectedClass}" data-serial="${item.serial}" style="cursor: pointer;">
             <td onclick="event.stopPropagation()"><input type="checkbox" class="credit-checkbox" data-serial="${item.serial}" ${isSelected ? 'checked' : ''} onchange="updateSelectedCredit('${item.serial}', this.checked)"></td>
+            <td class="viewed-cell" onclick="event.stopPropagation()">
+                <input type="checkbox" class="viewed-checkbox" data-key="${viewKey}" ${isViewed} 
+                       onchange="toggleInvoiceViewed('${viewKey}', this.checked)">
+            </td>
             <td>${item.finalNumber || '-'}${item.draftNumber ? `<br><small>مسودة: ${item.draftNumber}</small>` : ''}</td>
             <td>${item.draftNumber || '-'}</td>
             <td>${item.invoiceFinalNumber || '-'}</td>
@@ -8252,7 +8260,7 @@ function renderPaymentsView() {
         // ✅ صف فرعي للفواتير المرتبطة (مخفي افتراضياً)
         if (hasInvoices) {
             html += `<tr id="paymentInvoices-${p.id}" style="display:none; background:var(--bg-hover);">
-                <td colspan="9" style="padding:15px;">
+                <td colspan="10" style="padding:15px;">
                     <div style="background:var(--bg-card); border-radius:8px; padding:12px; border:1px solid var(--border);">
                         <h4 style="margin-bottom:10px; color:var(--primary);">الفواتير المرتبطة بالسداد</h4>
                         <table style="width:100%; font-size:0.8em;">
