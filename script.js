@@ -1700,6 +1700,24 @@ window.handleGuestLogin = async function() {
     const taxNumber = document.getElementById('guestTaxNumber').value.trim();
     const blNumber = document.getElementById('guestBlNumber').value.trim();
     if (!taxNumber && !blNumber) return showLoginMessage('أدخل الرقم الضريبي أو البوليصة', 'error');
+    
+    // ✅ التحقق إذا كان الرقم الضريبي مسجلاً لمستخدم
+    if (taxNumber) {
+        await loadUsers(true);
+        const registeredUser = users.find(u => 
+            u.taxNumber === taxNumber || 
+            u.contractCustomerId === taxNumber ||
+            (u.customerIds && u.customerIds.includes(taxNumber))
+        );
+        
+        if (registeredUser) {
+            return showLoginMessage(
+                `⚠️ هذا الرقم الضريبي مسجل للمستخدم "${registeredUser.username}". الرجاء تسجيل الدخول بدلاً من وضع الزائر.`,
+                'error'
+            );
+        }
+    }
+    
     currentUser = { id: 'guest_' + Date.now(), username: 'زائر', email: 'guest@temp.com', taxNumber: taxNumber || null, blNumber: blNumber || null, userType: 'customer', isGuest: true, lastLogin: new Date().toISOString() };
     sessionStorage.setItem('currentUser', JSON.stringify(currentUser));
     document.getElementById('loginScreen').style.display = 'none';
