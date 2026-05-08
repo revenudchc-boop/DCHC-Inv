@@ -4439,7 +4439,6 @@ function renderTableView(data) {
             <div class="table-toolbar" style="display:flex; justify-content:space-between; align-items:center; margin-bottom:15px; padding:10px; background:#f8f9fa; border-radius:8px; flex-wrap: wrap; gap: 10px;">
                 <div>
                     <button class="btn btn-secondary" onclick="selectAllInvoices()" style="margin-left:10px;"><i class="fas fa-check-double"></i> تحديد الكل</button>
-					<button class="btn btn-secondary" onclick="markAllAsViewed()" style="margin-left:10px;"><i class="fas fa-eye"></i> معاينة الكل</button>
                     <button class="btn btn-secondary" onclick="deselectAllInvoices()"><i class="fas fa-times"></i> إلغاء الكل</button>
                 </div>
                 <div class="export-buttons">
@@ -9569,29 +9568,3 @@ async function loadCreditDataFromDriveSilent() {
         return false;
     }
 }
-
-async function markAllAsViewed() {
-    if (!currentUser) return;
-    
-    const pageCheckboxes = document.querySelectorAll('.viewed-checkbox');
-    let count = 0;
-    
-    pageCheckboxes.forEach(cb => {
-        if (!cb.checked) {
-            cb.checked = true;
-            const key = cb.dataset.key;
-            viewedInvoices.add(key);
-            count++;
-        }
-    });
-    
-    if (count > 0) {
-        saveViewedInvoices();
-        await saveViewedToDrive();
-        showNotification(`✅ تمت معاينة ${count} فاتورة`, 'success');
-    } else {
-        showNotification('جميع الفواتير معاينة مسبقاً', 'info');
-    }
-}
-
-window.markAllAsViewed = markAllAsViewed;
