@@ -237,8 +237,24 @@ async function checkUnviewedInvoicesAndShowReport() {
         return !viewedInvoices.has(viewKey);
     });
     
-    if (unviewedInvoices.length === 0) {
-        console.log('✅ جميع الفواتير تمت معاينتها مسبقاً');
+    // ✅ التحقق من إشعارات الخصم غير المعاينة
+    let unviewedCredits = [];
+    if (typeof creditData !== 'undefined' && creditData.length > 0) {
+        const userCredits = creditData.filter(c => {
+            if (!c.customerId) return false;
+            const custId = c.customerId.toLowerCase();
+            return userInvoices.some(inv => 
+                (inv['payee-customer-id'] || '').toLowerCase().includes(custId)
+            );
+        });
+        unviewedCredits = userCredits.filter(c => {
+            const viewKey = 'credit_' + (c.serial || c.draftNumber || c.finalNumber);
+            return !viewedInvoices.has(viewKey);
+        });
+    }
+
+    if (unviewedInvoices.length === 0 && unviewedCredits.length === 0) {
+        console.log('✅ جميع الفواتير وإشعارات الخصم تمت معاينتها');
         return;
     }
     
