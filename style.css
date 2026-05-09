@@ -3203,3 +3203,13 @@ body > div[style*="position: absolute"][style*="left: -9999px"] .grand-total-row
 .dark-mode #creditPrint .invoice-footer {
     color: #6c757d !important;
 }
+
+/* ========================================
+   لون خلفية التبويب النشط في القائمة الجانبية - الوضع النهاري
+======================================== */
+
+.light-mode .sidebar-nav a.active {
+    background: #1e293b !important;
+    color: #ffffff !important;
+    font-weight: 700 !important;
+}
