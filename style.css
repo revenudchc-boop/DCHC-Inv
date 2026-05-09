@@ -3209,7 +3209,7 @@ body > div[style*="position: absolute"][style*="left: -9999px"] .grand-total-row
 ======================================== */
 
 .light-mode .sidebar-nav a.active {
-    background: #1e293b !important;
+    background: linear-gradient(135deg, #4361ee, #3a0ca3) !important;
     color: #ffffff !important;
     font-weight: 700 !important;
 }
