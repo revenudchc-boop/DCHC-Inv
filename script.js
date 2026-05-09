@@ -145,52 +145,67 @@ async function loadViewedFromDrive() {
     return false;
 }
 
+let isSavingToDrive = false;
+let saveQueueTimer = null;
+let lastSaveTime = 0;
+
 async function saveViewedToDrive() {
-    console.log('💾 بدء حفظ حالة المعاينة إلى Google Apps Script...');
+    const now = Date.now();
+    
+    // ✅ إذا مر أقل من 3 ثواني على آخر حفظ، انتظر
+    if (now - lastSaveTime < 3000) {
+        clearTimeout(saveQueueTimer);
+        saveQueueTimer = setTimeout(() => saveViewedToDrive(), 3000);
+        return;
+    }
+    
+    // ✅ إذا كان هناك حفظ جاري، انتظر
+    if (isSavingToDrive) {
+        clearTimeout(saveQueueTimer);
+        saveQueueTimer = setTimeout(() => saveViewedToDrive(), 3000);
+        return;
+    }
+    
+    isSavingToDrive = true;
+    lastSaveTime = now;
+    console.log('💾 بدء حفظ حالة المعاينة...');
     
     for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-            // 1. جلب البيانات الحالية من السحابة
             let allData = {};
             try {
                 const readResponse = await fetch(VIEWED_CLOUD_URL);
                 if (readResponse.ok) {
-                    allData = await readResponse.json();
+                    const text = await readResponse.text();
+                    if (text && text.trim()) {
+                        allData = JSON.parse(text);
+                    }
                 }
-            } catch (e) {
-                console.warn('⚠️ تعذر قراءة البيانات الحالية، سيتم إنشاء بيانات جديدة');
-            }
-            
-            // 2. تحديث بيانات المستخدم الحالي
+            } catch (e) {}
+
             const userKey = currentUser?.username || 'guest';
-            // حفظ الفواتير المعاينة
-			allData[userKey] = [...viewedInvoices].filter(k => !k.startsWith('credit_'));
-			// حفظ إشعارات الخصم المعاينة
-			allData[userKey + '_credits'] = [...viewedInvoices].filter(k => k.startsWith('credit_'));
+            allData[userKey] = [...viewedInvoices].filter(k => !k.startsWith('credit_'));
+            allData[userKey + '_credits'] = [...viewedInvoices].filter(k => k.startsWith('credit_'));
             allData.lastUpdated = new Date().toISOString();
-            
-            // 3. حفظ البيانات المحدثة
+
             const saveResponse = await fetch(VIEWED_CLOUD_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain' },
                 body: JSON.stringify(allData)
             });
-            
+
             if (saveResponse.ok) {
-                console.log(`✅ تم حفظ الحالة للمستخدم ${userKey}`);
+                console.log(`✅ تم حفظ ${viewedInvoices.size} عنصر للمستخدم ${userKey}`);
+                isSavingToDrive = false;
                 return true;
-            } else {
-                throw new Error(`HTTP ${saveResponse.status}`);
             }
         } catch (error) {
-            console.warn(`⚠️ محاولة الحفظ ${attempt} فشلت:`, error.message);
-            if (attempt < 3) {
-                await new Promise(resolve => setTimeout(resolve, 1000));
-            }
+            console.warn(`⚠️ محاولة ${attempt} فشلت`);
+            await new Promise(resolve => setTimeout(resolve, 2000));
         }
     }
     
-    console.error('❌ فشلت جميع محاولات حفظ الحالة');
+    isSavingToDrive = false;
     return false;
 }
 
