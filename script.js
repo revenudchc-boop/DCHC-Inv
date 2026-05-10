@@ -78,11 +78,12 @@ let driveConfig = {
     folderId: '1FlBXLupfXCICs6xt7xxEE02wr_cjAapC',
     fileName: 'datatxt.txt',
     fileId: '1xZSobMThbWKcZ53OmZEWlbn6mzz5Nsnr',
+    dataFiles: [],  // ✅ جديد: مصفوفة للملفات المتعددة
     usersFileName: 'users.json',
     usersFileId: '1-ktLLXz1Febs44lB-aqfuNmTRs1GNB0w',
     logoFileId: '1DugYxs9a21e6J0ynTu6pE0yHXM2wRXSP',
-    creditFileName: 'creditdata.txt',                // ← تم التغيير
-    creditFileId: '1WU9R9Yby0_QoJeulIgYRuCQk9XV-N_e1' // ← تم الإضافة
+    creditFileName: 'creditdata.txt',
+    creditFileId: '1WU9R9Yby0_QoJeulIgYRuCQk9XV-N_e1'
 };
 
 // متغيرات التقارير
@@ -1353,10 +1354,80 @@ async function autoConfigureDrive() {
     showProgress('جاري إعداد Google Drive...', 20);
     const dataFound = await findDataFileIdAuto();
     const usersFound = await findUsersFileIdAuto();
-    const creditFound = await findCreditFileIdAuto();   // إضافة هذا السطر
+    const creditFound = await findCreditFileIdAuto();
+    
+    // ✅ اكتشاف تلقائي لجميع ملفات البيانات
+    await autoDiscoverDataFiles();
+    
     if (dataFound || usersFound || creditFound) saveDriveSettingsToStorage();
     showProgress(dataFound || usersFound || creditFound ? 'تم إعداد Drive' : 'استخدم الإعدادات الافتراضية', 100);
     setTimeout(hideProgress, 1500);
+}
+
+// ✅ دالة جديدة: اكتشاف تلقائي لجميع ملفات البيانات
+async function autoDiscoverDataFiles() {
+    if (!driveConfig.apiKey || !driveConfig.folderId) return;
+    
+    try {
+        // ✅ البحث عن جميع الملفات التي تبدأ بـ datatxt_Q
+        const query = encodeURIComponent(`'${driveConfig.folderId}' in parents and name contains 'datatxt_Q' and trashed=false`);
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&key=${driveConfig.apiKey}&fields=files(id,name,modifiedTime)`);
+        
+        if (!res.ok) return;
+        const data = await res.json();
+        
+        if (data.files && data.files.length > 0) {
+            // ✅ ترتيب حسب تاريخ التعديل (الأحدث أولاً)
+            data.files.sort((a, b) => new Date(b.modifiedTime) - new Date(a.modifiedTime));
+            
+            driveConfig.dataFiles = data.files.map(f => ({
+                name: f.name,
+                id: f.id,
+                from: '',
+                to: ''
+            }));
+            console.log('✅ تم اكتشاف ' + driveConfig.dataFiles.length + ' ملف بيانات');
+            saveDriveSettingsToStorage();
+        }
+    } catch (e) {
+        console.warn('⚠️ فشل الاكتشاف التلقائي للملفات');
+    }
+    
+    // ✅ اكتشاف نطاق التاريخ لأول ملف (الأحدث)
+    if (driveConfig.dataFiles.length > 0) {
+        await discoverFileDateRange(0);
+    }
+}
+
+// ✅ دالة جديدة: قراءة نطاق التاريخ من ملف
+async function discoverFileDateRange(fileIndex) {
+    const file = driveConfig.dataFiles[fileIndex];
+    if (!file || !file.id) return;
+    
+    try {
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media&key=${driveConfig.apiKey}`);
+        if (!res.ok) return;
+        
+        const content = await res.text();
+        
+        // استخراج أول تاريخ وآخر تاريخ
+        const dates = [];
+        const regex = /finalized-date="([^"]*)"/g;
+        let match;
+        while ((match = regex.exec(content)) !== null) {
+            dates.push(match[1].slice(0, 10));
+        }
+        
+        if (dates.length > 0) {
+            dates.sort();
+            file.from = dates[0];
+            file.to = dates[dates.length - 1];
+            console.log(`📅 ${file.name}: ${file.from} → ${file.to}`);
+            saveDriveSettingsToStorage();
+        }
+    } catch (e) {
+        console.warn(`⚠️ فشل قراءة نطاق التاريخ لـ ${file.name}`);
+    }
 }
 
 // ============================================
@@ -2411,6 +2482,27 @@ function parseCreditNode(creditElement) {
 // دوال البحث المتقدم - معدلة لاستخدام finalized-date
 // ============================================
 window.applyAdvancedSearch = async function() {
+	    // ✅ إذا كان تاريخ البحث أقدم من الملف الحالي، حمّل الملف المناسب
+    const searchDateFrom = document.getElementById('searchDateFrom')?.value;
+    if (searchDateFrom && driveConfig.dataFiles && driveConfig.dataFiles.length > 0) {
+        const sorted = [...driveConfig.dataFiles].sort((a, b) => (a.from || '').localeCompare(b.from || ''));
+        
+        for (let file of sorted) {
+            if (file.from && searchDateFrom >= file.from && searchDateFrom <= (file.to || '9999')) {
+                // تحقق إذا كان هذا الملف محمّلاً مسبقاً
+                const alreadyLoaded = invoicesData.some(inv => {
+                    const invDate = (inv['finalized-date'] || inv['created'] || '').slice(0, 10);
+                    return invDate >= file.from && invDate <= (file.to || '9999');
+                });
+                
+                if (!alreadyLoaded) {
+                    console.log(`📥 تحميل ملف ${file.name} لتاريخ ${searchDateFrom}...`);
+                    await loadAdditionalDataFile(file.name);
+                }
+                break;
+            }
+        }
+    }
 	    isSearching = true;  // 👈 أضف هذا السطر هنا
     console.log('🔍 [بحث] بدء البحث');
     console.log('📊 عدد الفواتير الكلي:', invoicesData.length);
@@ -5740,25 +5832,111 @@ function filterCreditByUser(creditArray) {
 
 async function loadInvoicesFromDrive() {
     if (!driveConfig.apiKey || !driveConfig.folderId) return false;
-    let fileId = driveConfig.fileId;
-    if (!fileId && driveConfig.fileName) {
-        try {
-            const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(`'${driveConfig.folderId}' in parents and name='${driveConfig.fileName}'`)}&key=${driveConfig.apiKey}&fields=files(id,name)`);
-            if (!res.ok) throw new Error('فشل البحث');
-            const data = await res.json();
-            if (!data.files?.length) return false;
-            fileId = data.files[0].id;
-            driveConfig.fileId = fileId;
-            if (currentUser?.userType === 'admin') saveDriveSettingsToStorage();
-        } catch { return false; }
-    } else if (!fileId) return false;
+    
+    // ✅ تحميل أحدث ملف فقط عند الفتح
+    let filesToLoad = [];
+    if (driveConfig.dataFiles && driveConfig.dataFiles.length > 0) {
+        filesToLoad = [driveConfig.dataFiles[0]]; // الملف الأول = الأحدث
+    } else {
+        let fileId = driveConfig.fileId;
+        if (!fileId && driveConfig.fileName) {
+            try {
+                const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(`'${driveConfig.folderId}' in parents and name='${driveConfig.fileName}'`)}&key=${driveConfig.apiKey}&fields=files(id,name)`);
+                if (!res.ok) throw new Error('فشل البحث');
+                const data = await res.json();
+                if (!data.files?.length) return false;
+                fileId = data.files[0].id;
+                driveConfig.fileId = fileId;
+                if (currentUser?.userType === 'admin') saveDriveSettingsToStorage();
+            } catch { return false; }
+        } else if (!fileId) return false;
+        filesToLoad = [{ name: driveConfig.fileName, id: fileId }];
+    }
 
     try {
-        showProgress('جاري تحميل البيانات...', 30);
-        const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${driveConfig.apiKey}`);
-        if (!res.ok) throw new Error('فشل التحميل');
+        let allNewInvoices = [];
+        
+        // ✅ تحميل جميع الملفات
+        // ✅ تحميل جميع الملفات بالتوازي
+        const downloadPromises = filesToLoad.map(async (file, f) => {
+            showProgress(`جاري تحميل ${file.name}... (${f + 1}/${filesToLoad.length})`, Math.round(30 + (f / filesToLoad.length) * 30));
+            
+            const res = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media&key=${driveConfig.apiKey}`);
+            if (!res.ok) return [];
+            
+            const content = await res.text();
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(content, "text/xml");
+            const parseError = xmlDoc.querySelector('parsererror');
+            let fileInvoices = [];
+
+            if (parseError) {
+                const matches = content.match(/<invoice[\s\S]*?<\/invoice>/g);
+                if (!matches?.length) return [];
+                const wrapped = parser.parseFromString(`<root>${matches.join('')}</root>`, 'text/xml');
+                const nodes = wrapped.querySelectorAll('invoice');
+                for (let i = 0; i < nodes.length; i++) { const inv = parseInvoiceNode(nodes[i]); if (inv) fileInvoices.push(inv); }
+            } else {
+                const nodes = xmlDoc.getElementsByTagName('invoice');
+                for (let i = 0; i < nodes.length; i++) { const inv = parseInvoiceNode(nodes[i]); if (inv) fileInvoices.push(inv); }
+            }
+            
+            return fileInvoices;
+        });
+        
+        const results = await Promise.all(downloadPromises);
+        results.forEach(fileInvoices => {
+            allNewInvoices = allNewInvoices.concat(fileInvoices);
+        });
+        
+        if (!allNewInvoices.length) throw new Error('لا توجد فواتير');
+        
+        // ✅ إزالة المكررات من جميع الملفات
+        const uniqueInvoices = [];
+        const seenKeys = new Set();
+        allNewInvoices.forEach(inv => {
+            const key = getInvoiceKey(inv);
+            if (!seenKeys.has(key)) {
+                seenKeys.add(key);
+                uniqueInvoices.push(inv);
+            }
+        });
+        
+        const duplicateCount = allNewInvoices.length - uniqueInvoices.length;
+        if (duplicateCount > 0 && currentUser?.userType === 'admin') {
+            showNotification(`⚠️ تم إزالة ${duplicateCount} فاتورة مكررة`, 'warning');
+        }
+        
+        invoicesData = uniqueInvoices;
+        showProgress('تم التحميل', 100);
+        
+        currentUser?.isGuest ? filterInvoicesByGuest(currentUser.taxNumber, currentUser.blNumber) : filterInvoicesByUser();
+        console.log('✅ تم تحميل الفواتير، جاري تحميل العلامات...');
+        await loadViewedFromDrive();
+        renderData();
+        setTimeout(() => { checkUnviewedInvoicesAndShowReport(); }, 500);
+        document.getElementById('fileStatus').innerHTML = `<i class="fas fa-check-circle"></i> ✅ تم تحميل ${formatNumberWithCommas(invoicesData.length)} فاتورة من Drive`;
+        updateDataSource();
+        return true;
+    } catch (error) {
+        showNotification(`❌ خطأ: ${error.message}`, 'error');
+        return false;
+    } finally { setTimeout(hideProgress, 1500); }
+}
+
+// ✅ تحميل ملف بيانات إضافي حسب الحاجة
+async function loadAdditionalDataFile(fileName) {
+    if (!driveConfig.dataFiles || driveConfig.dataFiles.length === 0) return false;
+    
+    const file = driveConfig.dataFiles.find(f => f.name === fileName);
+    if (!file || !file.id) return false;
+    
+    try {
+        showProgress(`جاري تحميل ${file.name}...`, 30);
+        const res = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media&key=${driveConfig.apiKey}`);
+        if (!res.ok) return false;
+        
         const content = await res.text();
-        showProgress('جاري تحليل البيانات...', 60);
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(content, "text/xml");
         const parseError = xmlDoc.querySelector('parsererror');
@@ -5766,7 +5944,7 @@ async function loadInvoicesFromDrive() {
 
         if (parseError) {
             const matches = content.match(/<invoice[\s\S]*?<\/invoice>/g);
-            if (!matches?.length) throw new Error('لا توجد فواتير');
+            if (!matches?.length) return false;
             const wrapped = parser.parseFromString(`<root>${matches.join('')}</root>`, 'text/xml');
             const nodes = wrapped.querySelectorAll('invoice');
             for (let i = 0; i < nodes.length; i++) { const inv = parseInvoiceNode(nodes[i]); if (inv) newInvoices.push(inv); }
@@ -5775,50 +5953,27 @@ async function loadInvoicesFromDrive() {
             for (let i = 0; i < nodes.length; i++) { const inv = parseInvoiceNode(nodes[i]); if (inv) newInvoices.push(inv); }
         }
 
-        if (!newInvoices.length) throw new Error('لا توجد فواتير');
-        // ✅ إزالة الفواتير المكررة
-			const uniqueInvoicesRemove = [];
-			const seenKeysRemove = new Set();
-
-			newInvoices.forEach(inv => {
-				const key = getInvoiceKey(inv);
-				if (!seenKeysRemove.has(key)) {
-					seenKeysRemove.add(key);
-					uniqueInvoicesRemove.push(inv);
-				}
-			});
-
-			const duplicateCountRemove = newInvoices.length - uniqueInvoicesRemove.length;
-				if (duplicateCountRemove > 0 && currentUser?.userType === 'admin') {
-					showNotification(`⚠️ تم إزالة ${duplicateCountRemove} فاتورة مكررة`, 'warning');
-				}
-
-			invoicesData = uniqueInvoicesRemove;
+        // ✅ دمج مع البيانات الحالية وإزالة المكررات
+        const allInvoices = [...invoicesData, ...newInvoices];
+        const uniqueInvoices = [];
+        const seenKeys = new Set();
+        allInvoices.forEach(inv => {
+            const key = getInvoiceKey(inv);
+            if (!seenKeys.has(key)) {
+                seenKeys.add(key);
+                uniqueInvoices.push(inv);
+            }
+        });
+        
+        invoicesData = uniqueInvoices;
         showProgress('تم التحميل', 100);
-        
-        // ✅ تطبيق تصفية المستخدم أولاً
-        currentUser?.isGuest ? filterInvoicesByGuest(currentUser.taxNumber, currentUser.blNumber) : filterInvoicesByUser();
-        
-        // ✅ بعد تحميل الفواتير، قم بتحميل العلامات (checkbox)
-        console.log('✅ تم تحميل الفواتير، جاري تحميل العلامات...');
-        
-        // انتظار اكتمال تحميل العلامات ثم تحديث الجدول
-        await loadViewedFromDrive();
-        
-        // تحديث واجهة المستخدم مرة أخيرة
-        renderData();
-        
-		// بعد تحميل العلامات وتحديث الجدول
-		setTimeout(() => {
-			checkUnviewedInvoicesAndShowReport();
-		}, 500);
-        document.getElementById('fileStatus').innerHTML = `<i class="fas fa-check-circle"></i> ✅ تم تحميل ${formatNumberWithCommas(invoicesData.length)} فاتورة من Drive`;
-        updateDataSource();
         return true;
-    } catch (error) {
-        showNotification(`❌ خطأ: ${error.message}`, 'error');
+    } catch (e) {
+        console.error('فشل تحميل الملف الإضافي:', e);
         return false;
-    } finally { setTimeout(hideProgress, 1500); }
+    } finally {
+        setTimeout(hideProgress, 1500);
+    }
 }
 
 window.updateFromDrive = async function() {
