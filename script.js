@@ -2227,18 +2227,12 @@ function parseInvoiceNode(invoice) {
         for (let j = 0; j < charges.length; j++) {
             const charge = charges[j];
             
-            let storageDays = 1;
-            const from = charge.getAttribute('event-performed-from');
-            const to = charge.getAttribute('event-performed-to');
-            
-            if (from && to) {
-                const d1 = new Date(from), d2 = new Date(to);
-                if (!isNaN(d1) && !isNaN(d2)) {
-                    const diffTime = Math.abs(d2 - d1);
-                    const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
-                    storageDays = diffDays + 1;
-                }
-            }
+            // ✅ استخدام quantity-billed كعدد أيام التخزين
+            const from = charge.getAttribute('event-performed-from') || '';
+            const to = charge.getAttribute('event-performed-to') || '';
+            const qtyBilled = parseFloat(charge.getAttribute('quantity-billed') || '1');
+            let storageDays = Math.round(qtyBilled);
+            if (storageDays < 1) storageDays = 1;
             
             // قراءة الكمية من XML
             const quantityBilled = parseFloat(charge.getAttribute('quantity-billed') || 1);
