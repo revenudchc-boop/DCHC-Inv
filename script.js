@@ -103,6 +103,7 @@ const SYNC_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwhI-WpSqD2jmS
 const VIEWED_CLOUD_URL = 'https://script.google.com/macros/s/AKfycbwXfSeRg3JAxsgCTDedaspLe9SVEAn5gpInrs-TLGkbgq9599UOhXRQX2DR3cjW7X0R1A/exec';
 // إعدادات نظام السدادات (Google Apps Script)
 const PAYMENTS_API_URL = 'https://script.google.com/macros/s/AKfycbzy9GqPotfkBmVcbBqQsqcyUEGSoTkGGxZDiEi8qjvX4yoxW6BgAGC83KI3xYDJMSDn/exec';
+const DATA_API_URL = 'https://script.google.com/macros/s/AKfycbzqNBf4Ct-RQQOImyP8djL-tqaUcMf8SaFDjc0XVcS9nRyZV2UQTwExmtj33mYfRUynWA/exec';
 // متغيرات نظام السدادات
 let paymentsData = [];
 let filteredPayments = [];
@@ -1366,20 +1367,12 @@ async function autoConfigureDrive() {
 
 // ✅ دالة جديدة: اكتشاف تلقائي لجميع ملفات البيانات
 async function autoDiscoverDataFiles() {
-    if (!driveConfig.apiKey || !driveConfig.folderId) return;
-    
     try {
-        // ✅ البحث عن جميع الملفات التي تبدأ بـ datatxt_Q
-        const query = encodeURIComponent(`'${driveConfig.folderId}' in parents and name contains 'datatxt_Q' and trashed=false`);
-        const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&key=${driveConfig.apiKey}&fields=files(id,name,modifiedTime)`);
-        
-        if (!res.ok) return;
+        showProgress('جاري اكتشاف ملفات البيانات...', 20);
+        const res = await fetch(DATA_API_URL);
         const data = await res.json();
         
-        if (data.files && data.files.length > 0) {
-            // ✅ ترتيب حسب تاريخ التعديل (الأحدث أولاً)
-            data.files.sort((a, b) => new Date(b.modifiedTime) - new Date(a.modifiedTime));
-            
+        if (data.success && data.files && data.files.length > 0) {
             driveConfig.dataFiles = data.files.map(f => ({
                 name: f.name,
                 id: f.id,
@@ -1388,14 +1381,16 @@ async function autoDiscoverDataFiles() {
             }));
             console.log('✅ تم اكتشاف ' + driveConfig.dataFiles.length + ' ملف بيانات');
             saveDriveSettingsToStorage();
+            showProgress('تم اكتشاف ' + driveConfig.dataFiles.length + ' ملف', 100);
+        } else {
+            console.warn('⚠️ لا توجد ملفات بيانات');
+            showProgress('لا توجد ملفات بيانات', 100);
         }
     } catch (e) {
         console.warn('⚠️ فشل الاكتشاف التلقائي للملفات');
-    }
-    
-    // ✅ اكتشاف نطاق التاريخ لأول ملف (الأحدث)
-    if (driveConfig.dataFiles.length > 0) {
-        await discoverFileDateRange(0);
+        showProgress('فشل اكتشاف الملفات', 100);
+    } finally {
+        setTimeout(hideProgress, 1000);
     }
 }
 
@@ -5831,8 +5826,6 @@ function filterCreditByUser(creditArray) {
 
 
 async function loadInvoicesFromDrive() {
-    if (!driveConfig.apiKey || !driveConfig.folderId) return false;
-    
     // ✅ تحميل أحدث ملف فقط عند الفتح
     let filesToLoad = [];
     if (driveConfig.dataFiles && driveConfig.dataFiles.length > 0) {
@@ -5857,14 +5850,22 @@ async function loadInvoicesFromDrive() {
         let allNewInvoices = [];
         
         // ✅ تحميل جميع الملفات
-        // ✅ تحميل جميع الملفات بالتوازي
         const downloadPromises = filesToLoad.map(async (file, f) => {
             showProgress(`جاري تحميل ${file.name}... (${f + 1}/${filesToLoad.length})`, Math.round(30 + (f / filesToLoad.length) * 30));
             
-            const res = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media&key=${driveConfig.apiKey}`);
-            if (!res.ok) return [];
+            // ✅ جلب الملف من Google Apps Script بدلاً من Drive API
+            const response = await fetch(DATA_API_URL, {
+                method: 'POST',
+                headers: { 'Content-Type': 'text/plain' },
+                body: JSON.stringify({ fileId: file.id, fileName: file.name })
+            });
             
-            const content = await res.text();
+            if (!response.ok) return [];
+            const result = await response.json();
+            if (!result.success) return [];
+            
+            // فك base64
+            const content = atob(result.content);
             const parser = new DOMParser();
             const xmlDoc = parser.parseFromString(content, "text/xml");
             const parseError = xmlDoc.querySelector('parsererror');
@@ -5933,10 +5934,17 @@ async function loadAdditionalDataFile(fileName) {
     
     try {
         showProgress(`جاري تحميل ${file.name}...`, 30);
-        const res = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media&key=${driveConfig.apiKey}`);
-        if (!res.ok) return false;
+        // ✅ جلب الملف من Google Apps Script
+        const response = await fetch(DATA_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({ fileId: file.id, fileName: file.name })
+        });
+        if (!response.ok) return false;
+        const result = await response.json();
+        if (!result.success) return false;
         
-        const content = await res.text();
+        const content = atob(result.content);
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(content, "text/xml");
         const parseError = xmlDoc.querySelector('parsererror');
