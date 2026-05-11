@@ -1369,7 +1369,11 @@ async function autoConfigureDrive() {
 async function autoDiscoverDataFiles() {
     try {
         showProgress('جاري اكتشاف ملفات البيانات...', 20);
-        const res = await fetch(DATA_API_URL);
+        const res = await fetch(DATA_API_URL, {
+            method: 'POST',
+            headers: { 'Content-Type': 'text/plain' },
+            body: JSON.stringify({ action: 'list' })
+        });
         const data = await res.json();
         
         if (data.success && data.files && data.files.length > 0) {
@@ -5857,7 +5861,7 @@ async function loadInvoicesFromDrive() {
             const response = await fetch(DATA_API_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify({ fileId: file.id, fileName: file.name })
+                body: JSON.stringify({ action: 'getFile', fileId: file.id, fileName: file.name })
             });
             
             if (!response.ok) return [];
@@ -5938,7 +5942,7 @@ async function loadAdditionalDataFile(fileName) {
         const response = await fetch(DATA_API_URL, {
             method: 'POST',
             headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({ fileId: file.id, fileName: file.name })
+            body: JSON.stringify({ action: 'getFile', fileId: file.id, fileName: file.name })
         });
         if (!response.ok) return false;
         const result = await response.json();
