@@ -1371,8 +1371,8 @@ async function autoDiscoverDataFiles() {
         showProgress('جاري اكتشاف ملفات البيانات...', 20);
         const res = await fetch(DATA_API_URL, {
             method: 'POST',
-            headers: { 'Content-Type': 'text/plain' },
-            body: JSON.stringify({ action: 'list' })
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: 'action=list'
         });
         const data = await res.json();
         
