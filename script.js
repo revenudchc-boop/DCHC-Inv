@@ -103,6 +103,7 @@ const SYNC_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwhI-WpSqD2jmS
 const VIEWED_CLOUD_URL = 'https://script.google.com/macros/s/AKfycbwXfSeRg3JAxsgCTDedaspLe9SVEAn5gpInrs-TLGkbgq9599UOhXRQX2DR3cjW7X0R1A/exec';
 // إعدادات نظام السدادات (Google Apps Script)
 const PAYMENTS_API_URL = 'https://script.google.com/macros/s/AKfycbzy9GqPotfkBmVcbBqQsqcyUEGSoTkGGxZDiEi8qjvX4yoxW6BgAGC83KI3xYDJMSDn/exec';
+const DATA_API_URL = 'https://script.google.com/macros/s/AKfycbzqNBf4Ct-RQQOImyP8djL-tqaUcMf8SaFDjc0XVcS9nRyZV2UQTwExmtj33mYfRUynWA/exec';
 // متغيرات نظام السدادات
 let paymentsData = [];
 let filteredPayments = [];
