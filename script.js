@@ -3718,12 +3718,14 @@ window.showInvoiceDetails = async function(index) {
     const inv = invoicesData[index];
 	    // ✅ إذا كانت تفاصيل الفاتورة فارغة، نجلبها من Google Apps Script
     if (!inv.charges || inv.charges.length === 0) {
-        const file = driveConfig.dataFiles && driveConfig.dataFiles.length > 0 ? driveConfig.dataFiles[0] : null;
-        if (file) {
-            showNotification('جاري تحميل تفاصيل الفاتورة...', 'info');
-            
-            const detailData = await new Promise((resolve) => {
-                const callbackName = 'jsonp_detail_' + Date.now();
+        showNotification('جاري تحميل تفاصيل الفاتورة...', 'info');
+        let detailData = null;
+        
+        // ✅ البحث في جميع الملفات عن الفاتورة
+        for (let i = 0; i < driveConfig.dataFiles.length; i++) {
+            const file = driveConfig.dataFiles[i];
+            const result = await new Promise((resolve) => {
+                const callbackName = 'jsonp_detail_' + Date.now() + '_' + i;
                 window[callbackName] = function(data) {
                     delete window[callbackName];
                     document.body.removeChild(script);
@@ -3733,6 +3735,13 @@ window.showInvoiceDetails = async function(index) {
                 script.src = DATA_API_URL + '?action=detail&fileId=' + file.id + '&draft=' + (inv['draft-number'] || inv['final-number']) + '&callback=' + callbackName;
                 document.body.appendChild(script);
             });
+            if (result.success) {
+                detailData = result;
+                break;
+            }
+        }
+        
+        if (detailData) {
             
 			console.log('📋 detailData:', detailData);
             if (detailData.success) {
