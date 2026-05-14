@@ -3732,7 +3732,7 @@ window.showInvoiceDetails = async function(index) {
                     resolve(data);
                 };
                 const script = document.createElement('script');
-                script.src = DATA_API_URL + '?action=detail&fileId=' + file.id + '&draft=' + (inv['draft-number'] || inv['final-number']) + '&callback=' + callbackName;
+                script.src = DATA_API_URL + '?action=detail&fileId=' + file.id + '&draft=' + (inv['final-number'] || inv['draft-number']) + '&callback=' + callbackName;
                 document.body.appendChild(script);
             });
             if (result.success) {
@@ -3741,24 +3741,17 @@ window.showInvoiceDetails = async function(index) {
             }
         }
         
-        if (detailData) {
-            
-			console.log('📋 detailData:', detailData);
-            if (detailData.success) {
+        if (detailData && detailData.success) {
             const xmlContent = decodeURIComponent(escape(atob(detailData.xml)));
-			                console.log('📋 xmlContent طول:', xmlContent.length);
-                console.log('📋 xmlContent أول 300 حرف:', xmlContent.substring(0, 300));
-                const parser = new DOMParser();
-                const xmlDoc = parser.parseFromString(xmlContent, "text/xml");
-                const invoiceNode = xmlDoc.querySelector('invoice');
-                if (invoiceNode) {
-                    const detailedInv = parseInvoiceNode(invoiceNode);
-                    if (detailedInv) {
-                        inv.charges = detailedInv.charges || [];
-                        inv.containers = detailedInv.containers || [];
-                        // تحديث البيانات في المصفوفة الرئيسية
-                        invoicesData[index] = inv;
-                    }
+            const parser = new DOMParser();
+            const xmlDoc = parser.parseFromString(xmlContent, "text/xml");
+            const invoiceNode = xmlDoc.querySelector('invoice');
+            if (invoiceNode) {
+                const detailedInv = parseInvoiceNode(invoiceNode);
+                if (detailedInv) {
+                    inv.charges = detailedInv.charges || [];
+                    inv.containers = detailedInv.containers || [];
+                    invoicesData[index] = inv;
                 }
             }
         }
