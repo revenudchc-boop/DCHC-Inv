@@ -1441,22 +1441,29 @@ async function discoverFileDateRange(fileIndex) {
 // دوال المستخدمين
 // ============================================
 async function loadUsersFromDrive() {
-    if (!driveConfig.apiKey || !driveConfig.folderId || !driveConfig.usersFileId) return false;
     try {
-        showProgress('جاري تحميل المستخدمين...', 30);
-        const res = await fetch(`https://www.googleapis.com/drive/v3/files/${driveConfig.usersFileId}?alt=media&key=${driveConfig.apiKey}`);
-        if (!res.ok) throw new Error('فشل التحميل');
-        let content = await res.text();
-        try { JSON.parse(content); } catch { content = repairJSON(content); }
-        users = JSON.parse(content);
-        if (!Array.isArray(users)) throw new Error('ملف غير صالح');
-        localStorage.setItem('backupUsers', JSON.stringify(users));
-        return true;
-    } catch (error) {
-        console.error(error);
-        showNotification('فشل تحميل المستخدمين', 'error');
+        const data = await new Promise((resolve) => {
+            const callbackName = 'jsonp_users_' + Date.now();
+            window[callbackName] = function(data) {
+                delete window[callbackName];
+                document.body.removeChild(script);
+                resolve(data);
+            };
+            const script = document.createElement('script');
+            script.src = DATA_API_URL + '?action=users&callback=' + callbackName;
+            document.body.appendChild(script);
+        });
+        
+        if (data.success && data.users) {
+            users = data.users;
+            localStorage.setItem('backupUsers', JSON.stringify(users));
+            return true;
+        }
         return false;
-    } finally { setTimeout(hideProgress, 1500); }
+    } catch (error) {
+        console.error('فشل تحميل المستخدمين:', error);
+        return false;
+    }
 }
 
 async function saveUsersToDrive() {
