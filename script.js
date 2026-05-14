@@ -3632,6 +3632,42 @@ async function exportMultipleInvoices(indices) {
             const originalSelectedIndex = selectedInvoiceIndex;
             
             selectedInvoiceIndex = index;
+            const inv = invoicesData[index];
+            
+            // ✅ إذا كانت التفاصيل فارغة، حمّلها أولاً
+            if (!inv.charges || inv.charges.length === 0) {
+                for (let i = 0; i < driveConfig.dataFiles.length; i++) {
+                    const file = driveConfig.dataFiles[i];
+                    const detailData = await new Promise((resolve) => {
+                        const callbackName = 'jsonp_exp_' + Date.now() + '_' + index + '_' + i;
+                        window[callbackName] = function(data) {
+                            delete window[callbackName];
+                            document.body.removeChild(script);
+                            resolve(data);
+                        };
+                        const script = document.createElement('script');
+                        script.src = DATA_API_URL + '?action=detail&fileId=' + file.id + '&draft=' + (inv['final-number'] || inv['draft-number']) + '&callback=' + callbackName;
+                        document.body.appendChild(script);
+                    });
+                    
+                    if (detailData && detailData.success) {
+                        const xmlContent = decodeURIComponent(escape(atob(detailData.xml)));
+                        const parser = new DOMParser();
+                        const xmlDoc = parser.parseFromString(xmlContent, "text/xml");
+                        const invoiceNode = xmlDoc.querySelector('invoice');
+                        if (invoiceNode) {
+                            const detailedInv = parseInvoiceNode(invoiceNode);
+                            if (detailedInv) {
+                                inv.charges = detailedInv.charges || [];
+                                inv.containers = detailedInv.containers || [];
+                                invoicesData[index] = inv;
+                                break;
+                            }
+                        }
+                    }
+                }
+            }
+            
             showInvoiceDetails(index);
             
             await new Promise(resolve => setTimeout(resolve, 300));
