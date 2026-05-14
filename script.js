@@ -2502,7 +2502,13 @@ window.applyAdvancedSearch = async function() {
         const sorted = [...driveConfig.dataFiles].sort((a, b) => (a.from || '').localeCompare(b.from || ''));
         
         for (let file of sorted) {
-            if (file.from && searchDateFrom >= file.from && searchDateFrom <= (file.to || '9999')) {
+            // ✅ تحقق من تداخل الفترات
+            const searchDateTo = document.getElementById('searchDateTo')?.value || new Date().toISOString().slice(0, 10);
+            const fileFrom = file.from || '0000';
+            const fileTo = file.to || '9999';
+            const overlap = (searchDateFrom <= fileTo && searchDateTo >= fileFrom);
+            
+            if (file.from && overlap) {
                 // تحقق إذا كان هذا الملف محمّلاً مسبقاً
                 const alreadyLoaded = invoicesData.some(inv => {
                     const invDate = (inv['finalized-date'] || inv['created'] || '').slice(0, 10);
@@ -2512,8 +2518,8 @@ window.applyAdvancedSearch = async function() {
                 if (!alreadyLoaded) {
                     console.log(`📥 تحميل ملف ${file.name} لتاريخ ${searchDateFrom}...`);
                     await loadAdditionalDataFile(file.name);
+                    break;
                 }
-                break;
             }
         }
     }
@@ -3196,8 +3202,45 @@ window.exportSelectedContainers = async function() {
         let allContainers = [];
         let containerCounter = 0;
         
-        selectedIndices.forEach(index => {
+        for (let i = 0; i < selectedIndices.length; i++) {
+            const index = selectedIndices[i];
             const inv = invoicesData[index];
+            
+            // ✅ تحميل التفاصيل إذا كانت فارغة
+            if (!inv.charges || inv.charges.length === 0) {
+                for (let j = 0; j < driveConfig.dataFiles.length; j++) {
+                    const file = driveConfig.dataFiles[j];
+                    const detailData = await new Promise((resolve) => {
+                        const callbackName = 'jsonp_cont_' + Date.now() + '_' + i + '_' + j;
+                        window[callbackName] = function(data) {
+                            delete window[callbackName];
+                            document.body.removeChild(script);
+                            resolve(data);
+                        };
+                        const script = document.createElement('script');
+                        script.src = DATA_API_URL + '?action=detail&fileId=' + file.id + '&draft=' + (inv['final-number'] || inv['draft-number']) + '&callback=' + callbackName;
+                        document.body.appendChild(script);
+                    });
+                    
+                    if (detailData && detailData.success) {
+                        const xmlContent = decodeURIComponent(escape(atob(detailData.xml)));
+                        const parser = new DOMParser();
+                        const xmlDoc = parser.parseFromString(xmlContent, "text/xml");
+                        const invoiceNode = xmlDoc.querySelector('invoice');
+                        if (invoiceNode) {
+                            const detailedInv = parseInvoiceNode(invoiceNode);
+                            if (detailedInv) {
+                                inv.charges = detailedInv.charges || [];
+                                inv.containers = detailedInv.containers || [];
+                                invoicesData[index] = inv;
+                                break;
+                            }
+                        }
+                    }
+                }
+                await new Promise(resolve => setTimeout(resolve, 200));
+            }
+            
             const finalNum = inv['final-number'] || '';
             const isPostponed = finalNum.startsWith('P') || finalNum.startsWith('p');
             const grouped = isPostponed ? groupPostponedCharges(inv.charges) : groupCashCharges(inv.charges);
@@ -3231,7 +3274,7 @@ window.exportSelectedContainers = async function() {
                     });
                 }
             });
-        });
+        }
         
         if (allContainers.length === 0) {
             showNotification('لا توجد حاويات في الفواتير المحددة', 'info');
@@ -3508,6 +3551,42 @@ async function exportSingleInvoice() {
         showNotification('لا توجد بيانات للفاتورة', 'error');
         return;
     }
+    
+    // ✅ تحميل التفاصيل إذا كانت فارغة
+    if (!inv.charges || inv.charges.length === 0) {
+        for (let j = 0; j < driveConfig.dataFiles.length; j++) {
+            const file = driveConfig.dataFiles[j];
+            const detailData = await new Promise((resolve) => {
+                const callbackName = 'jsonp_single_' + Date.now() + '_' + j;
+                window[callbackName] = function(data) {
+                    delete window[callbackName];
+                    document.body.removeChild(script);
+                    resolve(data);
+                };
+                const script = document.createElement('script');
+                script.src = DATA_API_URL + '?action=detail&fileId=' + file.id + '&draft=' + (inv['final-number'] || inv['draft-number']) + '&callback=' + callbackName;
+                document.body.appendChild(script);
+            });
+            
+            if (detailData && detailData.success) {
+                const xmlContent = decodeURIComponent(escape(atob(detailData.xml)));
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlContent, "text/xml");
+                const invoiceNode = xmlDoc.querySelector('invoice');
+                if (invoiceNode) {
+                    const detailedInv = parseInvoiceNode(invoiceNode);
+                    if (detailedInv) {
+                        inv.charges = detailedInv.charges || [];
+                        inv.containers = detailedInv.containers || [];
+                        invoicesData[selectedInvoiceIndex] = inv;
+                        break;
+                    }
+                }
+            }
+        }
+        await new Promise(resolve => setTimeout(resolve, 300));
+    }
+    
     const invoiceNumber = inv['final-number'] || 'فاتورة';
     
     const loading = document.createElement('div');
@@ -3634,12 +3713,12 @@ async function exportMultipleInvoices(indices) {
             selectedInvoiceIndex = index;
             const inv = invoicesData[index];
             
-            // ✅ إذا كانت التفاصيل فارغة، حمّلها أولاً
+            // ✅ تحميل التفاصيل إذا كانت فارغة
             if (!inv.charges || inv.charges.length === 0) {
-                for (let i = 0; i < driveConfig.dataFiles.length; i++) {
-                    const file = driveConfig.dataFiles[i];
+                for (let j = 0; j < driveConfig.dataFiles.length; j++) {
+                    const file = driveConfig.dataFiles[j];
                     const detailData = await new Promise((resolve) => {
-                        const callbackName = 'jsonp_exp_' + Date.now() + '_' + index + '_' + i;
+                        const callbackName = 'jsonp_exp_' + Date.now() + '_' + index + '_' + j;
                         window[callbackName] = function(data) {
                             delete window[callbackName];
                             document.body.removeChild(script);
@@ -3666,6 +3745,8 @@ async function exportMultipleInvoices(indices) {
                         }
                     }
                 }
+                // ✅ انتظر قليلاً حتى تكتمل العملية
+                await new Promise(resolve => setTimeout(resolve, 300));
             }
             
             showInvoiceDetails(index);
@@ -5972,8 +6053,11 @@ async function loadInvoicesFromDrive() {
                 'finalized-date': inv['finalized-date'] || '',
                 'status': inv['status'] || '',
                 'currency': inv['currency'] || 'EGP',
+				'invoice-type-id': inv['invoice-type-id'] || '',
                 'payee-customer-id': inv['payee-customer-id'] || '',
                 'contract-customer-id': inv['contract-customer-id'] || '',
+				'payee-customer-role': inv['payee-customer-role'] || '',
+                'contract-customer-role': inv['contract-customer-role'] || '',
                 'total-total': parseFloat(inv['total-total'] || 0),
                 'total-charges': parseFloat(inv['total-charges'] || 0),
                 'total-taxes': parseFloat(inv['total-taxes'] || 0),
@@ -5983,6 +6067,8 @@ async function loadInvoicesFromDrive() {
                 'flex-string-06': inv['flex-string-06'] || '48.0215',
                 'flex-date-02': inv['flex-date-02'] || '',
                 'created': inv['created'] || '',
+				'creator': inv['creator'] || '',
+				'changer': inv['changer'] || '',
                 'containers': [],
                 'charges': []
             }));
@@ -6060,8 +6146,11 @@ async function loadAdditionalDataFile(fileName) {
             'finalized-date': inv['finalized-date'] || '',
             'status': inv['status'] || '',
             'currency': inv['currency'] || 'EGP',
+			'invoice-type-id': inv['invoice-type-id'] || '',
             'payee-customer-id': inv['payee-customer-id'] || '',
             'contract-customer-id': inv['contract-customer-id'] || '',
+			'payee-customer-role': inv['payee-customer-role'] || '',
+            'contract-customer-role': inv['contract-customer-role'] || '',
             'total-total': parseFloat(inv['total-total'] || 0),
             'total-charges': parseFloat(inv['total-charges'] || 0),
             'total-taxes': parseFloat(inv['total-taxes'] || 0),
@@ -6071,6 +6160,8 @@ async function loadAdditionalDataFile(fileName) {
             'flex-string-06': inv['flex-string-06'] || '48.0215',
             'flex-date-02': inv['flex-date-02'] || '',
             'created': inv['created'] || '',
+			'creator': inv['creator'] || '',
+			'changer': inv['changer'] || '',
             'containers': [],
             'charges': []
         }));
@@ -8898,7 +8989,6 @@ document.addEventListener('DOMContentLoaded', async () => {
     }
 });
         document.getElementById('itemsPerPage')?.addEventListener('change', changeItemsPerPage);
-        document.querySelectorAll('#searchFinalNumber, #searchDraftNumber, #searchCustomer, #searchVessel, #searchBlNumber, #searchContainer, #searchStatus, #searchDateFrom, #searchDateTo, #searchInvoiceType').forEach(input => input?.addEventListener('input', debounce(applyAdvancedSearch, 500)));
         window.addEventListener('click', e => { if (e.target === document.getElementById('invoiceModal')) window.closeModal(); });
         await loadSavedData();
         updateDataSource();
