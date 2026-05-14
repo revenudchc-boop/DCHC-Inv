@@ -3698,7 +3698,7 @@ window.exportInvoicePDF = function() {
 // ============================================
 // دوال الفاتورة والنموذج الفرعي - مع صورة الشعار المحسنة
 // ============================================
-window.showInvoiceDetails = function(index) {
+window.showInvoiceDetails = async function(index) {
     console.log('showInvoiceDetails called with index:', index);
     if (index < 0 || index >= invoicesData.length) {
         console.error('Index out of range!');
