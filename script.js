@@ -2797,7 +2797,7 @@ function renderCardsView(data) {
                     </div>
                     <div class="card-row"><span class="card-label">المسودة:</span><span class="card-value">${inv['draft-number'] || '-'}</span></div>
                     <div class="card-row"><span class="card-label">العملة:</span><span class="card-value">${currency}</span></div>
-                    <div class="card-row"><span class="card-label">سعر الصرف:</span><span class="card-value">${exRate.toFixed(4)}</span></div>
+                    <div class="card-row"><span class="card-label">سعر الصرف:</span><span class="card-value">${parseFloat(exRate).toFixed(4)}</span></div>
                 </div>
                 <div class="card-footer">
                     <span>الإجمالي:</span>
@@ -3343,7 +3343,7 @@ window.exportContainerDetails = async function(groupIndex) {
         ['العميل:', inv['payee-customer-id'] || '-'],
         ['السفينة:', inv['key-word1'] || '-'],
         ['رقم البوليصة:', inv['key-word2'] || '-'],
-        ['سعر الصرف:', exRate.toFixed(4)],
+        ['سعر الصرف:', parseFloat(exRate).toFixed(4)],
         [],
         ['م', 'رقم الحاوية', 'التاريخ من', 'التاريخ إلى', 'عدد الأيام', 'سعر الوحدة', 'المبلغ', 'العملة']
     ];
@@ -3917,7 +3917,7 @@ if (isPostponed) {
         `;
     }
 
-    let exchangeRateRow = `<div class="info-row"><span>سعر الصرف:</span><span><strong>${exRate.toFixed(4)}</strong></span></div>`;
+    let exchangeRateRow = `<div class="info-row"><span>سعر الصرف:</span><span><strong>${parseFloat(exRate).toFixed(4)}</strong></span></div>`;
 
     // تحديث عناوين الجدول
     const tableHeaders = isPostponed ? 
@@ -6251,7 +6251,7 @@ function createQRCodeInvoiceHTML(invoice) {
                     <h4 style="color:#4361ee; margin:0 0 8px; font-size:0.95em;">معلومات إضافية</h4>
                     <div class="qr-info-row"><span>الحالة:</span><span>${invoice['status'] || '-'}</span></div>
                     <div class="qr-info-row"><span>العملة:</span><span>${invoice['currency'] || '-'}</span></div>
-                    <div class="qr-info-row"><span>سعر الصرف:</span><span><strong>${exRate.toFixed(4)}</strong></span></div>
+                    <div class="qr-info-row"><span>سعر الصرف:</span><span><strong>${parseFloat(exRate).toFixed(4)}</strong></span></div>
                 </div>
             </div>
             
