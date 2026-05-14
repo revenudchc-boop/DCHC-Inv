@@ -5987,8 +5987,9 @@ async function loadAdditionalDataFile(fileName) {
     
     try {
         showProgress(`جاري تحميل ${file.name}...`, 30);
-        // ✅ استخدام JSONP لجلب الملف
-        const result = await new Promise((resolve) => {
+        
+        // ✅ طلب الفواتير المحللة من Google Apps Script
+        const data = await new Promise((resolve) => {
             const callbackName = 'jsonp_add_' + Date.now();
             window[callbackName] = function(data) {
                 delete window[callbackName];
@@ -5996,30 +5997,35 @@ async function loadAdditionalDataFile(fileName) {
                 resolve(data);
             };
             const script = document.createElement('script');
-            script.src = DATA_API_URL + '?action=getFile&fileId=' + file.id + '&callback=' + callbackName;
+            script.src = DATA_API_URL + '?action=invoices&fileId=' + file.id + '&callback=' + callbackName;
             document.body.appendChild(script);
         });
         
-        if (!result.success) return false;
+        if (!data.success) return false;
         
-        const content = atob(result.content);
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(content, "text/xml");
-        const parseError = xmlDoc.querySelector('parsererror');
-        let newInvoices = [];
+        // تحويل البيانات المستلمة إلى كائنات فواتير
+        const newInvoices = data.invoices.map(inv => ({
+            'final-number': inv['final-number'] || '',
+            'draft-number': inv['draft-number'] || '',
+            'finalized-date': inv['finalized-date'] || '',
+            'status': inv['status'] || '',
+            'currency': inv['currency'] || 'EGP',
+            'payee-customer-id': inv['payee-customer-id'] || '',
+            'contract-customer-id': inv['contract-customer-id'] || '',
+            'total-total': parseFloat(inv['total-total'] || 0),
+            'total-charges': parseFloat(inv['total-charges'] || 0),
+            'total-taxes': parseFloat(inv['total-taxes'] || 0),
+            'key-word1': inv['key-word1'] || '',
+            'key-word2': inv['key-word2'] || '',
+            'key-word3': inv['key-word3'] || '',
+            'flex-string-06': inv['flex-string-06'] || '48.0215',
+            'flex-date-02': inv['flex-date-02'] || '',
+            'created': inv['created'] || '',
+            'containers': [],
+            'charges': []
+        }));
 
-        if (parseError) {
-            const matches = content.match(/<invoice[\s\S]*?<\/invoice>/g);
-            if (!matches?.length) return false;
-            const wrapped = parser.parseFromString(`<root>${matches.join('')}</root>`, 'text/xml');
-            const nodes = wrapped.querySelectorAll('invoice');
-            for (let i = 0; i < nodes.length; i++) { const inv = parseInvoiceNode(nodes[i]); if (inv) newInvoices.push(inv); }
-        } else {
-            const nodes = xmlDoc.getElementsByTagName('invoice');
-            for (let i = 0; i < nodes.length; i++) { const inv = parseInvoiceNode(nodes[i]); if (inv) newInvoices.push(inv); }
-        }
-
-        // ✅ دمج مع البيانات الحالية وإزالة المكررات
+        // دمج مع البيانات الحالية وإزالة المكررات
         const allInvoices = [...invoicesData, ...newInvoices];
         const uniqueInvoices = [];
         const seenKeys = new Set();
