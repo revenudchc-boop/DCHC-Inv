@@ -3707,6 +3707,41 @@ window.showInvoiceDetails = function(index) {
     selectedInvoiceIndex = index;
 	currentDisplayType = 'invoice';
     const inv = invoicesData[index];
+	    // ✅ إذا كانت تفاصيل الفاتورة فارغة، نجلبها من Google Apps Script
+    if (!inv.charges || inv.charges.length === 0) {
+        const file = driveConfig.dataFiles && driveConfig.dataFiles.length > 0 ? driveConfig.dataFiles[0] : null;
+        if (file) {
+            showNotification('جاري تحميل تفاصيل الفاتورة...', 'info');
+            
+            const detailData = await new Promise((resolve) => {
+                const callbackName = 'jsonp_detail_' + Date.now();
+                window[callbackName] = function(data) {
+                    delete window[callbackName];
+                    document.body.removeChild(script);
+                    resolve(data);
+                };
+                const script = document.createElement('script');
+                script.src = DATA_API_URL + '?action=detail&fileId=' + file.id + '&draft=' + (inv['draft-number'] || inv['final-number']) + '&callback=' + callbackName;
+                document.body.appendChild(script);
+            });
+            
+            if (detailData.success) {
+                const xmlContent = atob(detailData.xml);
+                const parser = new DOMParser();
+                const xmlDoc = parser.parseFromString(xmlContent, "text/xml");
+                const invoiceNode = xmlDoc.querySelector('invoice');
+                if (invoiceNode) {
+                    const detailedInv = parseInvoiceNode(invoiceNode);
+                    if (detailedInv) {
+                        inv.charges = detailedInv.charges || [];
+                        inv.containers = detailedInv.containers || [];
+                        // تحديث البيانات في المصفوفة الرئيسية
+                        invoicesData[index] = inv;
+                    }
+                }
+            }
+        }
+    }
     const finalNum = inv['final-number'] || '';
     const isPostponed = finalNum.startsWith('P') || finalNum.startsWith('p');
     const currency = inv['currency'] || 'EGP';
