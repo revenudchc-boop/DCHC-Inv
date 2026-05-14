@@ -1391,6 +1391,10 @@ async function autoDiscoverDataFiles() {
             }));
             console.log('✅ تم اكتشاف ' + driveConfig.dataFiles.length + ' ملف بيانات');
             saveDriveSettingsToStorage();
+                        // ✅ اكتشاف نطاق التاريخ لكل ملف
+            for (let i = 0; i < driveConfig.dataFiles.length; i++) {
+                await discoverFileDateRange(i);
+            }
             showProgress('تم اكتشاف ' + driveConfig.dataFiles.length + ' ملف', 100);
         } else {
             console.warn('⚠️ لا توجد ملفات بيانات');
@@ -1410,23 +1414,21 @@ async function discoverFileDateRange(fileIndex) {
     if (!file || !file.id) return;
     
     try {
-        const res = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media&key=${driveConfig.apiKey}`);
-        if (!res.ok) return;
+        const data = await new Promise((resolve) => {
+            const callbackName = 'jsonp_range_' + Date.now();
+            window[callbackName] = function(data) {
+                delete window[callbackName];
+                document.body.removeChild(script);
+                resolve(data);
+            };
+            const script = document.createElement('script');
+            script.src = DATA_API_URL + '?action=range&fileId=' + file.id + '&callback=' + callbackName;
+            document.body.appendChild(script);
+        });
         
-        const content = await res.text();
-        
-        // استخراج أول تاريخ وآخر تاريخ
-        const dates = [];
-        const regex = /finalized-date="([^"]*)"/g;
-        let match;
-        while ((match = regex.exec(content)) !== null) {
-            dates.push(match[1].slice(0, 10));
-        }
-        
-        if (dates.length > 0) {
-            dates.sort();
-            file.from = dates[0];
-            file.to = dates[dates.length - 1];
+        if (data.success) {
+            file.from = data.from;
+            file.to = data.to;
             console.log(`📅 ${file.name}: ${file.from} → ${file.to}`);
             saveDriveSettingsToStorage();
         }
