@@ -2771,7 +2771,7 @@ function renderCardsView(data) {
         const finalNum = inv['final-number'] || '';
         const invoiceTypeDisplay = finalNum.startsWith('P') || finalNum.startsWith('p') ? 'أجل' : 'نقدي';
         const currency = inv['currency'] || 'EGP';
-        const exRate = inv['flex-string-06'] || 48.0215;
+		const exRate = parseFloat(inv['flex-string-06'] || 48.0215);
         const totalOriginal = inv['total-total'] || 0;
         let displayAmount, displayCurrency;
         if (currency === 'USAD') {
