@@ -3730,6 +3730,8 @@ window.showInvoiceDetails = async function(index) {
 			console.log('📋 detailData:', detailData);
             if (detailData.success) {
             const xmlContent = decodeURIComponent(escape(atob(detailData.xml)));
+			                console.log('📋 xmlContent طول:', xmlContent.length);
+                console.log('📋 xmlContent أول 300 حرف:', xmlContent.substring(0, 300));
                 const parser = new DOMParser();
                 const xmlDoc = parser.parseFromString(xmlContent, "text/xml");
                 const invoiceNode = xmlDoc.querySelector('invoice');
