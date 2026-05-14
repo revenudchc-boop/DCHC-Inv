@@ -1366,20 +1366,22 @@ async function autoConfigureDrive() {
 
 // ✅ دالة جديدة: اكتشاف تلقائي لجميع ملفات البيانات
 async function autoDiscoverDataFiles() {
-    if (!driveConfig.apiKey || !driveConfig.folderId) return;
-    
     try {
-        // ✅ البحث عن جميع الملفات التي تبدأ بـ datatxt_Q
-        const query = encodeURIComponent(`'${driveConfig.folderId}' in parents and name contains 'datatxt_Q' and trashed=false`);
-        const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${query}&key=${driveConfig.apiKey}&fields=files(id,name,modifiedTime)`);
+        showProgress('جاري اكتشاف ملفات البيانات...', 20);
         
-        if (!res.ok) return;
-        const data = await res.json();
+        const data = await new Promise((resolve) => {
+            const callbackName = 'jsonp_' + Date.now();
+            window[callbackName] = function(data) {
+                delete window[callbackName];
+                document.body.removeChild(script);
+                resolve(data);
+            };
+            const script = document.createElement('script');
+            script.src = DATA_API_URL + '?action=list&callback=' + callbackName;
+            document.body.appendChild(script);
+        });
         
-        if (data.files && data.files.length > 0) {
-            // ✅ ترتيب حسب تاريخ التعديل (الأحدث أولاً)
-            data.files.sort((a, b) => new Date(b.modifiedTime) - new Date(a.modifiedTime));
-            
+        if (data.success && data.files && data.files.length > 0) {
             driveConfig.dataFiles = data.files.map(f => ({
                 name: f.name,
                 id: f.id,
@@ -1388,14 +1390,16 @@ async function autoDiscoverDataFiles() {
             }));
             console.log('✅ تم اكتشاف ' + driveConfig.dataFiles.length + ' ملف بيانات');
             saveDriveSettingsToStorage();
+            showProgress('تم اكتشاف ' + driveConfig.dataFiles.length + ' ملف', 100);
+        } else {
+            console.warn('⚠️ لا توجد ملفات بيانات');
+            showProgress('لا توجد ملفات بيانات', 100);
         }
     } catch (e) {
         console.warn('⚠️ فشل الاكتشاف التلقائي للملفات');
-    }
-    
-    // ✅ اكتشاف نطاق التاريخ لأول ملف (الأحدث)
-    if (driveConfig.dataFiles.length > 0) {
-        await discoverFileDateRange(0);
+        showProgress('فشل اكتشاف الملفات', 100);
+    } finally {
+        setTimeout(hideProgress, 1000);
     }
 }
 
@@ -5861,10 +5865,22 @@ async function loadInvoicesFromDrive() {
         const downloadPromises = filesToLoad.map(async (file, f) => {
             showProgress(`جاري تحميل ${file.name}... (${f + 1}/${filesToLoad.length})`, Math.round(30 + (f / filesToLoad.length) * 30));
             
-            const res = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media&key=${driveConfig.apiKey}`);
-            if (!res.ok) return [];
+            // ✅ استخدام JSONP لجلب الملف عبر Google Apps Script
+            const result = await new Promise((resolve) => {
+                const callbackName = 'jsonp_file_' + Date.now() + '_' + f;
+                window[callbackName] = function(data) {
+                    delete window[callbackName];
+                    document.body.removeChild(script);
+                    resolve(data);
+                };
+                const script = document.createElement('script');
+                script.src = DATA_API_URL + '?action=getFile&fileId=' + file.id + '&callback=' + callbackName;
+                document.body.appendChild(script);
+            });
             
-            const content = await res.text();
+            if (!result.success) return [];
+            
+            const content = atob(result.content);
             const parser = new DOMParser();
             const xmlDoc = parser.parseFromString(content, "text/xml");
             const parseError = xmlDoc.querySelector('parsererror');
@@ -5933,10 +5949,22 @@ async function loadAdditionalDataFile(fileName) {
     
     try {
         showProgress(`جاري تحميل ${file.name}...`, 30);
-        const res = await fetch(`https://www.googleapis.com/drive/v3/files/${file.id}?alt=media&key=${driveConfig.apiKey}`);
-        if (!res.ok) return false;
+        // ✅ استخدام JSONP لجلب الملف
+        const result = await new Promise((resolve) => {
+            const callbackName = 'jsonp_add_' + Date.now();
+            window[callbackName] = function(data) {
+                delete window[callbackName];
+                document.body.removeChild(script);
+                resolve(data);
+            };
+            const script = document.createElement('script');
+            script.src = DATA_API_URL + '?action=getFile&fileId=' + file.id + '&callback=' + callbackName;
+            document.body.appendChild(script);
+        });
         
-        const content = await res.text();
+        if (!result.success) return false;
+        
+        const content = atob(result.content);
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(content, "text/xml");
         const parseError = xmlDoc.querySelector('parsererror');
