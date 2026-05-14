@@ -3727,6 +3727,7 @@ window.showInvoiceDetails = async function(index) {
                 document.body.appendChild(script);
             });
             
+			console.log('📋 detailData:', detailData);
             if (detailData.success) {
             const xmlContent = decodeURIComponent(escape(atob(detailData.xml)));
                 const parser = new DOMParser();
