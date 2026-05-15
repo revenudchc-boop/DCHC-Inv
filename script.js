@@ -1978,10 +1978,7 @@ function initDatabase() {
 }
 
 function useLocalStorageFallback() {
-    try {
-        const saved = localStorage.getItem('invoiceData');
-        if (saved) { invoicesData = JSON.parse(saved); filterInvoicesByUser(); }
-    } catch { }
+    // لم يعد يستخدم localStorage
 }
 
 async function saveData(showMsg = false) {
@@ -1995,7 +1992,6 @@ async function saveData(showMsg = false) {
             await saveSetting('lastUpdate', new Date().toISOString());
             await saveSetting('invoiceCount', invoicesData.length);
         } else {
-            localStorage.setItem('invoiceData', JSON.stringify(invoicesData));
             localStorage.setItem('lastUpdate', new Date().toISOString());
         }
         updateDataSource();
@@ -2003,21 +1999,7 @@ async function saveData(showMsg = false) {
     } catch { if (showMsg) showNotification('خطأ في الحفظ', 'error'); }
 }
 
-async function loadSavedData() {
-    try {
-        let loaded = false;
-        if (db) {
-            const data = await db.transaction(['invoices'], 'readonly').objectStore('invoices').getAll();
-            if (data?.length) { invoicesData = data; loaded = true; }
-        }
-        if (!loaded) {
-            const saved = localStorage.getItem('invoiceData');
-            if (saved) { invoicesData = JSON.parse(saved); loaded = true; }
-        }
-        if (loaded) filterInvoicesByUser();
-        updateDataSource();
-    } catch { }
-}
+        // لم يعد يستخدم localStorage
 
 function saveSetting(key, value) {
     return db?.transaction(['settings'], 'readwrite').objectStore('settings').put({ key, value });
@@ -3838,9 +3820,15 @@ window.showInvoiceDetails = async function(index) {
         showNotification('جاري تحميل تفاصيل الفاتورة...', 'info');
         let detailData = null;
         
-        // ✅ البحث في جميع الملفات عن الفاتورة
-        for (let i = 0; i < driveConfig.dataFiles.length; i++) {
-            const file = driveConfig.dataFiles[i];
+        // ✅ استخدم fileIndex إذا كان معروفاً
+        const startIndex = (inv.fileIndex !== undefined && inv.fileIndex >= 0) ? inv.fileIndex : 0;
+        const filesToSearch = [
+            ...driveConfig.dataFiles.slice(startIndex),
+            ...driveConfig.dataFiles.slice(0, startIndex)
+        ];
+        
+        for (let i = 0; i < filesToSearch.length; i++) {
+            const file = filesToSearch[i];
             const result = await new Promise((resolve) => {
                 const callbackName = 'jsonp_detail_' + Date.now() + '_' + i;
                 window[callbackName] = function(data) {
@@ -6047,7 +6035,9 @@ async function loadInvoicesFromDrive() {
             if (!data.success) return [];
             
             // ✅ تحويل البيانات المستلمة إلى كائنات فواتير
+			const fileIndex = driveConfig.dataFiles.indexOf(file);
             return data.invoices.map(inv => ({
+			'fileIndex': fileIndex,
                 'final-number': inv['final-number'] || '',
                 'draft-number': inv['draft-number'] || '',
                 'finalized-date': inv['finalized-date'] || '',
@@ -6140,7 +6130,11 @@ async function loadAdditionalDataFile(fileName) {
         if (!data.success) return false;
         
         // تحويل البيانات المستلمة إلى كائنات فواتير
+        const fileIndex = driveConfig.dataFiles.indexOf(file);
+        
         const newInvoices = data.invoices.map(inv => ({
+            'fileIndex': fileIndex,
+            'final-number': inv['final-number'] || '',
             'final-number': inv['final-number'] || '',
             'draft-number': inv['draft-number'] || '',
             'finalized-date': inv['finalized-date'] || '',
@@ -9839,6 +9833,17 @@ function closeModal(id) {
         modal.style.display = 'none';
         modal.classList.remove('show');
     }
+}
+
+async function loadSavedData() {
+    try {
+        if (db) {
+            const data = await db.transaction(['invoices'], 'readonly').objectStore('invoices').getAll();
+            if (data?.length) { invoicesData = data; }
+        }
+        if (invoicesData.length) filterInvoicesByUser();
+        updateDataSource();
+    } catch { }
 }
 
 console.log('✅ script.js تم تحميله بالكامل');
