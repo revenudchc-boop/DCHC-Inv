@@ -2500,7 +2500,6 @@ window.applyAdvancedSearch = async function() {
                 if (!alreadyLoaded) {
                     console.log(`📥 تحميل ملف ${file.name} لتاريخ ${searchDateFrom}...`);
                     await loadAdditionalDataFile(file.name);
-                    break;
                 }
             }
         }
