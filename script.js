@@ -2478,43 +2478,104 @@ function parseCreditNode(creditElement) {
 // دوال البحث المتقدم - معدلة لاستخدام finalized-date
 // ============================================
 window.applyAdvancedSearch = async function() {
-	    // ✅ إذا كان تاريخ البحث أقدم من الملف الحالي، حمّل الملف المناسب
+	    let [final, draft, cust, vessel, bl, cont, status, from, to, invType, contractCustomerId, viewedStatus] = [
+        'searchFinalNumber', 'searchDraftNumber', 'searchCustomer', 'searchVessel', 
+        'searchBlNumber', 'searchContainer', 'searchStatus', 'searchDateFrom', 
+        'searchDateTo', 'searchInvoiceType', 'searchContractCustomerId', 'searchViewedStatus'
+    ].map(id => document.getElementById(id)?.value.toLowerCase().trim() || '');
     const searchDateFrom = document.getElementById('searchDateFrom')?.value;
-    if (searchDateFrom && driveConfig.dataFiles && driveConfig.dataFiles.length > 0) {
-        const sorted = [...driveConfig.dataFiles].sort((a, b) => (a.from || '').localeCompare(b.from || ''));
+    const searchDateTo = document.getElementById('searchDateTo')?.value;
+    const hasDateSearch = !!(searchDateFrom || searchDateTo);
+    
+    // ✅ إذا كان البحث بالتاريخ، حمّل الملفات المناسبة
+    if (hasDateSearch && driveConfig.dataFiles && driveConfig.dataFiles.length > 0) {
+        const dateTo = searchDateTo || new Date().toISOString().slice(0, 10);
+        const dateFrom = searchDateFrom || '0000';
         
-        for (let file of sorted) {
-            // ✅ تحقق من تداخل الفترات
-            const searchDateTo = document.getElementById('searchDateTo')?.value || new Date().toISOString().slice(0, 10);
+        for (let file of driveConfig.dataFiles) {
             const fileFrom = file.from || '0000';
             const fileTo = file.to || '9999';
-            const overlap = (searchDateFrom <= fileTo && searchDateTo >= fileFrom);
+            const overlap = (dateFrom <= fileTo && dateTo >= fileFrom);
             
             if (file.from && overlap) {
-                // تحقق إذا كان هذا الملف محمّلاً مسبقاً
                 const alreadyLoaded = invoicesData.some(inv => {
                     const invDate = (inv['finalized-date'] || inv['created'] || '').slice(0, 10);
-                    return invDate >= file.from && invDate <= (file.to || '9999');
+                    return invDate >= file.from && invDate <= file.to;
                 });
                 
                 if (!alreadyLoaded) {
-                    console.log(`📥 تحميل ملف ${file.name} لتاريخ ${searchDateFrom}...`);
+                    console.log(`📥 تحميل ملف ${file.name}...`);
                     await loadAdditionalDataFile(file.name);
                 }
             }
         }
     }
-	    isSearching = true;  // 👈 أضف هذا السطر هنا
+    
+   
+    if (!hasDateSearch && (final || draft || cust || vessel || bl) && driveConfig.dataFiles.length > 0) {
+        showProgress('جاري البحث في جميع الملفات...', 30);
+        
+        const params = new URLSearchParams({ action: 'search', final, draft, cust, vessel, bl, cont, status, invType });
+        if (from) params.append('dateFrom', from);
+        if (to) params.append('dateTo', to);
+        
+        const searchData = await new Promise((resolve) => {
+            const callbackName = 'jsonp_search_' + Date.now();
+            window[callbackName] = function(data) {
+                delete window[callbackName];
+                document.body.removeChild(script);
+                resolve(data);
+            };
+            const script = document.createElement('script');
+            script.src = DATA_API_URL + '?' + params.toString() + '&callback=' + callbackName;
+            document.body.appendChild(script);
+        });
+        
+        if (searchData.success) {
+            const newInvoices = searchData.invoices.map(inv => ({
+                'final-number': inv['final-number'] || '',
+                'draft-number': inv['draft-number'] || '',
+                'finalized-date': inv['finalized-date'] || '',
+                'status': inv['status'] || '',
+                'currency': inv['currency'] || 'EGP',
+                'payee-customer-id': inv['payee-customer-id'] || '',
+                'contract-customer-id': inv['contract-customer-id'] || '',
+                'total-total': parseFloat(inv['total-total'] || 0),
+                'total-charges': parseFloat(inv['total-charges'] || 0),
+                'total-taxes': parseFloat(inv['total-taxes'] || 0),
+                'key-word1': inv['key-word1'] || '',
+                'key-word2': inv['key-word2'] || '',
+                'key-word3': inv['key-word3'] || '',
+                'flex-string-06': inv['flex-string-06'] || '48.0215',
+                'flex-date-02': inv['flex-date-02'] || '',
+                'created': inv['created'] || '',
+                'containers': [],
+                'charges': []
+            }));
+            
+            const allInvoices = [...invoicesData, ...newInvoices];
+            const uniqueInvoices = [];
+            const seenKeys = new Set();
+            allInvoices.forEach(inv => {
+                const key = getInvoiceKey(inv);
+                if (!seenKeys.has(key)) {
+                    seenKeys.add(key);
+                    uniqueInvoices.push(inv);
+                }
+            });
+            invoicesData = uniqueInvoices;
+        }
+        showProgress('تم البحث', 100);
+        setTimeout(hideProgress, 1000);
+    }
+    
+    isSearching = true;
     console.log('🔍 [بحث] بدء البحث');
     console.log('📊 عدد الفواتير الكلي:', invoicesData.length);
     
     if (!invoicesData.length) { filteredInvoices = []; renderData(); return; }
     
-    const [final, draft, cust, vessel, bl, cont, status, from, to, invType, contractCustomerId, viewedStatus] = [
-        'searchFinalNumber', 'searchDraftNumber', 'searchCustomer', 'searchVessel', 
-        'searchBlNumber', 'searchContainer', 'searchStatus', 'searchDateFrom', 
-        'searchDateTo', 'searchInvoiceType', 'searchContractCustomerId', 'searchViewedStatus'
-    ].map(id => document.getElementById(id)?.value.toLowerCase().trim() || '');
+
 
     let tempInvoices = [...invoicesData];
 
