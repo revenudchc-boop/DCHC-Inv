@@ -2537,9 +2537,12 @@ window.applyAdvancedSearch = async function() {
                 'draft-number': inv['draft-number'] || '',
                 'finalized-date': inv['finalized-date'] || '',
                 'status': inv['status'] || '',
+                'invoice-type-id': inv['invoice-type-id'] || '',
                 'currency': inv['currency'] || 'EGP',
                 'payee-customer-id': inv['payee-customer-id'] || '',
+                'payee-customer-role': inv['payee-customer-role'] || '',
                 'contract-customer-id': inv['contract-customer-id'] || '',
+                'contract-customer-role': inv['contract-customer-role'] || '',
                 'total-total': parseFloat(inv['total-total'] || 0),
                 'total-charges': parseFloat(inv['total-charges'] || 0),
                 'total-taxes': parseFloat(inv['total-taxes'] || 0),
@@ -2549,6 +2552,8 @@ window.applyAdvancedSearch = async function() {
                 'flex-string-06': inv['flex-string-06'] || '48.0215',
                 'flex-date-02': inv['flex-date-02'] || '',
                 'created': inv['created'] || '',
+                'creator': inv['creator'] || '',
+                'changer': inv['changer'] || '',
                 'containers': [],
                 'charges': []
             }));
