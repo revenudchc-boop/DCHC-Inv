@@ -1427,9 +1427,13 @@ async function discoverFileDateRange(fileIndex) {
         });
         
         if (data.success) {
-            file.from = data.from;
-            file.to = data.to;
-            console.log(`📅 ${file.name}: ${file.from} → ${file.to}`);
+            file.from = data.from || '';
+            file.to = data.to || '';
+            file.cFirst = data.cFirst || 0;
+            file.cLast = data.cLast || 0;
+            file.pFirst = data.pFirst || 0;
+            file.pLast = data.pLast || 0;
+            console.log(`📅 ${file.name}: ${file.from} → ${file.to} | C: ${file.cFirst}-${file.cLast} | P: ${file.pFirst}-${file.pLast}`);
             saveDriveSettingsToStorage();
         }
     } catch (e) {
@@ -2478,110 +2482,69 @@ function parseCreditNode(creditElement) {
 // دوال البحث المتقدم - معدلة لاستخدام finalized-date
 // ============================================
 window.applyAdvancedSearch = async function() {
-	    let [final, draft, cust, vessel, bl, cont, status, from, to, invType, contractCustomerId, viewedStatus] = [
-        'searchFinalNumber', 'searchDraftNumber', 'searchCustomer', 'searchVessel', 
-        'searchBlNumber', 'searchContainer', 'searchStatus', 'searchDateFrom', 
-        'searchDateTo', 'searchInvoiceType', 'searchContractCustomerId', 'searchViewedStatus'
-    ].map(id => document.getElementById(id)?.value.toLowerCase().trim() || '');
-    const searchDateFrom = document.getElementById('searchDateFrom')?.value;
-    const searchDateTo = document.getElementById('searchDateTo')?.value;
-    const hasDateSearch = !!(searchDateFrom || searchDateTo);
+    const getVal = id => document.getElementById(id)?.value.trim() || '';
     
-    // ✅ إذا كان البحث بالتاريخ، حمّل الملفات المناسبة
-    if (hasDateSearch && driveConfig.dataFiles && driveConfig.dataFiles.length > 0) {
-        const dateTo = searchDateTo || new Date().toISOString().slice(0, 10);
-        const dateFrom = searchDateFrom || '0000';
+    const final = getVal('searchFinalNumber');
+	const viewedStatus = getVal('searchViewedStatus');
+    const draft = getVal('searchDraftNumber');
+    const cust = getVal('searchCustomer').toLowerCase();
+    const vessel = getVal('searchVessel').toLowerCase();
+    const bl = getVal('searchBlNumber').toLowerCase();
+    const cont = getVal('searchContainer').toLowerCase();
+    const status = getVal('searchStatus');
+    const from = getVal('searchDateFrom');
+    const to = getVal('searchDateTo');
+    const invType = getVal('searchInvoiceType');
+    
+    const hasDateSearch = !!(from || to);
+    
+    // ✅ تحميل الملف المناسب
+    if (driveConfig.dataFiles && driveConfig.dataFiles.length > 0) {
+        const searchNum = parseInt(((final || draft).split('-').pop() || '').replace(/[^0-9]/g, ''), 10);
+        const isC = final.toUpperCase().startsWith('C') || draft.toUpperCase().startsWith('C');
         
         for (let file of driveConfig.dataFiles) {
-            const fileFrom = file.from || '0000';
-            const fileTo = file.to || '9999';
-            const overlap = (dateFrom <= fileTo && dateTo >= fileFrom);
+            let needLoad = false;
             
-            if (file.from && overlap) {
+            if (hasDateSearch) {
+                const dateTo = to || new Date().toISOString().slice(0, 10);
+                const dateFrom = from || '0000';
+                if (file.from && dateFrom <= (file.to || '9999') && dateTo >= (file.from || '0000')) {
+                    needLoad = true;
+                }
+            } else if (searchNum > 0) {
+                let first, last;
+                if (invType === 'cash') {
+                    first = file.cFirst || 0;
+                    last = file.cLast || 0;
+                } else if (invType === 'postponed') {
+                    first = file.pFirst || 0;
+                    last = file.pLast || 0;
+                } else {
+                    first = isC ? (file.cFirst || 0) : (file.pFirst || 0);
+                    last = isC ? (file.cLast || 0) : (file.pLast || 0);
+                }
+                if (first > 0 && searchNum >= first && searchNum <= last) {
+                    needLoad = true;
+                }
+            }
+            
+            if (needLoad) {
                 const alreadyLoaded = invoicesData.some(inv => {
-                    const invDate = (inv['finalized-date'] || inv['created'] || '').slice(0, 10);
-                    return invDate >= file.from && invDate <= file.to;
+                    const d = (inv['finalized-date'] || inv['created'] || '').slice(0, 10);
+                    return d >= (file.from || '0000') && d <= (file.to || '9999');
                 });
-                
                 if (!alreadyLoaded) {
-                    console.log(`📥 تحميل ملف ${file.name}...`);
+                    console.log('📥 تحميل', file.name);
                     await loadAdditionalDataFile(file.name);
                 }
             }
         }
     }
     
-   
-    if (!hasDateSearch && (final || draft || cust || vessel || bl) && driveConfig.dataFiles.length > 0) {
-        showProgress('جاري البحث في جميع الملفات...', 30);
-        
-        const params = new URLSearchParams({ action: 'search', final, draft, cust, vessel, bl, cont, status, invType });
-        if (from) params.append('dateFrom', from);
-        if (to) params.append('dateTo', to);
-        
-        const searchData = await new Promise((resolve) => {
-            const callbackName = 'jsonp_search_' + Date.now();
-            window[callbackName] = function(data) {
-                delete window[callbackName];
-                document.body.removeChild(script);
-                resolve(data);
-            };
-            const script = document.createElement('script');
-            script.src = DATA_API_URL + '?' + params.toString() + '&callback=' + callbackName;
-            document.body.appendChild(script);
-        });
-        
-        if (searchData.success) {
-            const newInvoices = searchData.invoices.map(inv => ({
-                'final-number': inv['final-number'] || '',
-                'draft-number': inv['draft-number'] || '',
-                'finalized-date': inv['finalized-date'] || '',
-                'status': inv['status'] || '',
-                'invoice-type-id': inv['invoice-type-id'] || '',
-                'currency': inv['currency'] || 'EGP',
-                'payee-customer-id': inv['payee-customer-id'] || '',
-                'payee-customer-role': inv['payee-customer-role'] || '',
-                'contract-customer-id': inv['contract-customer-id'] || '',
-                'contract-customer-role': inv['contract-customer-role'] || '',
-                'total-total': parseFloat(inv['total-total'] || 0),
-                'total-charges': parseFloat(inv['total-charges'] || 0),
-                'total-taxes': parseFloat(inv['total-taxes'] || 0),
-                'key-word1': inv['key-word1'] || '',
-                'key-word2': inv['key-word2'] || '',
-                'key-word3': inv['key-word3'] || '',
-                'flex-string-06': inv['flex-string-06'] || '48.0215',
-                'flex-date-02': inv['flex-date-02'] || '',
-                'created': inv['created'] || '',
-                'creator': inv['creator'] || '',
-                'changer': inv['changer'] || '',
-                'containers': [],
-                'charges': []
-            }));
-            
-            const allInvoices = [...invoicesData, ...newInvoices];
-            const uniqueInvoices = [];
-            const seenKeys = new Set();
-            allInvoices.forEach(inv => {
-                const key = getInvoiceKey(inv);
-                if (!seenKeys.has(key)) {
-                    seenKeys.add(key);
-                    uniqueInvoices.push(inv);
-                }
-            });
-            invoicesData = uniqueInvoices;
-        }
-        showProgress('تم البحث', 100);
-        setTimeout(hideProgress, 1000);
-    }
-    
     isSearching = true;
-    console.log('🔍 [بحث] بدء البحث');
-    console.log('📊 عدد الفواتير الكلي:', invoicesData.length);
-    
     if (!invoicesData.length) { filteredInvoices = []; renderData(); return; }
     
-
-
     let tempInvoices = [...invoicesData];
 
     if (currentUser?.isGuest) {
@@ -2607,8 +2570,6 @@ window.applyAdvancedSearch = async function() {
         }
         allowedIds = [...new Set(allowedIds.map(id => id.toLowerCase()))];
         
-        console.log('✅ allowedIds للمستخدم:', allowedIds);
-        
         if (allowedIds.length === 0) {
             tempInvoices = [];
         } else {
@@ -2620,22 +2581,7 @@ window.applyAdvancedSearch = async function() {
         }
     }
 
-    console.log('📊 عدد الفواتير بعد تصفية المستخدم (tempInvoices):', tempInvoices.length);
-    
-    // ✅ تأكد من تحميل العلامات قبل البحث
-    if (viewedStatus && viewedInvoices.size === 0 && currentUser) {
-        console.log('🔄 viewedInvoices فارغة، جاري التحميل من Drive...');
-        await loadViewedFromDrive();
-    }
-    
     const searched = tempInvoices.filter(inv => {
-        // ✅ تصفية حسب صلاحيات المستخدم (طبقة أمان إضافية)
-        const belongsToUser = checkIfInvoiceBelongsToUser(inv);
-        if (!belongsToUser) {
-            console.log('❌ فاتورة لا تخص المستخدم:', inv['final-number']);
-            return false;
-        }
-        
         if (final && !(inv['final-number'] || '').toLowerCase().includes(final)) return false;
         if (draft && !(inv['draft-number'] || '').toLowerCase().includes(draft)) return false;
         if (cust) {
@@ -2646,21 +2592,8 @@ window.applyAdvancedSearch = async function() {
         if (vessel && !(inv['key-word1'] || '').toLowerCase().includes(vessel)) return false;
         if (bl && !(inv['key-word2'] || '').toLowerCase().includes(bl)) return false;
         if (cont) {
-            const found = inv.charges.some(c => (c['entity-id'] || '').toLowerCase().includes(cont));
+            const found = inv.charges && inv.charges.some(c => (c['entity-id'] || '').toLowerCase().includes(cont));
             if (!found) return false;
-        }
-        if (contractCustomerId && !(inv['contract-customer-id'] || '').toLowerCase().includes(contractCustomerId)) return false;
-        // فلتر حالة المعاينة (بدلاً من فلتر FINAL/DRAFT)
-		if (status) {
-			const viewKey = getInvoiceKey(inv);
-			const isViewed = viewedInvoices.has(viewKey);
-			if (status === 'viewed' && !isViewed) return false;
-			if (status === 'not_viewed' && isViewed) return false;
-		}
-        if (invType) {
-            const num = inv['final-number'] || '';
-            if (invType === 'cash' && !(num.startsWith('C') || num.startsWith('c'))) return false;
-            if (invType === 'postponed' && !(num.startsWith('P') || num.startsWith('p'))) return false;
         }
         if (from || to) {
             const invDateStr = inv['finalized-date'] || inv['created'] || '';
@@ -2677,23 +2610,30 @@ window.applyAdvancedSearch = async function() {
                 if (invDate > toDate) return false;
             }
         }
-        
-        
+		        // ✅ فلترة حالة المعاينة
+        if (viewedStatus) {
+            const viewKey = getInvoiceKey(inv);
+            const isViewed = viewedInvoices.has(viewKey);
+            if (viewedStatus === 'viewed' && !isViewed) return false;
+            if (viewedStatus === 'not_viewed' && isViewed) return false;
+        }
+		
+		        // ✅ فلترة نوع الفاتورة
+        if (invType) {
+            const num = inv['final-number'] || '';
+            if (invType === 'cash' && !(num.startsWith('C') || num.startsWith('c'))) return false;
+            if (invType === 'postponed' && !(num.startsWith('P') || num.startsWith('p'))) return false;
+        }
         return true;
     });
 
-    console.log('📊 عدد الفواتير بعد البحث (searched):', searched.length);
-    
     filteredInvoices = searched;
     currentPage = 1;
     clearSelectedInvoices();
     renderData();
     
-    console.log('📊 عدد الفواتير المعروضة (filteredInvoices):', filteredInvoices.length);
     showNotification(`تم العثور على ${formatNumberWithCommas(filteredInvoices.length)} فاتورة`, filteredInvoices.length ? 'success' : 'info');
-	    // 👇 أضف هذا السطر في النهاية
     setTimeout(() => { isSearching = false; }, 500);
-
 };
 
 window.resetAdvancedSearch = function() {
