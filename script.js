@@ -6167,6 +6167,22 @@ async function loadAllInvoices() {
     console.log(`   📄 إجمالي الفواتير: ${allInvoices.length}`);
     console.log(`   ✨ فواتير فريدة: ${invoicesData.length}`);
     
+    // ✅ ✅ ✅ أضف هذه الأسطر الجديدة ✅ ✅ ✅
+    console.log('🔄 جاري تحديث العرض...');
+    
+    if (currentUser) {
+        if (currentUser.isGuest) {
+            filterInvoicesByGuest(currentUser.taxNumber, currentUser.blNumber);
+        } else {
+            filterInvoicesByUser();
+        }
+        renderData();
+        updateSummary();
+        console.log('✅ تم عرض الفواتير والإجماليات');
+    } else {
+        console.log('⚠️ لا يوجد مستخدم حالياً، سيتم العرض بعد تسجيل الدخول');
+    }
+    
     return true;
 }
 
