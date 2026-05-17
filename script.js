@@ -1794,6 +1794,12 @@ function checkSession() {
             document.getElementById('loginScreen').style.display = 'none';
             document.getElementById('mainApp').style.display = 'block';
             updateUserInterface();
+			
+			            // ✅ ✅ ✅ تحميل حالة المعاينة من السحابة ✅ ✅ ✅
+            loadViewedFromDrive().then(() => {
+                console.log('✅ تم تحميل حالة المعاينة، عددها:', viewedInvoices.size);
+            });
+
             
             // ✅ تحميل شريط الأخبار (ظاهر تلقائياً)
             if (currentUser) {
@@ -2573,11 +2579,15 @@ window.applyAdvancedSearch = async function() {
         return; 
     }
     
-    const [final, draft, cust, vessel, bl, cont, status, from, to, invType, contractCustomerId, viewedStatus] = [
-        'searchFinalNumber', 'searchDraftNumber', 'searchCustomer', 'searchVessel', 
-        'searchBlNumber', 'searchContainer', 'searchStatus', 'searchDateFrom', 
-        'searchDateTo', 'searchInvoiceType', 'searchContractCustomerId', 'searchViewedStatus'
-    ].map(id => document.getElementById(id)?.value?.toLowerCase().trim() || '');
+const [final, draft, cust, vessel, bl, cont, viewedStatus, from, to, invType, contractCustomerId] = [
+    'searchFinalNumber', 'searchDraftNumber', 'searchCustomer', 'searchVessel', 
+    'searchBlNumber', 'searchContainer', 'searchStatus', 'searchDateFrom', 
+    'searchDateTo', 'searchInvoiceType', 'searchContractCustomerId'
+].map(id => document.getElementById(id)?.value?.toLowerCase().trim() || '');
+	
+	// ✅ ✅ ✅ أضف هذا السطر للتأكد من قيمة viewedStatus ✅ ✅ ✅
+    console.log('📌 قيمة viewedStatus في البحث:', viewedStatus);
+    console.log('📌 عدد علامات المعاينة في الذاكرة:', viewedInvoices.size);
 
     let tempInvoices = [...invoicesData];
     
@@ -6166,6 +6176,15 @@ async function loadAllInvoices() {
     console.log(`   📁 عدد الملفات: ${totalFiles}`);
     console.log(`   📄 إجمالي الفواتير: ${allInvoices.length}`);
     console.log(`   ✨ فواتير فريدة: ${invoicesData.length}`);
+	
+	    // ✅ ✅ ✅ أضف هذه الأسطر الجديدة (تحميل علامات المعاينة) ✅ ✅ ✅
+    console.log('🔄 جاري تحميل علامات المعاينة من السحابة...');
+    try {
+        await loadViewedFromDrive();
+        console.log('✅ تم تحميل علامات المعاينة، عددها:', viewedInvoices.size);
+    } catch(err) {
+        console.warn('⚠️ فشل تحميل علامات المعاينة:', err);
+    }
     
     // ✅ ✅ ✅ أضف هذه الأسطر الجديدة ✅ ✅ ✅
     console.log('🔄 جاري تحديث العرض...');
