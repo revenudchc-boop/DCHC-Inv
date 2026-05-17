@@ -23,22 +23,17 @@ const COMPANY_INFO = {
 // إعدادات GitHub للاكتشاف التلقائي
 // ============================================
 const GITHUB_CONFIG = {
-    // معلومات المستودع
     owner: 'revenudchc-boop',
     repo: 'DCHC',
     branch: 'main',
     folder: 'data',
-    
-    // رابط الملفات الخام (Raw)
     rawBaseUrl: 'https://raw.githubusercontent.com/revenudchc-boop/DCHC/main/data/',
-    
-    // رابط API لجلب محتويات المجلد
     apiUrl: 'https://api.github.com/repos/revenudchc-boop/DCHC/contents/data',
-    
-    // تخزين البيانات
-    filesList: [],        // قائمة الملفات المكتشفة
-    loadedInvoices: [],   // الفواتير المحملة
-    isLoaded: false       // هل تم التحميل؟
+    usersFileName: 'users.json',     // ✅ أضف هذا السطر
+    usersFileUrl: 'https://raw.githubusercontent.com/revenudchc-boop/DCHC/main/data/users.json',  // ✅ أضف هذا السطر
+    filesList: [],
+    loadedInvoices: [],
+    isLoaded: false
 };
 
 // أنواع الفواتير
@@ -1565,48 +1560,49 @@ function loadUsersFromBackup() {
     return false;
 }
 
-// (ملغاة) لم نعد نستخدم مستخدمين افتراضيين متعددين
-// function loadDefaultUsers() { ... }  // تم حذفها نهائياً
-
-// تحميل المستخدمين (الاعتماد الأساسي على Drive)
+// ============================================
+// تحميل المستخدمين (من GitHub أولاً، ثم النسخة الاحتياطية)
+// ============================================
 async function loadUsers(forceRefresh = false) {
-    // محاولة التحميل من Drive أولاً
+    console.log('👥 تحميل المستخدمين...');
+    
+    // محاولة التحميل من GitHub أولاً
     let loaded = false;
+    
     if (forceRefresh) {
-        loaded = await loadUsersFromDrive();
+        loaded = await loadUsersFromGitHub();
     } else {
-        loaded = await loadUsersFromDrive();
+        loaded = await loadUsersFromGitHub();
     }
     
     if (loaded) {
-        // نجح التحميل من Drive
         if (forceRefresh) showNotification('تم تحديث المستخدمين', 'success');
         return;
     }
     
-    // فشل التحميل من Drive → نحاول من النسخة الاحتياطية المحلية
+    // فشل التحميل من GitHub → نحاول من النسخة الاحتياطية المحلية
     if (loadUsersFromBackup()) {
         console.warn('⚠️ تم تحميل المستخدمين من النسخة الاحتياطية المحلية');
         showNotification('تم تحميل المستخدمين من النسخة الاحتياطية', 'warning');
         return;
     }
     
-    // في حالة عدم وجود أي بيانات (لا Drive ولا نسخة احتياطية)، نضيف مديراً احتياطياً واحداً فقط
-    console.error('❌ فشل تحميل المستخدمين من Drive والنسخة الاحتياطية. سيتم إنشاء مدير احتياطي.');
+    // في حالة عدم وجود أي بيانات، نضيف مديراً احتياطياً
+    console.error('❌ فشل تحميل المستخدمين. سيتم إنشاء مدير احتياطي.');
     users = [{
         id: 'user_admin_emergency',
         username: 'admin',
         email: 'admin@emergency.local',
-        taxNumber: decodeBase64('QURNSU4wMDE='),      // ADMIN001
-        contractCustomerId: decodeBase64('QURNSU4wMDE='),
+        taxNumber: 'ADMIN001',
+        contractCustomerId: 'ADMIN001',
         customerIds: [],
         userType: 'admin',
-        password: decodeBase64('YWRtaW4xMjM='),       
+        password: 'admin123',
         status: 'active',
         createdAt: new Date().toISOString(),
         lastLogin: null
     }];
-    showNotification('تم إنشاء مدير احتياطي بسبب فشل تحميل المستخدمين', 'warning');
+    showNotification('تم إنشاء مدير احتياطي', 'warning');
 }
 
 // تحديث المستخدمين يدوياً من Drive (للمدير فقط)
@@ -1769,9 +1765,22 @@ window.deleteUser = async function(userId) {
     showNotification('تم الحذف', 'success');
 };
 
+// ============================================
+// حفظ المستخدمين (محلياً مؤقتاً)
+// ============================================
 window.saveUsersManually = async function() {
-    if (!currentUser || currentUser.userType !== 'admin') return showNotification('غير مصرح', 'error');
-    await saveUsersToDrive();
+    if (!currentUser || currentUser.userType !== 'admin') {
+        showNotification('غير مصرح', 'error');
+        return;
+    }
+    
+    // حفظ نسخة احتياطية محلياً
+    localStorage.setItem('backupUsers', JSON.stringify(users));
+    
+    showNotification('✅ تم حفظ المستخدمين محلياً (نسخة احتياطية)', 'success');
+    
+    // محاولة الحفظ إلى GitHub (اختياري)
+    await saveUsersToGitHub();
 };
 
 // ============================================
@@ -10050,3 +10059,61 @@ window.updateFromGitHub = async function() {
         showNotification('❌ فشل تحديث البيانات', 'error');
     }
 };
+
+// ============================================
+// تحميل المستخدمين من GitHub
+// ============================================
+async function loadUsersFromGitHub() {
+    console.log('👥 جاري تحميل المستخدمين من GitHub...');
+    
+    try {
+        const response = await fetch(GITHUB_CONFIG.usersFileUrl);
+        
+        if (!response.ok) {
+            console.error(`❌ فشل تحميل المستخدمين: ${response.status}`);
+            return false;
+        }
+        
+        const content = await response.text();
+        
+        // محاولة تحليل JSON
+        let userData;
+        try {
+            userData = JSON.parse(content);
+        } catch(e) {
+            // إذا فشل التحليل، نحاول إصلاح JSON
+            const fixedContent = repairJSON(content);
+            userData = JSON.parse(fixedContent);
+        }
+        
+        if (Array.isArray(userData) && userData.length > 0) {
+            users = userData;
+            localStorage.setItem('backupUsers', JSON.stringify(users));
+            console.log(`✅ تم تحميل ${users.length} مستخدم من GitHub`);
+            return true;
+        }
+        
+        return false;
+        
+    } catch (error) {
+        console.error('❌ خطأ في تحميل المستخدمين:', error);
+        return false;
+    }
+}
+
+// ============================================
+// حفظ المستخدمين إلى GitHub (ملاحظة: GitHub API يتطلب token)
+// ============================================
+async function saveUsersToGitHub() {
+    console.log('💾 جاري حفظ المستخدمين إلى GitHub...');
+    
+    // ⚠️ ملاحظة: حفظ الملفات إلى GitHub يتطلب Personal Access Token
+    // هذه الميزة تحتاج إلى إعداد إضافي. سنعود إليها لاحقاً.
+    
+    showNotification('حفظ المستخدمين إلى GitHub يتطلب إعدادات إضافية. سيتم الحفظ محلياً مؤقتاً.', 'warning');
+    
+    // حفظ نسخة احتياطية محلياً
+    localStorage.setItem('backupUsers', JSON.stringify(users));
+    
+    return false;
+}
