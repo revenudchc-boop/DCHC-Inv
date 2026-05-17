@@ -2684,76 +2684,30 @@ window.applyAdvancedSearch = async function() {
 // ============================================
 
 // التأكد من تحميل البيانات اللازمة لنطاق التاريخ المطلوب
+// ============================================
+// التأكد من تحميل البيانات للنطاق الزمني المطلوب
+// (معدلة بالكامل لـ GitHub)
+// ============================================
 async function ensureDataForDateRange(fromDate, toDate) {
-    if (!driveConfig.dataFiles || driveConfig.dataFiles.length === 0) {
-        // إذا لم تكن الملفات مخزنة، قم بتحميل القائمة
-        await loadFilesListFromDrive();
-    }
+    console.log('📅 البحث حسب التاريخ:', fromDate || 'البداية', '→', toDate || 'النهاية');
     
-    if (!driveConfig.dataFiles || driveConfig.dataFiles.length === 0) return;
+    // ✅ مع GitHub، جميع الملفات يتم تحميلها مسبقاً في loadAllInvoices()
+    // لذلك لا نحتاج إلى تحميل أي ملفات إضافية
     
-    // تحديد الملفات التي تحتوي على التواريخ المطلوبة
-    const filesToLoad = [];
-    
-    for (const file of driveConfig.dataFiles) {
-        // إذا كان الملف محملاً مسبقاً، تخطى
-        if (loadedFilesCache.has(file.id)) continue;
+    if (!invoicesData || invoicesData.length === 0) {
+        console.warn('⚠️ لا توجد بيانات للبحث، جاري التحميل من GitHub...');
         
-        // استخراج نطاق التاريخ من الملف (إذا كان مخزناً)
-        if (file.from && file.to) {
-            // التحقق من التداخل مع نطاق البحث
-            const overlaps = isDateRangeOverlap(fromDate, toDate, file.from, file.to);
-            if (overlaps) {
-                filesToLoad.push(file);
-            }
+        // محاولة تحميل البيانات من GitHub
+        if (typeof loadAllInvoices === 'function') {
+            await loadAllInvoices();
         } else {
-            // إذا لم نعرف نطاق الملف، نحتاج لتحميله لمعرفة محتواه
-            filesToLoad.push(file);
+            console.error('❌ دالة loadAllInvoices غير موجودة');
+            return false;
         }
     }
     
-    if (filesToLoad.length === 0) return;
-    
-    console.log(`📥 سيتم تحميل ${filesToLoad.length} ملف إضافي للبحث في التاريخ`);
-    
-    // تحميل الملفات المطلوبة
-    for (const file of filesToLoad) {
-        showProgress(`جاري تحميل ${file.name} للبحث في التاريخ...`, 30);
-        
-        const fileInvoices = await loadSingleDataFile(file.id, file.name);
-        if (fileInvoices && fileInvoices.length > 0) {
-            // تحديث نطاق التاريخ للملف
-            file.from = extractDateRange(fileInvoices).from;
-            file.to = extractDateRange(fileInvoices).to;
-            
-            // تخزين في الذاكرة المؤقتة
-            loadedFilesCache.set(file.id, {
-                name: file.name,
-                invoices: fileInvoices,
-                dateRange: { from: file.from, to: file.to }
-            });
-            
-            // دمج مع البيانات الحالية (إزالة المكررات)
-            const newInvoices = [];
-            const existingKeys = new Set(invoicesData.map(inv => getInvoiceKey(inv)));
-            
-            fileInvoices.forEach(inv => {
-                const key = getInvoiceKey(inv);
-                if (!existingKeys.has(key)) {
-                    newInvoices.push(inv);
-                    existingKeys.add(key);
-                }
-            });
-            
-            if (newInvoices.length > 0) {
-                invoicesData = [...invoicesData, ...newInvoices];
-                console.log(`➕ تم إضافة ${newInvoices.length} فاتورة جديدة من ${file.name}`);
-            }
-        }
-    }
-    
-    saveDriveSettingsToStorage();
-    setTimeout(hideProgress, 1000);
+    console.log(`✅ البيانات متاحة: ${invoicesData.length} فاتورة`);
+    return true;
 }
 
 // التحقق من تداخل نطاقي تواريخ
