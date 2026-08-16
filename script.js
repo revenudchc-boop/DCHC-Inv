@@ -1500,24 +1500,6 @@ async function discoverFileDateRange(fileIndex) {
 // ============================================
 // دوال المستخدمين
 // ============================================
-
-function loadUsers() {
-    try {
-        // ✅ قراءة المستخدمين من متغير البيئة (GitHub Secret)
-        const usersJson = process.env.USERS_JSON;
-        if (!usersJson) {
-            console.log('⚠️ USERS_JSON غير موجود في البيئة');
-            return [];
-        }
-        const users = JSON.parse(usersJson);
-        console.log(`✅ تم تحميل ${users.length} مستخدم من GitHub Secret`);
-        return users.filter(u => u.status === 'active');
-    } catch (error) {
-        console.error('❌ خطأ في قراءة المستخدمين:', error.message);
-        return [];
-    }
-}
-
 async function loadUsersFromDrive() {
     if (!driveConfig.apiKey || !driveConfig.folderId || !driveConfig.usersFileId) return false;
     try {
