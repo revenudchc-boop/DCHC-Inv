@@ -6146,7 +6146,7 @@ async function loadAllInvoices() {
         }
     }
     
-    // الخطوة 3: إزالة المكررات (في حالة وجود نفس الفاتورة في أكثر من ملف)
+    // الخطوة 3: إزالة المكررات
     showProgress('جاري إزالة المكررات...', 95);
     const uniqueInvoices = [];
     const seenKeys = new Set();
@@ -6176,8 +6176,7 @@ async function loadAllInvoices() {
     console.log(`   📁 عدد الملفات: ${totalFiles}`);
     console.log(`   📄 إجمالي الفواتير: ${allInvoices.length}`);
     console.log(`   ✨ فواتير فريدة: ${invoicesData.length}`);
-	
-	    // ✅ ✅ ✅ أضف هذه الأسطر الجديدة (تحميل علامات المعاينة) ✅ ✅ ✅
+    
     console.log('🔄 جاري تحميل علامات المعاينة من السحابة...');
     try {
         await loadViewedFromDrive();
@@ -6186,7 +6185,6 @@ async function loadAllInvoices() {
         console.warn('⚠️ فشل تحميل علامات المعاينة:', err);
     }
     
-    // ✅ ✅ ✅ أضف هذه الأسطر الجديدة ✅ ✅ ✅
     console.log('🔄 جاري تحديث العرض...');
     
     if (currentUser) {
@@ -6200,6 +6198,70 @@ async function loadAllInvoices() {
         console.log('✅ تم عرض الفواتير والإجماليات');
     } else {
         console.log('⚠️ لا يوجد مستخدم حالياً، سيتم العرض بعد تسجيل الدخول');
+    }
+    
+    // ✅ تحويل حقل العميل إلى قائمة منسدلة مع صلاحيات المستخدم
+    const inputElement = document.getElementById('searchCustomer');
+    if (inputElement) {
+        const parent = inputElement.parentElement;
+        const select = document.createElement('select');
+        select.id = 'searchCustomer';
+        
+        let options = '<option value="">الكل</option>';
+        
+        if (currentUser) {
+            let allowedCustomers = [];
+            
+            if (currentUser.userType === 'admin') {
+                // المدير يرى كل العملاء من الفواتير
+                const allCustomers = [...new Set(invoicesData.map(inv => 
+                    inv['payee-customer-id'] || inv['contract-customer-id'] || ''
+                ).filter(c => c && c.trim() !== ''))];
+                allowedCustomers = allCustomers;
+            } else {
+                // ✅ المستخدم العادي: نأخذ العملاء من customerIds أولاً
+                let userCustomerIds = [];
+                if (currentUser.customerIds && Array.isArray(currentUser.customerIds)) {
+                    userCustomerIds = currentUser.customerIds.map(id => id.trim());
+                }
+                if (currentUser.contractCustomerId) {
+                    userCustomerIds.push(currentUser.contractCustomerId.trim());
+                }
+                
+                // ✅ إزالة التكرار
+                userCustomerIds = [...new Set(userCustomerIds)];
+                
+                // ✅ نأخذ العملاء من customerIds أولاً (حتى لو لم توجد فواتير)
+                allowedCustomers = [...userCustomerIds];
+                
+                // ✅ ثم نضيف أي عملاء إضافيين من الفواتير
+                const userInvoices = invoicesData.filter(inv => {
+                    const payee = (inv['payee-customer-id'] || '').toLowerCase();
+                    const contract = (inv['contract-customer-id'] || '').toLowerCase();
+                    return userCustomerIds.some(id => payee === id.toLowerCase() || contract === id.toLowerCase());
+                });
+                
+                const invoiceCustomers = [...new Set(userInvoices.map(inv => 
+                    inv['payee-customer-id'] || inv['contract-customer-id'] || ''
+                ).filter(c => c && c.trim() !== ''))];
+                
+                // دمج القائمتين
+                invoiceCustomers.forEach(id => {
+                    if (!allowedCustomers.includes(id)) {
+                        allowedCustomers.push(id);
+                    }
+                });
+            }
+            
+            allowedCustomers.forEach(id => {
+                const escapedId = id.replace(/"/g, '&quot;');
+                options += `<option value="${escapedId}">${escapedId}</option>`;
+            });
+        }
+        
+        select.innerHTML = options;
+        parent.replaceChild(select, inputElement);
+        console.log('✅ تم تحويل حقل العميل إلى قائمة منسدلة مع صلاحيات المستخدم');
     }
     
     return true;
