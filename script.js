@@ -97,16 +97,7 @@ let currentEditingUserId = null;
 
 // إعدادات Google Drive
 let driveConfig = {
-    apiKey: 'AIzaSyBy4WRI3zkUwlCvbrXpB8o9ZbFMuH4AdGA',
-    folderId: '1FlBXLupfXCICs6xt7xxEE02wr_cjAapC',
-    fileName: 'datatxt.txt',
-    fileId: '1xZSobMThbWKcZ53OmZEWlbn6mzz5Nsnr',
-    dataFiles: [],  // ✅ جديد: مصفوفة للملفات المتعددة
-    usersFileName: 'users.json',
-    usersFileId: '1-ktLLXz1Febs44lB-aqfuNmTRs1GNB0w',
-    logoFileId: '1DugYxs9a21e6J0ynTu6pE0yHXM2wRXSP',
-    creditFileName: 'creditdata.txt',
-    creditFileId: '1WU9R9Yby0_QoJeulIgYRuCQk9XV-N_e1'
+  
 };
 
 // متغيرات التقارير
@@ -128,12 +119,20 @@ const VIEWED_CLOUD_URL = 'https://script.google.com/macros/s/AKfycbwXfSeRg3JAxsg
 const PAYMENTS_API_URL = 'https://script.google.com/macros/s/AKfycbzy9GqPotfkBmVcbBqQsqcyUEGSoTkGGxZDiEi8qjvX4yoxW6BgAGC83KI3xYDJMSDn/exec';
 
 // ============================================
-// المفتاح السري (مشفر بـ Base64)
+// 
 // ============================================
 const SECRET_KEY = atob('RENIQ19TRUNVUkVfMjAyNA==');
 
 // رابط Apps Script مع المفتاح المشفر
 const USERS_SCRIPT_URL = `https://script.google.com/macros/s/AKfycbxNNFfi5IEWDZ4kgSEHmM_gbIJxjOx15r71BZ0dSliXLrW_itIpwvNwsGi_MiWevbmdZQ/exec?key=${SECRET_KEY}`;
+
+// ============================================
+//
+// ============================================
+
+
+// رابط Google Apps Script مع المفتاح المشفر
+const CREDIT_SCRIPT_URL = `https://script.google.com/macros/s/AKfycbywHRk2AQt89heasHtGgdASUp686Oehzg6zH838fPpaN38T-bwqjQtXDZ7wvyL54MKVRA/exec?key=${SECRET_KEY}`;
 
 // متغيرات نظام السدادات
 let paymentsData = [];
@@ -1239,11 +1238,9 @@ function showReportPreview(reportHtmlWithSummary, reportHtmlWithoutSummary) {
  * تحميل الشعار من Google Drive
  */
 async function loadLogoFromDrive() {
-    if (!driveConfig.apiKey || !driveConfig.logoFileId) return false;
-    
     try {
-        const url = `https://www.googleapis.com/drive/v3/files/${driveConfig.logoFileId}?alt=media&key=${driveConfig.apiKey}`;
-        const response = await fetch(url);
+        // تحميل الشعار من GitHub بدلاً من Drive
+        const response = await fetch('https://raw.githubusercontent.com/revenudchc-boop/DCHC/main/assets/logo.jpg');
         
         if (!response.ok) throw new Error('فشل تحميل الشعار');
         
@@ -5264,28 +5261,41 @@ function startPeriodicUserUpdate() {
     }, 5 * 60 * 1000);
 }
 
-async function loadCreditDataFromDrive() {
-    if (!driveConfig.apiKey || !driveConfig.folderId) return false;
-    let fileId = driveConfig.creditFileId;
-    if (!fileId && driveConfig.creditFileName) {
-        try {
-            const res = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(`'${driveConfig.folderId}' in parents and name='${driveConfig.creditFileName}'`)}&key=${driveConfig.apiKey}&fields=files(id,name)`);
-            if (!res.ok) throw new Error('فشل البحث عن ملف الخصم');
-            const data = await res.json();
-            if (!data.files?.length) return false;
-            fileId = data.files[0].id;
-            driveConfig.creditFileId = fileId;
-            if (currentUser?.userType === 'admin') saveDriveSettingsToStorage();
-        } catch { return false; }
-    } else if (!fileId) return false;
+// ============================================
+// تحميل creditdata.txt عبر Google Apps Script
+// ============================================
 
+async function loadCreditDataFromDrive() {
     try {
+        console.log('📥 جاري تحميل creditdata.txt...');
         showProgress('جاري تحميل إشعارات الخصم...', 30);
-        const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${driveConfig.apiKey}`);
-        if (!res.ok) throw new Error('فشل تحميل ملف الخصم');
-        const content = await res.text();
+        
+        const response = await fetch(CREDIT_SCRIPT_URL);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const content = await response.text();
+        
+        // التحقق من خطأ السكربت
+        try {
+            const parsed = JSON.parse(content);
+            if (parsed.error) {
+                throw new Error(parsed.error);
+            }
+        } catch (e) {
+            // تجاهل، هذا يعني أن المحتوى هو XML وليس JSON
+        }
+        
+        if (!content || content.trim() === '') {
+            throw new Error('المحتوى فارغ');
+        }
+        
+        console.log(`📊 تم تحميل ${content.length} حرف`);
         showProgress('جاري تحليل البيانات...', 60);
         
+        // تحليل البيانات (نفس الكود القديم)
         const parser = new DOMParser();
         const xmlDoc = parser.parseFromString(content, "text/xml");
         const parseError = xmlDoc.querySelector('parsererror');
@@ -5310,19 +5320,16 @@ async function loadCreditDataFromDrive() {
 
         if (!newCredits.length) throw new Error('لا توجد إشعارات خصم صالحة');
         
-        // ✅ حفظ البيانات وتطبيق التصفية
         creditData = newCredits;
-        console.log('✅ loadCreditDataFromDrive: تم تحميل', creditData.length, 'إشعار خصم');
+        console.log('✅ تم تحميل', creditData.length, 'إشعار خصم');
         showProgress('تم التحميل', 100);
         
-        // تطبيق صلاحيات المستخدم على البيانات فوراً
         filterCreditData();
-        
         return true;
         
     } catch (error) {
-        console.error('❌ خطأ في loadCreditDataFromDrive:', error);
-        showNotification(`❌ خطأ في تحميل إشعارات الخصم: ${error.message}`, 'error');
+        console.error('❌ خطأ:', error);
+        showNotification(`❌ فشل التحميل: ${error.message}`, 'error');
         return false;
     } finally {
         setTimeout(hideProgress, 1500);
