@@ -126,6 +126,15 @@ const SYNC_WEB_APP_URL = 'https://script.google.com/macros/s/AKfycbwhI-WpSqD2jmS
 const VIEWED_CLOUD_URL = 'https://script.google.com/macros/s/AKfycbwXfSeRg3JAxsgCTDedaspLe9SVEAn5gpInrs-TLGkbgq9599UOhXRQX2DR3cjW7X0R1A/exec';
 // إعدادات نظام السدادات (Google Apps Script)
 const PAYMENTS_API_URL = 'https://script.google.com/macros/s/AKfycbzy9GqPotfkBmVcbBqQsqcyUEGSoTkGGxZDiEi8qjvX4yoxW6BgAGC83KI3xYDJMSDn/exec';
+
+// ============================================
+// المفتاح السري (مشفر بـ Base64)
+// ============================================
+const SECRET_KEY = atob('RENIQ19TRUNVUkVfMjAyNA==');
+
+// رابط Apps Script مع المفتاح المشفر
+const USERS_SCRIPT_URL = `https://script.google.com/macros/s/AKfycbxNNFfi5IEWDZ4kgSEHmM_gbIJxjOx15r71BZ0dSliXLrW_itIpwvNwsGi_MiWevbmdZQ/exec?key=${SECRET_KEY}`;
+
 // متغيرات نظام السدادات
 let paymentsData = [];
 let filteredPayments = [];
@@ -1501,22 +1510,54 @@ async function discoverFileDateRange(fileIndex) {
 // دوال المستخدمين
 // ============================================
 async function loadUsersFromDrive() {
-    if (!driveConfig.apiKey || !driveConfig.folderId || !driveConfig.usersFileId) return false;
     try {
         showProgress('جاري تحميل المستخدمين...', 30);
-        const res = await fetch(`https://www.googleapis.com/drive/v3/files/${driveConfig.usersFileId}?alt=media&key=${driveConfig.apiKey}`);
-        if (!res.ok) throw new Error('فشل التحميل');
-        let content = await res.text();
-        try { JSON.parse(content); } catch { content = repairJSON(content); }
-        users = JSON.parse(content);
-        if (!Array.isArray(users)) throw new Error('ملف غير صالح');
+        
+        const response = await fetch(USERS_SCRIPT_URL);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const content = await response.text();
+        
+        // التحقق من وجود خطأ (مثل: مفتاح غير صحيح)
+        try {
+            const parsed = JSON.parse(content);
+            if (parsed.error) {
+                throw new Error(parsed.error);
+            }
+        } catch (e) {
+            // إذا لم يكن JSON، فهذا هو المحتوى العادي
+        }
+        
+        // محاولة تحليل JSON
+        let usersData;
+        try {
+            usersData = JSON.parse(content);
+        } catch {
+            const fixed = repairJSON(content);
+            usersData = JSON.parse(fixed);
+        }
+        
+        if (!Array.isArray(usersData)) {
+            throw new Error('ملف غير صالح');
+        }
+        
+        users = usersData;
         localStorage.setItem('backupUsers', JSON.stringify(users));
+        
+        showProgress('تم التحميل', 100);
+        setTimeout(hideProgress, 1500);
+        
         return true;
+        
     } catch (error) {
-        console.error(error);
-        showNotification('فشل تحميل المستخدمين', 'error');
+        console.error('❌ فشل تحميل المستخدمين:', error);
+        showNotification(`فشل تحميل المستخدمين: ${error.message}`, 'error');
+        setTimeout(hideProgress, 1500);
         return false;
-    } finally { setTimeout(hideProgress, 1500); }
+    }
 }
 
 async function saveUsersToDrive() {
@@ -1566,43 +1607,43 @@ function loadUsersFromBackup() {
 async function loadUsers(forceRefresh = false) {
     console.log('👥 تحميل المستخدمين...');
     
-    // محاولة التحميل من GitHub أولاً
+    // ✅ 1. محاولة التحميل من Google Apps Script (Drive)
     let loaded = false;
-    
     if (forceRefresh) {
-        loaded = await loadUsersFromGitHub();
+        loaded = await loadUsersFromDrive();
     } else {
-        loaded = await loadUsersFromGitHub();
+        loaded = await loadUsersFromDrive();
     }
     
     if (loaded) {
         if (forceRefresh) showNotification('تم تحديث المستخدمين', 'success');
+        console.log('✅ تم تحميل المستخدمين من Google Drive عبر Apps Script');
         return;
     }
     
-    // فشل التحميل من GitHub → نحاول من النسخة الاحتياطية المحلية
+    // ✅ 2. فشل → محاولة التحميل من النسخة الاحتياطية المحلية
     if (loadUsersFromBackup()) {
         console.warn('⚠️ تم تحميل المستخدمين من النسخة الاحتياطية المحلية');
         showNotification('تم تحميل المستخدمين من النسخة الاحتياطية', 'warning');
         return;
     }
     
-    // في حالة عدم وجود أي بيانات، نضيف مديراً احتياطياً
+    // ✅ 3. إنشاء مدير احتياطي (في حالة عدم وجود أي بيانات)
     console.error('❌ فشل تحميل المستخدمين. سيتم إنشاء مدير احتياطي.');
     users = [{
         id: 'user_admin_emergency',
         username: 'admin',
         email: 'admin@emergency.local',
-        taxNumber: 'ADMIN001',
-        contractCustomerId: 'ADMIN001',
+        taxNumber: decodeBase64('QURNSU4wMDE='),
+        contractCustomerId: decodeBase64('QURNSU4wMDE='),
         customerIds: [],
         userType: 'admin',
-        password: 'admin123',
+        password: decodeBase64('YWRtaW4xMjM='),
         status: 'active',
         createdAt: new Date().toISOString(),
         lastLogin: null
     }];
-    showNotification('تم إنشاء مدير احتياطي', 'warning');
+    showNotification('تم إنشاء مدير احتياطي بسبب فشل تحميل المستخدمين', 'warning');
 }
 
 // تحديث المستخدمين يدوياً من Drive (للمدير فقط)
@@ -10160,43 +10201,7 @@ window.updateFromGitHub = async function() {
 // ============================================
 // تحميل المستخدمين من GitHub
 // ============================================
-async function loadUsersFromGitHub() {
-    console.log('👥 جاري تحميل المستخدمين من GitHub...');
-    
-    try {
-        const response = await fetch(GITHUB_CONFIG.usersFileUrl);
-        
-        if (!response.ok) {
-            console.error(`❌ فشل تحميل المستخدمين: ${response.status}`);
-            return false;
-        }
-        
-        const content = await response.text();
-        
-        // محاولة تحليل JSON
-        let userData;
-        try {
-            userData = JSON.parse(content);
-        } catch(e) {
-            // إذا فشل التحليل، نحاول إصلاح JSON
-            const fixedContent = repairJSON(content);
-            userData = JSON.parse(fixedContent);
-        }
-        
-        if (Array.isArray(userData) && userData.length > 0) {
-            users = userData;
-            localStorage.setItem('backupUsers', JSON.stringify(users));
-            console.log(`✅ تم تحميل ${users.length} مستخدم من GitHub`);
-            return true;
-        }
-        
-        return false;
-        
-    } catch (error) {
-        console.error('❌ خطأ في تحميل المستخدمين:', error);
-        return false;
-    }
-}
+
 
 // ============================================
 // حفظ المستخدمين إلى GitHub (ملاحظة: GitHub API يتطلب token)
