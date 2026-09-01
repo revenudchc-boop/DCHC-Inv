@@ -8061,6 +8061,7 @@ function loadUnpaidInvoicesForPayment() {
         return payee.includes(customerId) || contract.includes(customerId);
     });
     
+    // ✅ تصفية حسب تاريخ الفاتورة (finalized-date)
     const dateFrom = document.getElementById('paymentDateFrom')?.value;
     const dateTo = document.getElementById('paymentDateTo')?.value;
     
@@ -8088,15 +8089,9 @@ function loadUnpaidInvoicesForPayment() {
         if (p.linkedInvoices && Array.isArray(p.linkedInvoices)) {
             p.linkedInvoices.forEach(key => {
                 if (p.status === 'confirmed' || p.isOpeningBalance) {
-                    // ✅ استخدام المبلغ الفعلي المخصص لهذه الفاتورة إن وجد
-                    let amountForInvoice = 0;
-                    if (p.invoiceAmounts && p.invoiceAmounts[key] !== undefined) {
-                        amountForInvoice = p.invoiceAmounts[key];
-                    } else {
-                        amountForInvoice = p.linkedInvoices.length > 0 ? p.amount / p.linkedInvoices.length : p.amount;
-                    }
+                    const amountPerInvoice = p.linkedInvoices.length > 0 ? p.amount / p.linkedInvoices.length : p.amount;
                     if (!invoicePaidAmounts[key]) invoicePaidAmounts[key] = 0;
-                    invoicePaidAmounts[key] += amountForInvoice;
+                    invoicePaidAmounts[key] += amountPerInvoice;
                 }
                 if (p.status === 'pending') {
                     invoiceHasPending[key] = true;
@@ -8110,10 +8105,10 @@ function loadUnpaidInvoicesForPayment() {
     filteredByDate.forEach(inv => {
         const key = getInvoiceKey(inv);
         
-        // الفاتورة التي لها سداد معلق لا تظهر
+        // ✅ الفاتورة التي لها سداد معلق لا تظهر
         if (invoiceHasPending[key]) return;
         
-        // حساب المبلغ بالعملة الأصلية
+        // ✅ حساب المبلغ بالعملة الأصلية
         const currency = inv['currency'] || 'EGP';
         const exRate = inv['flex-string-06'] || 48.0215;
         const originalTotal = inv['total-total'] || 0;
@@ -8131,7 +8126,7 @@ function loadUnpaidInvoicesForPayment() {
         const paid = invoicePaidAmounts[key] || 0;
         const remaining = invoiceTotal - paid;
         
-        // الفاتورة المسددة كلياً لا تظهر
+        // ✅ الفاتورة المسددة كلياً لا تظهر
         if (remaining <= 0.01) return;
         
         unpaidInvoices.push({
@@ -8144,7 +8139,7 @@ function loadUnpaidInvoicesForPayment() {
         });
     });
     
-    // ترتيب الفواتير تنازلياً حسب الرقم التسلسلي
+    // ✅ ترتيب الفواتير تنازلياً حسب الرقم التسلسلي
     unpaidInvoices.sort((a, b) => {
         const getNum = (finalNumber) => {
             if (!finalNumber) return 0;
@@ -9960,15 +9955,8 @@ function getInvoicePaymentStatus(invoiceKey, customerId) {
     paymentsData.forEach(p => {
         if (p.linkedInvoices && Array.isArray(p.linkedInvoices) && p.linkedInvoices.includes(invoiceKey)) {
             if (p.status === 'confirmed' || p.isOpeningBalance) {
-                // ✅ استخدام المبلغ الفعلي المخصص لهذه الفاتورة إن وجد
-                let amountForInvoice = 0;
-                if (p.invoiceAmounts && p.invoiceAmounts[invoiceKey] !== undefined) {
-                    amountForInvoice = p.invoiceAmounts[invoiceKey];
-                } else {
-                    // fallback: التوزيع المتساوي (للتوافق مع السدادات القديمة)
-                    amountForInvoice = p.linkedInvoices.length > 0 ? p.amount / p.linkedInvoices.length : p.amount;
-                }
-                totalPaid += amountForInvoice;
+                const amountPerInvoice = p.linkedInvoices.length > 0 ? p.amount / p.linkedInvoices.length : p.amount;
+                totalPaid += amountPerInvoice;
             } else if (p.status === 'pending') {
                 hasPending = true;
             } else if (p.status === 'rejected') {
@@ -9977,12 +9965,7 @@ function getInvoicePaymentStatus(invoiceKey, customerId) {
         }
     });
     
-    return { 
-        paid: totalPaid, 
-        status: totalPaid <= 0 ? 'unpaid' : 'partial', 
-        hasPending: hasPending, 
-        hasRejected: hasRejected 
-    };
+    return { paid: totalPaid, status: totalPaid <= 0 ? 'unpaid' : 'partial', hasPending: hasPending, hasRejected: hasRejected };
 }
 
 // عرض الفواتير المرتبطة بالسداد
