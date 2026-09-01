@@ -748,40 +748,30 @@
         </div>
     </div>
     
-    <!-- نافذة كشف الحساب -->
-    <div id="accountStatementModal" class="modal">
-        <div class="modal-content" style="max-width: 1000px;">
-            <div class="modal-header">
-                <h2><i class="fas fa-file-invoice-dollar"></i> كشف حساب</h2>
-                <div class="modal-actions">
-                    <button class="btn btn-primary" onclick="exportStatementPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
-                    <button class="btn btn-success" onclick="exportStatementExcel()"><i class="fas fa-file-excel"></i> Excel</button>
-					<button class="btn btn-outline btn-sm" onclick="printStatement()"><i class="fas fa-print"></i> طباعة</button>
-                    <span class="close-button" onclick="closeStatementModal()">&times;</span>
-                </div>
+<!-- نافذة كشف الحساب -->
+<div id="accountStatementModal" class="modal">
+    <div class="modal-content" style="max-width: 1000px;">
+        <div class="modal-header">
+            <h2><i class="fas fa-file-invoice-dollar"></i> كشف حساب</h2>
+            <div class="modal-actions">
+                <button class="btn btn-primary" onclick="exportStatementPDF()"><i class="fas fa-file-pdf"></i> PDF</button>
+                <button class="btn btn-success" onclick="exportStatementExcel()"><i class="fas fa-file-excel"></i> Excel</button>
+                <button class="btn btn-outline btn-sm" onclick="printStatement()"><i class="fas fa-print"></i> طباعة</button>
+                <span class="close-button" onclick="closeStatementModal()">&times;</span>
             </div>
-			            <div class="modal-body">
-                <div class="form-group" style="margin-bottom:15px;">
-                    <label>اختر الحساب</label>
-                    <select id="statementAccount" onchange="updateStatement()">
-                        <option value="">اختر الحساب...</option>
-                    </select>
-					                <div class="row" style="margin-bottom:10px;">
-                    <div class="col">
-                        <label style="font-size:0.8em;">من تاريخ</label>
-                        <input type="date" id="statementDateFrom" onchange="updateStatement()" style="width:100%; padding:6px; border-radius:6px;">
-                    </div>
-                    <div class="col">
-                        <label style="font-size:0.8em;">إلى تاريخ</label>
-                        <input type="date" id="statementDateTo" onchange="updateStatement()" style="width:100%; padding:6px; border-radius:6px;">
-                    </div>
-                </div>
-                </div>
-                <div id="statementBody"></div>
+        </div>
+        <div class="modal-body">
+            <div class="form-group" style="margin-bottom:15px;">
+                <label>اختر الحساب</label>
+                <select id="statementAccount">
+                    <option value="">اختر الحساب...</option>
+                </select>
             </div>
-            <div class="modal-body" id="statementBody"></div>
+            <!-- هنا سيتم وضع واجهة الفلترة والمحتوى ديناميكياً -->
+            <div id="statementBody"></div>
         </div>
     </div>
+</div>
 				<!-- نافذة إعدادات التحديث التلقائي -->
 <div id="refreshSettingsModal" class="modal">
     <div class="modal-content" style="max-width: 450px;">
