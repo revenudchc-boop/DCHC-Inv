@@ -2339,165 +2339,147 @@ window.parseXMLContent = async function(xmlString, source) {
 // ============================================
 // دوال تحليل عقدة الفاتورة
 // ============================================
-function parseInvoiceNode(invoice) {
-    try {
-        // قراءة رقم الفاتورة النهائي لتحديد النوع
-        const finalNum = invoice.getAttribute('final-number') || '';
-        const isPostponed = finalNum.startsWith('P') || finalNum.startsWith('p');
-        
-        // قراءة قيمة سعر الصرف من flex-string-06
-        const exRateAttr = invoice.getAttribute('flex-string-06') || '';
-        const currency = invoice.getAttribute('currency') || 'EGP';
-        
-        let exRate;
-        
-        // تعديل معالجة سعر الصرف - للفواتير الآجلة فقط
-        if (isPostponed) {
-            // الفواتير الآجلة: نتحقق من وجود سعر صرف صالح
-            if (exRateAttr && exRateAttr !== 'N/A' && !isNaN(parseFloat(exRateAttr))) {
-                // يوجد سعر صرف صالح في الملف - نستخدمه كما هو
-                exRate = parseFloat(exRateAttr);
-                console.log(`فاتورة آجلة ${finalNum}: استخدام سعر الصرف الموجود = ${exRate}`);
-            } else {
-                // لا يوجد سعر صرف صالح في الملف
-                if (currency === 'EGP') {
-                    // عملة EGP ولا يوجد سعر صرف - نستخدم 1
-                    exRate = 1;
-                    console.log(`فاتورة آجلة ${finalNum}: لا يوجد سعر صرف، عملة EGP → استخدام 1`);
-                } else {
-                    // عملة USAD ولا يوجد سعر صرف - نستخدم القيمة الافتراضية
-                    exRate = 48.0215;
-                    console.log(`فاتورة آجلة ${finalNum}: لا يوجد سعر صرف، عملة USAD → استخدام الافتراضي 48.0215`);
-                }
-            }
-        } else {
-            // الفواتير النقدية: نستخدم القيمة الأصلية كما هي
-            if (exRateAttr && exRateAttr !== 'N/A' && !isNaN(parseFloat(exRateAttr))) {
-                exRate = parseFloat(exRateAttr);
-            } else {
-                exRate = 48.0215; // القيمة الافتراضية
-            }
-        }
-        
-        const obj = {
-            'draft-number': invoice.getAttribute('draft-number') || '',
-            'final-number': finalNum,
-            'finalized-date': invoice.getAttribute('finalized-date') || '',
-            'status': invoice.getAttribute('status') || '',
-            'invoice-type-id': invoice.getAttribute('invoice-type-id') || '',
-            'currency': currency,
-            'payee-customer-id': invoice.getAttribute('payee-customer-id') || '',
-            'payee-customer-role': invoice.getAttribute('payee-customer-role') || '',
-            'contract-customer-id': invoice.getAttribute('contract-customer-id') || '',
-            'contract-customer-role': invoice.getAttribute('contract-customer-role') || '',
-            'total-charges': parseFloat(invoice.getAttribute('total-charges') || 0),
-            'total-discounts': parseFloat(invoice.getAttribute('total-discounts') || 0),
-            'total-taxes': parseFloat(invoice.getAttribute('total-taxes') || 0),
-            'total-total': parseFloat(invoice.getAttribute('total-total') || 0),
-            'total-credits': parseFloat(invoice.getAttribute('total-credits') || 0),
-            'total-credit-taxes': parseFloat(invoice.getAttribute('total-credit-taxes') || 0),
-            'total-paid': parseFloat(invoice.getAttribute('total-paid') || 0),
-            'total-owed': parseFloat(invoice.getAttribute('total-owed') || 0),
-            'key-word1': invoice.getAttribute('key-word1') || '',
-            'key-word2': invoice.getAttribute('key-word2') || '',
-            'key-word3': invoice.getAttribute('key-word3') || '',
-            'facility-id': invoice.getAttribute('facility-id') || '',
-            'facility-name': invoice.getAttribute('facility-name') || '',
-            'flex-string-02': invoice.getAttribute('flex-string-02') || '',
-            'flex-string-03': invoice.getAttribute('flex-string-03') || '',
-            'flex-string-04': invoice.getAttribute('flex-string-04') || '',
-            'flex-string-05': invoice.getAttribute('flex-string-05') || '',
-            'flex-string-06': exRate,
-            'flex-string-10': invoice.getAttribute('flex-string-10') || '',
-            'flex-date-02': invoice.getAttribute('flex-date-02') || '',
-            'flex-date-03': invoice.getAttribute('flex-date-03') || '',
-            'created': invoice.getAttribute('created') || '',
-            'creator': invoice.getAttribute('creator') || '',
-            'changed': invoice.getAttribute('changed') || '',
-            'changer': invoice.getAttribute('changer') || '',
-            'charges': [],
-            'containers': []
-        };
+// ============================================
+// تحليل سريع للفواتير باستخدام Regex (بدل DOMParser)
+// ============================================
 
-        const charges = invoice.getElementsByTagName('charge');
-        for (let j = 0; j < charges.length; j++) {
-            const charge = charges[j];
+// دالة مساعدة لتحليل سمات العنصر
+function parseAttributesRegex(attrsString) {
+    const attrs = {};
+    const regex = /([a-zA-Z][a-zA-Z0-9_-]*)="([^"]*)"/g;
+    let match;
+    while ((match = regex.exec(attrsString)) !== null) {
+        attrs[match[1]] = match[2];
+    }
+    return attrs;
+}
+
+// دالة تحليل الفواتير الرئيسية
+function parseInvoicesFromContent(content) {
+    const invoices = [];
+    
+    // استخراج كل <invoice>...</invoice>
+    const invoiceRegex = /<invoice\s+([^>]*?)(?:\/>|>([\s\S]*?)<\/invoice>)/g;
+    let match;
+    
+    while ((match = invoiceRegex.exec(content)) !== null) {
+        try {
+            const attrsString = match[1];
+            const innerContent = match[2] || '';
             
-            // ✅ استخدام quantity-billed كعدد أيام التخزين
-            const from = charge.getAttribute('event-performed-from') || '';
-            const to = charge.getAttribute('event-performed-to') || '';
-            const qtyBilled = parseFloat(charge.getAttribute('quantity-billed') || '1');
-            let storageDays = Math.round(qtyBilled);
-            if (storageDays < 1) storageDays = 1;
+            const inv = parseAttributesRegex(attrsString);
+            const finalNum = inv['final-number'] || '';
+            const isPostponed = finalNum.startsWith('P') || finalNum.startsWith('p');
+            const currency = inv['currency'] || 'EGP';
             
-            // قراءة الكمية من XML
-            const quantityBilled = parseFloat(charge.getAttribute('quantity-billed') || 1);
+            // تحويل الأرقام
+            inv['total-charges'] = parseFloat(inv['total-charges']) || 0;
+            inv['total-discounts'] = parseFloat(inv['total-discounts']) || 0;
+            inv['total-taxes'] = parseFloat(inv['total-taxes']) || 0;
+            inv['total-total'] = parseFloat(inv['total-total']) || 0;
+            inv['total-credits'] = parseFloat(inv['total-credits']) || 0;
+            inv['total-credit-taxes'] = parseFloat(inv['total-credit-taxes']) || 0;
+            inv['total-paid'] = parseFloat(inv['total-paid']) || 0;
+            inv['total-owed'] = parseFloat(inv['total-owed']) || 0;
             
-            // تعديل سعر الصرف في بنود المصاريف - للفواتير الآجلة فقط
-            let chargeExRate;
+            // معالجة سعر الصرف
+            let exRate = 48.0215;
+            const exRateAttr = inv['flex-string-06'] || '';
             
             if (isPostponed) {
-                // للفواتير الآجلة
-                const chargeExRateAttr = charge.getAttribute('exchange-rate');
-                
-                if (chargeExRateAttr && chargeExRateAttr !== 'N/A' && !isNaN(parseFloat(chargeExRateAttr))) {
-                    // يوجد سعر صرف خاص بالبند - نستخدمه
-                    chargeExRate = parseFloat(chargeExRateAttr);
-                } else {
-                    // لا يوجد سعر صرف خاص بالبند - نستخدم سعر صرف الفاتورة
-                    chargeExRate = exRate;
+                if (exRateAttr && exRateAttr !== 'N/A' && !isNaN(parseFloat(exRateAttr))) {
+                    exRate = parseFloat(exRateAttr);
+                } else if (currency === 'EGP') {
+                    exRate = 1;
                 }
             } else {
-                // للفواتير النقدية، نستخدم القيمة الأصلية
-                const chargeExRateAttr = charge.getAttribute('exchange-rate');
-                if (chargeExRateAttr && chargeExRateAttr !== 'N/A' && !isNaN(parseFloat(chargeExRateAttr))) {
-                    chargeExRate = parseFloat(chargeExRateAttr);
-                } else {
-                    chargeExRate = exRate;
+                if (exRateAttr && exRateAttr !== 'N/A' && !isNaN(parseFloat(exRateAttr))) {
+                    exRate = parseFloat(exRateAttr);
                 }
             }
+            inv['flex-string-06'] = exRate;
             
-            const chargeObj = {
-                'event-type-id': charge.getAttribute('event-type-id') || '',
-                'entity-id': charge.getAttribute('entity-id') || '',
-                'tariff-id': charge.getAttribute('tariff-id') || '',
-                'description': charge.getAttribute('description') || '',
-                'event-performed-from': from || '',
-                'event-performed-to': to || '',
-                'paid-thru-day': charge.getAttribute('paid-thru-day') || '',
-                'extract-class': charge.getAttribute('extract-class') || '',
-                'rate-billed': parseFloat(charge.getAttribute('rate-billed') || 0),
-                'quantity-billed': quantityBilled,
-                'amount': parseFloat(charge.getAttribute('amount') || 0),
-                'is-flat-rate': charge.getAttribute('is-flat-rate') || '',
-                'flat-rate-amount': parseFloat(charge.getAttribute('flat-rate-amount') || 0),
-                'exchange-rate': chargeExRate,
-                'created': charge.getAttribute('created') || '',
-                'storage-days': storageDays,
-                'quantity': quantityBilled,
-                'containerNumbers': [],
-                'taxes': []
-            };
+            // تحليل charges
+            inv.charges = parseChargesRegex(innerContent, exRate, isPostponed);
             
-            if (chargeObj['entity-id']) {
-                chargeObj.containerNumbers.push(chargeObj['entity-id']);
-                obj.containers.push(chargeObj['entity-id']);
+            // استخراج الحاويات
+            inv.containers = [];
+            inv.charges.forEach(charge => {
+                if (charge['entity-id'] && !inv.containers.includes(charge['entity-id'])) {
+                    inv.containers.push(charge['entity-id']);
+                }
+            });
+            
+            if (inv['final-number']) {
+                invoices.push(inv);
             }
-            
-            const taxes = charge.getElementsByTagName('tax');
-            for (let k = 0; k < taxes.length; k++) {
-                const tax = taxes[k];
-                chargeObj.taxes.push({ amount: parseFloat(tax.getAttribute('amount') || 0), created: tax.getAttribute('created') || '' });
-            }
-            
-            obj.charges.push(chargeObj);
+        } catch (e) {
+            console.warn('⚠️ خطأ في تحليل فاتورة:', e);
         }
-        
-        obj.containers = [...new Set(obj.containers)];
-        return obj;
+    }
+    
+    return invoices;
+}
+
+// تحليل charges
+function parseChargesRegex(content, invoiceExRate, isPostponed) {
+    const charges = [];
+    const chargeRegex = /<charge\s+([^>]*?)(?:\/>|>([\s\S]*?)<\/charge>)/g;
+    let match;
+    
+    while ((match = chargeRegex.exec(content)) !== null) {
+        try {
+            const attrsString = match[1];
+            const innerContent = match[2] || '';
+            
+            const charge = parseAttributesRegex(attrsString);
+            
+            // تحويل الأرقام
+            charge['rate-billed'] = parseFloat(charge['rate-billed']) || 0;
+            charge['quantity-billed'] = parseFloat(charge['quantity-billed']) || 1;
+            charge['amount'] = parseFloat(charge['amount']) || 0;
+            charge['quantity'] = charge['quantity-billed'];
+            charge['storage-days'] = Math.max(1, Math.round(charge['quantity-billed']));
+            
+            // سعر الصرف
+            let chargeExRate = invoiceExRate;
+            const chargeExRateAttr = charge['exchange-rate'];
+            if (chargeExRateAttr && chargeExRateAttr !== 'N/A' && !isNaN(parseFloat(chargeExRateAttr))) {
+                chargeExRate = parseFloat(chargeExRateAttr);
+            }
+            charge['exchange-rate'] = chargeExRate;
+            
+            // المصفوفات
+            charge.containerNumbers = charge['entity-id'] ? [charge['entity-id']] : [];
+            charge.taxes = [];
+            
+            // تحليل الضرائب
+            const taxRegex = /<tax\s+([^>]*?)\/?>/g;
+            let taxMatch;
+            while ((taxMatch = taxRegex.exec(innerContent)) !== null) {
+                const tax = parseAttributesRegex(taxMatch[1]);
+                tax.amount = parseFloat(tax.amount) || 0;
+                charge.taxes.push(tax);
+            }
+            
+            charges.push(charge);
+        } catch (e) {
+            console.warn('⚠️ خطأ في تحليل charge:', e);
+        }
+    }
+    
+    return charges;
+}
+
+// دالة تحليل ملف واحد باستخدام Regex
+async function parseXMLContentFast(content, source) {
+    try {
+        const invoices = parseInvoicesFromContent(content);
+        console.log(`⚡ ${source}: تم استخراج ${invoices.length} فاتورة (Regex)`);
+        return invoices;
     } catch (error) {
-        console.error('خطأ في تحليل الفاتورة:', error);
-        return null;
+        console.error(`❌ خطأ في تحليل ${source}:`, error);
+        return [];
     }
 }
 
@@ -6103,14 +6085,14 @@ async function loadInvoicesFromDrive() {
 
 // دالة مساعدة لتحميل ملف واحد
 // ============================================
-// تحميل ملف واحد وتحليل محتواه
+// ============================================
+// تحميل ملف واحد وتحليل محتواه (Regex سريع)
 // ============================================
 async function loadSingleDataFile(fileInfo) {
     const fileName = fileInfo.name;
     console.log(`📥 جاري تحميل: ${fileName}`);
     
     try {
-        // تحميل الملف من GitHub Raw
         const response = await fetch(fileInfo.url);
         
         if (!response.ok) {
@@ -6118,42 +6100,16 @@ async function loadSingleDataFile(fileInfo) {
             return [];
         }
         
-        // قراءة محتوى الملف
         const content = await response.text();
         
-        // تحليل XML واستخراج الفواتير
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(content, 'text/xml');
+        // ✅ استخدام Regex بدلاً من DOMParser
+        const invoices = parseXMLContentFast(content, fileName);
         
-        // التحقق من وجود أخطاء في XML
-        const parseError = xmlDoc.querySelector('parsererror');
-        let invoices = [];
+        // انتظر النتيجة (لأن parseXMLContentFast قد تكون async)
+        const result = await invoices;
         
-        if (parseError) {
-            // إذا فشل التحليل، نحاول استخراج الفواتير باستخدام Regex
-            console.log(`⚠️ ${fileName}: محاولة استخراج الفواتير بطريقة بديلة...`);
-            const matches = content.match(/<invoice[\s\S]*?<\/invoice>/g);
-            
-            if (matches && matches.length > 0) {
-                const wrapped = parser.parseFromString(`<root>${matches.join('')}</root>`, 'text/xml');
-                const nodes = wrapped.querySelectorAll('invoice');
-                
-                for (let i = 0; i < nodes.length; i++) {
-                    const inv = parseInvoiceNode(nodes[i]);
-                    if (inv) invoices.push(inv);
-                }
-            }
-        } else {
-            // التحليل العادي
-            const nodes = xmlDoc.getElementsByTagName('invoice');
-            for (let i = 0; i < nodes.length; i++) {
-                const inv = parseInvoiceNode(nodes[i]);
-                if (inv) invoices.push(inv);
-            }
-        }
-        
-        console.log(`✅ ${fileName}: تم استخراج ${invoices.length} فاتورة`);
-        return invoices;
+        console.log(`✅ ${fileName}: ${result.length} فاتورة (Regex)`);
+        return result;
         
     } catch (error) {
         console.error(`❌ خطأ في تحميل ${fileName}:`, error);
@@ -6162,78 +6118,139 @@ async function loadSingleDataFile(fileInfo) {
 }
 
 // ============================================
-// تحميل جميع الملفات (من الأحدث إلى الأقدم)
+// تحميل الفواتير - مرحلتان: سريع + خلفي
 // ============================================
 async function loadAllInvoices() {
-    console.log('🚀 بدء تحميل جميع الفواتير...');
+    console.log('🚀 بدء تحميل الفواتير...');
     
-    // الخطوة 1: اكتشاف الملفات
-    showProgress('جاري اكتشاف ملفات البيانات...', 10);
+    const cacheKey = `invoices_${currentUser?.username || 'guest'}`;
+    
+    // ============================================
+    // الخطوة 1: محاولة القراءة من Cache
+    // ============================================
+    try {
+        showProgress('جاري فحص الذاكرة المؤقتة...', 5);
+        const cached = await loadFromCache(cacheKey);
+        
+        if (cached && cached.data && cached.data.length > 0) {
+            console.log(`📦 وجد Cache (${cached.data.length} فاتورة)`);
+            
+            // ✅ فحص هل أحدث ملف تغير؟
+            const discovered = await discoverDataFiles();
+            
+            if (discovered && GITHUB_CONFIG.filesList.length > 0) {
+                const latestFile = GITHUB_CONFIG.filesList[0];
+                
+                showProgress('جاري فحص التحديثات...', 10);
+                const fileInfo = await checkFileUpdate(latestFile.url);
+                
+                // مقارنة معلومات الملف
+                const cachedInfo = cached.latestFile;
+                const isUpdated = !cachedInfo || 
+                                 !fileInfo ||
+                                 fileInfo.lastModified !== cachedInfo.lastModified ||
+                                 fileInfo.etag !== cachedInfo.etag ||
+                                 fileInfo.contentLength !== cachedInfo.size;
+                
+                if (!isUpdated) {
+                    // ✅ لا توجد تحديثات - استخدم Cache
+                    console.log('✅ لا توجد تحديثات، استخدام Cache');
+                    invoicesData = cached.data;
+                    
+                    showProgress('تم التحميل من الذاكرة المؤقتة!', 100);
+                    
+                    try {
+                        await loadViewedFromDrive();
+                    } catch(err) {}
+                    
+                    if (currentUser) {
+                        if (currentUser.isGuest) {
+                            filterInvoicesByGuest(currentUser.taxNumber, currentUser.blNumber);
+                        } else {
+                            filterInvoicesByUser();
+                        }
+                        renderData();
+                        updateSummary();
+                    }
+                    
+                    showNotification(`⚡ تم التحميل من Cache (${invoicesData.length} فاتورة)`, 'success');
+                    setTimeout(hideProgress, 800);
+                    convertCustomerFieldToSelect();
+                    return true;
+                    
+                } else {
+                    // ⚠️ يوجد تحديثات - امسح Cache وأعد التحميل
+                    console.log('🔄 يوجد تحديثات جديدة!');
+                    showNotification('🔄 جاري تحديث البيانات...', 'info');
+                    await deleteFromCache(cacheKey);
+                }
+            }
+        }
+    } catch (cacheError) {
+        console.warn('⚠️ فشل قراءة Cache:', cacheError);
+    }
+    
+    // ============================================
+    // الخطوة 2: تحميل من الشبكة
+    // ============================================
+    console.log('📡 تحميل من الشبكة...');
+    showProgress('جاري اكتشاف ملفات البيانات...', 15);
+    
     const discovered = await discoverDataFiles();
-    
     if (!discovered || GITHUB_CONFIG.filesList.length === 0) {
         showNotification('❌ لم يتم العثور على ملفات بيانات', 'error');
         return false;
     }
     
-    // الخطوة 2: تحميل الملفات (من الأحدث إلى الأقدم)
-    let allInvoices = [];
-    const totalFiles = GITHUB_CONFIG.filesList.length;
+    const allFiles = GITHUB_CONFIG.filesList;
+    const totalFiles = allFiles.length;
+    const FAST_BATCH = Math.min(2, totalFiles);
+    const fastFiles = allFiles.slice(0, FAST_BATCH);
     
-    for (let i = 0; i < totalFiles; i++) {
-        const file = GITHUB_CONFIG.filesList[i];
-        const progressPercent = 10 + Math.round((i / totalFiles) * 80);
-        
-        showProgress(`جاري تحميل ${file.name} (${i+1}/${totalFiles})...`, progressPercent);
-        
-        const fileInvoices = await loadSingleDataFile(file);
-        
-        if (fileInvoices.length > 0) {
-            allInvoices = allInvoices.concat(fileInvoices);
-            console.log(`   📊 ${file.name}: ${fileInvoices.length} فاتورة (المجموع: ${allInvoices.length})`);
+    // ============================================
+    // المرحلة 1: تحميل آخر ملفين
+    // ============================================
+    console.log(`⚡ تحميل آخر ${FAST_BATCH} ملف...`);
+    showProgress(`جاري التحميل السريع...`, 30);
+    
+    // حفظ معلومات أحدث ملف
+    const latestFileInfo = {
+        name: fastFiles[0].name,
+        lastModified: null,
+        size: null,
+        etag: null
+    };
+    
+    // جلب headers أحدث ملف
+    try {
+        const headResponse = await fetch(fastFiles[0].url, { method: 'HEAD' });
+        if (headResponse.ok) {
+            latestFileInfo.lastModified = headResponse.headers.get('Last-Modified');
+            latestFileInfo.size = headResponse.headers.get('Content-Length');
+            latestFileInfo.etag = headResponse.headers.get('ETag');
         }
-    }
+    } catch (e) {}
     
-    // الخطوة 3: إزالة المكررات
-    showProgress('جاري إزالة المكررات...', 95);
-    const uniqueInvoices = [];
-    const seenKeys = new Set();
+    const fastResults = await Promise.allSettled(
+        fastFiles.map(file => loadSingleDataFile(file))
+    );
     
-    for (const inv of allInvoices) {
-        const key = `${inv['final-number']}|${inv['draft-number']}`;
-        if (!seenKeys.has(key)) {
-            seenKeys.add(key);
-            uniqueInvoices.push(inv);
+    let initialInvoices = [];
+    fastResults.forEach((result, index) => {
+        if (result.status === 'fulfilled' && result.value.length > 0) {
+            initialInvoices = initialInvoices.concat(result.value);
+            console.log(`   ✅ ${fastFiles[index].name}: ${result.value.length} فاتورة`);
         }
-    }
+    });
     
-    const duplicateCount = allInvoices.length - uniqueInvoices.length;
-    if (duplicateCount > 0) {
-        console.log(`🗑️ تم إزالة ${duplicateCount} فاتورة مكررة`);
-    }
+    invoicesData = removeDuplicateInvoices(initialInvoices);
     
-    // الخطوة 4: تخزين البيانات النهائية
-    invoicesData = uniqueInvoices;
-    GITHUB_CONFIG.loadedInvoices = uniqueInvoices;
-    GITHUB_CONFIG.isLoaded = true;
+    console.log(`✅ المرحلة 1: ${invoicesData.length} فاتورة`);
+    showProgress('جاري العرض...', 50);
     
-    showProgress('تم التحميل بنجاح!', 100);
-    setTimeout(hideProgress, 1500);
-    
-    console.log(`🎉 اكتمل التحميل:`);
-    console.log(`   📁 عدد الملفات: ${totalFiles}`);
-    console.log(`   📄 إجمالي الفواتير: ${allInvoices.length}`);
-    console.log(`   ✨ فواتير فريدة: ${invoicesData.length}`);
-    
-    console.log('🔄 جاري تحميل علامات المعاينة من السحابة...');
     try {
         await loadViewedFromDrive();
-        console.log('✅ تم تحميل علامات المعاينة، عددها:', viewedInvoices.size);
-    } catch(err) {
-        console.warn('⚠️ فشل تحميل علامات المعاينة:', err);
-    }
-    
-    console.log('🔄 جاري تحديث العرض...');
+    } catch(err) {}
     
     if (currentUser) {
         if (currentUser.isGuest) {
@@ -6243,78 +6260,252 @@ async function loadAllInvoices() {
         }
         renderData();
         updateSummary();
-        console.log('✅ تم عرض الفواتير والإجماليات');
-    } else {
-        console.log('⚠️ لا يوجد مستخدم حالياً، سيتم العرض بعد تسجيل الدخول');
     }
     
-    // ✅ تحويل حقل العميل إلى قائمة منسدلة مع صلاحيات المستخدم
-    const inputElement = document.getElementById('searchCustomer');
-    if (inputElement) {
-        const parent = inputElement.parentElement;
-        const select = document.createElement('select');
-        select.id = 'searchCustomer';
-        
-        let options = '<option value="">الكل</option>';
-        
-        if (currentUser) {
-            let allowedCustomers = [];
-            
-            if (currentUser.userType === 'admin') {
-                // المدير يرى كل العملاء من الفواتير
-                const allCustomers = [...new Set(invoicesData.map(inv => 
-                    inv['payee-customer-id'] || inv['contract-customer-id'] || ''
-                ).filter(c => c && c.trim() !== ''))];
-                allowedCustomers = allCustomers;
-            } else {
-                // ✅ المستخدم العادي: نأخذ العملاء من customerIds أولاً
-                let userCustomerIds = [];
-                if (currentUser.customerIds && Array.isArray(currentUser.customerIds)) {
-                    userCustomerIds = currentUser.customerIds.map(id => id.trim());
-                }
-                if (currentUser.contractCustomerId) {
-                    userCustomerIds.push(currentUser.contractCustomerId.trim());
-                }
-                
-                // ✅ إزالة التكرار
-                userCustomerIds = [...new Set(userCustomerIds)];
-                
-                // ✅ نأخذ العملاء من customerIds أولاً (حتى لو لم توجد فواتير)
-                allowedCustomers = [...userCustomerIds];
-                
-                // ✅ ثم نضيف أي عملاء إضافيين من الفواتير
-                const userInvoices = invoicesData.filter(inv => {
-                    const payee = (inv['payee-customer-id'] || '').toLowerCase();
-                    const contract = (inv['contract-customer-id'] || '').toLowerCase();
-                    return userCustomerIds.some(id => payee === id.toLowerCase() || contract === id.toLowerCase());
-                });
-                
-                const invoiceCustomers = [...new Set(userInvoices.map(inv => 
-                    inv['payee-customer-id'] || inv['contract-customer-id'] || ''
-                ).filter(c => c && c.trim() !== ''))];
-                
-                // دمج القائمتين
-                invoiceCustomers.forEach(id => {
-                    if (!allowedCustomers.includes(id)) {
-                        allowedCustomers.push(id);
-                    }
-                });
-            }
-            
-            allowedCustomers.forEach(id => {
-                const escapedId = id.replace(/"/g, '&quot;');
-                options += `<option value="${escapedId}">${escapedId}</option>`;
-            });
-        }
-        
-        select.innerHTML = options;
-        parent.replaceChild(select, inputElement);
-        console.log('✅ تم تحويل حقل العميل إلى قائمة منسدلة مع صلاحيات المستخدم');
+    showNotification(`✅ تم تحميل ${invoicesData.length} فاتورة`, 'success');
+    setTimeout(hideProgress, 1000);
+    convertCustomerFieldToSelect();
+    
+    // ============================================
+    // المرحلة 2: تحميل باقي الملفات في الخلفية
+    // ============================================
+    if (totalFiles > FAST_BATCH) {
+        const remainingFiles = allFiles.slice(FAST_BATCH);
+        setTimeout(() => {
+            loadRemainingFilesInBackground(remainingFiles, cacheKey, latestFileInfo);
+        }, 2000);
+    } else {
+        // لا يوجد ملفات إضافية - احفظ مباشرة
+        await saveToCache(cacheKey, invoicesData, latestFileInfo);
     }
     
     return true;
 }
+// ============================================
+// ============================================
+// تحميل الملفات المتبقية في الخلفية + حفظ في Cache
+// ============================================
+async function loadRemainingFilesInBackground(remainingFiles, cacheKey, latestFileInfo) {
+    if (!remainingFiles || remainingFiles.length === 0) return;
+    
+    console.log(`🔄 بدء التحميل الخلفي: ${remainingFiles.length} ملف`);
+    showBackgroundLoader(0, remainingFiles.length);
+    
+    let totalNewInvoices = 0;
+    let processedCount = 0;
+    const BATCH_SIZE = 3;
+    
+    for (let i = 0; i < remainingFiles.length; i += BATCH_SIZE) {
+        const batch = remainingFiles.slice(i, i + BATCH_SIZE);
+        
+        let waitCount = 0;
+        while (isUserBusy() && waitCount < 30) {
+            await new Promise(resolve => setTimeout(resolve, 2000));
+            waitCount++;
+        }
+        
+        try {
+            const results = await Promise.allSettled(
+                batch.map(file => loadSingleDataFile(file))
+            );
+            
+            let batchInvoices = [];
+            results.forEach(result => {
+                if (result.status === 'fulfilled' && result.value.length > 0) {
+                    batchInvoices = batchInvoices.concat(result.value);
+                }
+                processedCount++;
+            });
+            
+            if (batchInvoices.length > 0) {
+                const beforeCount = invoicesData.length;
+                invoicesData = removeDuplicateInvoices([...invoicesData, ...batchInvoices]);
+                const addedCount = invoicesData.length - beforeCount;
+                totalNewInvoices += addedCount;
+                console.log(`   📦 دفعة ${Math.floor(i/BATCH_SIZE) + 1}: +${addedCount}`);
+            }
+            
+            showBackgroundLoader(processedCount, remainingFiles.length);
+            await new Promise(resolve => setTimeout(resolve, 300));
+            
+        } catch (error) {
+            console.error(`❌ خطأ في دفعة:`, error);
+            processedCount += batch.length;
+        }
+    }
+    
+    hideBackgroundLoader();
+    console.log(`✅ اكتمل التحميل الخلفي: +${totalNewInvoices}`);
+    
+    // ✅ حفظ في Cache مع معلومات الملف
+    if (invoicesData.length > 0) {
+        await saveToCache(cacheKey, invoicesData, latestFileInfo);
+    }
+    
+    if (totalNewInvoices > 0) {
+        showNotification(`📥 تم تحميل ${totalNewInvoices} فاتورة إضافية`, 'info');
+        refreshDataView();
+    }
+}
 
+// ============================================
+// فحص التحديثات في الخلفية (عند وجود Cache)
+// ============================================
+async function checkForUpdatesInBackground(cacheKey) {
+    try {
+        console.log('🔍 فحص التحديثات في الخلفية...');
+        
+        // اكتشاف الملفات الحالية
+        const discovered = await discoverDataFiles();
+        if (!discovered) return;
+        
+        const allFiles = GITHUB_CONFIG.filesList;
+        if (allFiles.length === 0) return;
+        
+        // حمّل أحدث ملف فقط للمقارنة
+        const latestFile = allFiles[0];
+        const latestInvoices = await loadSingleDataFile(latestFile);
+        
+        if (latestInvoices.length === 0) return;
+        
+        // مقارنة عدد الفواتير
+        const cachedCount = invoicesData.length;
+        const hasNewData = latestInvoices.some(inv => {
+            const key = `${inv['final-number']}|${inv['draft-number']}`;
+            return !invoicesData.find(cached => 
+                `${cached['final-number']}|${cached['draft-number']}` === key
+            );
+        });
+        
+        if (hasNewData) {
+            console.log('✅ يوجد تحديثات جديدة، جاري إعادة التحميل...');
+            showNotification('🔄 يوجد تحديثات جديدة، جاري التحديث...', 'info');
+            
+            // امسح Cache وأعد التحميل
+            await deleteFromCache(cacheKey);
+            await loadAllInvoices();
+        } else {
+            console.log('✅ لا توجد تحديثات');
+        }
+    } catch (error) {
+        console.warn('⚠️ فشل فحص التحديثات:', error);
+    }
+}
+
+// ============================================
+// إزالة الفواتير المكررة
+// ============================================
+// إزالة الفواتير المكررة
+function removeDuplicateInvoices(invoices) {
+    const uniqueInvoices = [];
+    const seenKeys = new Set();
+    for (const inv of invoices) {
+        const key = `${inv['final-number']}|${inv['draft-number']}`;
+        if (!seenKeys.has(key)) {
+            seenKeys.add(key);
+            uniqueInvoices.push(inv);
+        }
+    }
+    return uniqueInvoices;
+}
+
+// التحقق من انشغال المستخدم
+function isUserBusy() {
+    if (typeof isSearching !== 'undefined' && isSearching) return true;
+    const openModals = document.querySelectorAll('.modal.show, .modal[style*="display: block"], .modal[style*="display: flex"]');
+    return openModals.length > 0;
+}
+
+// تحديث العرض
+function refreshDataView() {
+    if (!currentUser) return;
+    if (currentUser.isGuest) {
+        filterInvoicesByGuest(currentUser.taxNumber, currentUser.blNumber);
+    } else {
+        filterInvoicesByUser();
+    }
+    renderData();
+    updateSummary();
+}
+
+// مؤشر التحميل الخلفي
+function showBackgroundLoader(current, total) {
+    let loader = document.getElementById('backgroundLoader');
+    if (!loader) {
+        loader = document.createElement('div');
+        loader.id = 'backgroundLoader';
+        loader.style.cssText = `
+            position: fixed; bottom: 20px; left: 20px;
+            background: linear-gradient(135deg, #4361ee, #3a0ca3);
+            color: white; padding: 10px 18px; border-radius: 30px;
+            font-size: 0.85em; font-weight: 600;
+            box-shadow: 0 4px 15px rgba(67, 97, 238, 0.4);
+            z-index: 9999; display: flex; align-items: center; gap: 10px;
+            direction: rtl; animation: slideInBottom 0.3s ease;
+        `;
+        document.body.appendChild(loader);
+        
+        if (!document.getElementById('bgLoaderStyles')) {
+            const style = document.createElement('style');
+            style.id = 'bgLoaderStyles';
+            style.textContent = `
+                @keyframes slideInBottom { from {opacity:0;transform:translateY(20px);} to {opacity:1;transform:translateY(0);} }
+                @keyframes slideOutBottom { from {opacity:1;transform:translateY(0);} to {opacity:0;transform:translateY(20px);} }
+            `;
+            document.head.appendChild(style);
+        }
+    }
+    
+    loader.innerHTML = `
+        <i class="fas fa-sync-alt fa-spin"></i>
+        <span>جاري تحميل المزيد...</span>
+        <span style="background: rgba(255,255,255,0.25); padding: 2px 8px; border-radius: 10px;">
+            ${current}/${total}
+        </span>
+    `;
+}
+
+function hideBackgroundLoader() {
+    const loader = document.getElementById('backgroundLoader');
+    if (loader) {
+        loader.style.animation = 'slideOutBottom 0.3s ease';
+        setTimeout(() => loader.remove(), 300);
+    }
+}
+
+// تحويل حقل العميل إلى قائمة منسدلة
+function convertCustomerFieldToSelect() {
+    const inputElement = document.getElementById('searchCustomer');
+    if (!inputElement || inputElement.tagName === 'SELECT') return;
+    
+    const parent = inputElement.parentElement;
+    const select = document.createElement('select');
+    select.id = 'searchCustomer';
+    
+    let options = '<option value="">الكل</option>';
+    
+    if (currentUser) {
+        let allowedCustomers = [];
+        
+        if (currentUser.userType === 'admin') {
+            allowedCustomers = [...new Set(invoicesData.map(inv => 
+                inv['payee-customer-id'] || inv['contract-customer-id'] || ''
+            ).filter(c => c && c.trim() !== ''))];
+        } else {
+            let ids = [];
+            if (currentUser.customerIds) ids = ids.concat(currentUser.customerIds);
+            if (currentUser.contractCustomerId) ids.push(currentUser.contractCustomerId);
+            allowedCustomers = [...new Set(ids)];
+        }
+        
+        allowedCustomers.forEach(id => {
+            options += `<option value="${id.replace(/"/g, '&quot;')}">${id}</option>`;
+        });
+    }
+    
+    select.innerHTML = options;
+    parent.replaceChild(select, inputElement);
+}
 // استخراج نطاق التواريخ من الملف
 function extractDateRange(invoices) {
     let minDate = null;
@@ -10356,3 +10547,175 @@ async function saveUsersToGitHub() {
     
     return false;
 }
+
+// ============================================
+// نظام IndexedDB Cache لتسريع التحميل
+// ============================================
+
+const CACHE_DB_NAME = 'DCHC_Cache';
+const CACHE_DB_VERSION = 1;
+const CACHE_STORE = 'data_cache';
+const CACHE_TTL = 24 * 60 * 60 * 1000; // 24 ساعة
+
+let cacheDB = null;
+
+// فتح قاعدة بيانات Cache
+function openCacheDB() {
+    return new Promise((resolve, reject) => {
+        if (cacheDB) return resolve(cacheDB);
+        
+        const request = indexedDB.open(CACHE_DB_NAME, CACHE_DB_VERSION);
+        
+        request.onerror = () => reject(request.error);
+        request.onsuccess = () => {
+            cacheDB = request.result;
+            resolve(cacheDB);
+        };
+        
+        request.onupgradeneeded = (event) => {
+            const db = event.target.result;
+            if (!db.objectStoreNames.contains(CACHE_STORE)) {
+                db.createObjectStore(CACHE_STORE, { keyPath: 'key' });
+            }
+        };
+    });
+}
+
+// ============================================
+// فحص سريع لتحديث الملف (HEAD request)
+// ============================================
+async function checkFileUpdate(fileUrl) {
+    try {
+        // HEAD request - لا يحمّل الملف، فقط headers
+        const response = await fetch(fileUrl, {
+            method: 'HEAD',
+            cache: 'no-cache'
+        });
+        
+        if (!response.ok) return null;
+        
+        return {
+            lastModified: response.headers.get('Last-Modified'),
+            etag: response.headers.get('ETag'),
+            contentLength: response.headers.get('Content-Length')
+        };
+    } catch (error) {
+        console.warn('⚠️ فشل فحص الملف:', error);
+        return null;
+    }
+}
+
+// حفظ في Cache مع معلومات الملف الأخير
+async function saveToCache(key, data, latestFileInfo = null) {
+    try {
+        const db = await openCacheDB();
+        const tx = db.transaction(CACHE_STORE, 'readwrite');
+        const store = tx.objectStore(CACHE_STORE);
+        
+        await new Promise((resolve, reject) => {
+            const req = store.put({
+                key: key,
+                data: data,
+                timestamp: Date.now(),
+                // ✅ حفظ معلومات أحدث ملف
+                latestFile: latestFileInfo ? {
+                    name: latestFileInfo.name,
+                    lastModified: latestFileInfo.lastModified,
+                    size: latestFileInfo.size,
+                    etag: latestFileInfo.etag
+                } : null
+            });
+            req.onsuccess = () => resolve();
+            req.onerror = () => reject(req.error);
+        });
+        
+        console.log(`💾 تم حفظ ${key} في Cache`);
+        return true;
+    } catch (error) {
+        console.warn('⚠️ فشل الحفظ في Cache:', error);
+        return false;
+    }
+}
+
+// قراءة بيانات من Cache
+// قراءة بيانات من Cache (إرجاع الكائن الكامل)
+async function loadFromCache(key) {
+    try {
+        const db = await openCacheDB();
+        const tx = db.transaction(CACHE_STORE, 'readonly');
+        const store = tx.objectStore(CACHE_STORE);
+        
+        const result = await new Promise((resolve, reject) => {
+            const req = store.get(key);
+            req.onsuccess = () => resolve(req.result);
+            req.onerror = () => reject(req.error);
+        });
+        
+        if (!result) return null;
+        
+        // التحقق من صلاحية البيانات
+        const age = Date.now() - result.timestamp;
+        if (age > CACHE_TTL) {
+            console.log(`⏰ ${key} انتهت صلاحيته (عمر: ${Math.round(age/1000/60)} دقيقة)`);
+            await deleteFromCache(key);
+            return null;
+        }
+        
+        console.log(`✅ تم قراءة ${key} من Cache (عمر: ${Math.round(age/1000)} ثانية)`);
+        
+        // ✅ إرجاع الكائن الكامل (بدلاً من result.data)
+        return {
+            data: result.data,
+            timestamp: result.timestamp,
+            latestFile: result.latestFile || null
+        };
+        
+    } catch (error) {
+        console.warn('⚠️ فشل قراءة Cache:', error);
+        return null;
+    }
+}
+
+// حذف عنصر من Cache
+async function deleteFromCache(key) {
+    try {
+        const db = await openCacheDB();
+        const tx = db.transaction(CACHE_STORE, 'readwrite');
+        const store = tx.objectStore(CACHE_STORE);
+        
+        await new Promise((resolve, reject) => {
+            const req = store.delete(key);
+            req.onsuccess = () => resolve();
+            req.onerror = () => reject(req.error);
+        });
+        
+        return true;
+    } catch (error) {
+        console.warn('⚠️ فشل حذف من Cache:', error);
+        return false;
+    }
+}
+
+// مسح كل الـ Cache (للاستخدام اليدوي)
+async function clearAllCache() {
+    try {
+        const db = await openCacheDB();
+        const tx = db.transaction(CACHE_STORE, 'readwrite');
+        const store = tx.objectStore(CACHE_STORE);
+        
+        await new Promise((resolve, reject) => {
+            const req = store.clear();
+            req.onsuccess = () => resolve();
+            req.onerror = () => reject(req.error);
+        });
+        
+        console.log('🗑️ تم مسح كل Cache');
+        showNotification('تم مسح الذاكرة المؤقتة', 'success');
+        return true;
+    } catch (error) {
+        console.warn('⚠️ فشل مسح Cache:', error);
+        return false;
+    }
+}
+
+window.clearAllCache = clearAllCache;
