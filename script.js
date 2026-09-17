@@ -109,11 +109,6 @@ window.driveFilesList = [];
 // متغير لتخزين الفواتير المحددة
 let selectedInvoices = new Set();
 
-// ✅ أضف هذه المتغيرات في بداية الملف مع باقي المتغيرات العامة
-let isLoadingUsers = false;       // منع التحميل المتزامن
-let usersLoadedOnce = false;      // تم التحميل مرة واحدة على الأقل
-let usersLoadPromise = null;      // لتخزين Promise الجاري
-
 // ============================================
 // إعدادات Web App للمزامنة
 // ============================================
@@ -144,52 +139,6 @@ let paymentsData = [];
 let filteredPayments = [];
 let currentPaymentPage = 1;
 let itemsPerPagePayments = 25;
-
-// ============================================
-// تنبيه صوتي عند وجود فواتير جديدة
-// ============================================
-let soundEnabled = true;
-
-function playNewInvoicesSound() {
-    if (!soundEnabled) return;
-    
-    try {
-        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
-        
-        // 3 نغمات قصيرة
-        const notes = [
-            { freq: 523.25, duration: 0.15 },
-            { freq: 659.25, duration: 0.15 },
-            { freq: 783.99, duration: 0.25 }
-        ];
-        
-        let startTime = audioContext.currentTime;
-        
-        notes.forEach(note => {
-            const oscillator = audioContext.createOscillator();
-            const gainNode = audioContext.createGain();
-            
-            oscillator.connect(gainNode);
-            gainNode.connect(audioContext.destination);
-            
-            oscillator.frequency.value = note.freq;
-            oscillator.type = 'sine';
-            
-            gainNode.gain.setValueAtTime(0, startTime);
-            gainNode.gain.linearRampToValueAtTime(0.3, startTime + 0.02);
-            gainNode.gain.linearRampToValueAtTime(0, startTime + note.duration);
-            
-            oscillator.start(startTime);
-            oscillator.stop(startTime + note.duration);
-            
-            startTime += note.duration;
-        });
-        
-        console.log('🔊 تنبيه صوتي');
-    } catch (error) {
-        console.warn('⚠️ فشل الصوت:', error);
-    }
-}
 
 async function loadViewedFromDrive() {
     console.log('🔍 بدء تحميل حالة المعاينة من Google Apps Script...');
@@ -1436,22 +1385,22 @@ async function autoConfigureDrive() {
     console.log('🔄 بدء الإعداد التلقائي للنظام...');
     showProgress('جاري إعداد النظام...', 20);
     
+    // ✅ تحميل إعدادات المستخدمين من Drive (إذا كانت موجودة)
+    // نضعها في try/catch حتى لا توقف النظام إذا فشلت
     try {
         const usersFound = await findUsersFileIdAuto();
         if (usersFound) {
-            // ✅ احفظ النتيجة واطبع فقط إذا نجح فعلاً
-            const success = await loadUsersFromDrive();
-            if (success) {
-                console.log('✅ تم تحميل المستخدمين من Drive');
-            } else {
-                console.warn('⚠️ فشل تحميل المستخدمين من Drive');
-            }
+            await loadUsersFromDrive();
+            console.log('✅ تم تحميل المستخدمين من Drive');
         }
     } catch(e) {
-        console.warn('⚠️ خطأ في تحميل المستخدمين:', e.message);
+        console.warn('⚠️ فشل تحميل المستخدمين من Drive:', e.message);
     }
     
-    console.log('✅ تم إعداد النظام');
+    // ✅ لم نعد بحاجة لاكتشاف ملفات البيانات من Drive
+    // لأننا سنستخدم GitHub بدلاً من ذلك
+    console.log('✅ تم إعداد النظام (سيتم استخدام GitHub لملفات البيانات)');
+    
     showProgress('تم إعداد النظام', 100);
     setTimeout(hideProgress, 1500);
 }
@@ -1558,70 +1507,54 @@ async function discoverFileDateRange(fileIndex) {
 // دوال المستخدمين
 // ============================================
 async function loadUsersFromDrive() {
-    // ✅ منع التحميل المتزامن
-    if (isLoadingUsers) {
-        console.log('⏳ تحميل المستخدمين جارٍ بالفعل، انتظر...');
-        return usersLoadPromise;
-    }
-    
-    isLoadingUsers = true;
-    
-    usersLoadPromise = (async () => {
-        try {
-            showProgress('جاري تحميل المستخدمين...', 30);
-            
-            const response = await fetch(USERS_SCRIPT_URL);
-            
-            if (!response.ok) {
-                throw new Error(`HTTP ${response.status}`);
-            }
-            
-            const content = await response.text();
-            
-            // التحقق من خطأ السكريبت
-            try {
-                const parsed = JSON.parse(content);
-                if (parsed.error) {
-                    throw new Error(parsed.error);
-                }
-            } catch (e) {
-                // تجاهل - ربما المحتوى XML وليس JSON
-            }
-            
-            let usersData;
-            try {
-                usersData = JSON.parse(content);
-            } catch {
-                const fixed = repairJSON(content);
-                usersData = JSON.parse(fixed);
-            }
-            
-            if (!Array.isArray(usersData)) {
-                throw new Error('ملف غير صالح');
-            }
-            
-            users = usersData;
-            usersLoadedOnce = true;
-            localStorage.setItem('backupUsers', JSON.stringify(users));
-            
-            showProgress('تم التحميل', 100);
-            setTimeout(hideProgress, 1500);
-            
-            console.log(`✅ تم تحميل ${users.length} مستخدم`);
-            return true;
-            
-        } catch (error) {
-            console.error('❌ فشل تحميل المستخدمين:', error);
-            showNotification(`فشل تحميل المستخدمين: ${error.message}`, 'error');
-            setTimeout(hideProgress, 1500);
-            return false;  // ← يرجع false عند الفشل
-        } finally {
-            isLoadingUsers = false;
-            usersLoadPromise = null;
+    try {
+        showProgress('جاري تحميل المستخدمين...', 30);
+        
+        const response = await fetch(USERS_SCRIPT_URL);
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}`);
         }
-    })();
-    
-    return usersLoadPromise;
+        
+        const content = await response.text();
+        
+        // التحقق من وجود خطأ (مثل: مفتاح غير صحيح)
+        try {
+            const parsed = JSON.parse(content);
+            if (parsed.error) {
+                throw new Error(parsed.error);
+            }
+        } catch (e) {
+            // إذا لم يكن JSON، فهذا هو المحتوى العادي
+        }
+        
+        // محاولة تحليل JSON
+        let usersData;
+        try {
+            usersData = JSON.parse(content);
+        } catch {
+            const fixed = repairJSON(content);
+            usersData = JSON.parse(fixed);
+        }
+        
+        if (!Array.isArray(usersData)) {
+            throw new Error('ملف غير صالح');
+        }
+        
+        users = usersData;
+        localStorage.setItem('backupUsers', JSON.stringify(users));
+        
+        showProgress('تم التحميل', 100);
+        setTimeout(hideProgress, 1500);
+        
+        return true;
+        
+    } catch (error) {
+        console.error('❌ فشل تحميل المستخدمين:', error);
+        showNotification(`فشل تحميل المستخدمين: ${error.message}`, 'error');
+        setTimeout(hideProgress, 1500);
+        return false;
+    }
 }
 
 async function saveUsersToDrive() {
@@ -1669,32 +1602,31 @@ function loadUsersFromBackup() {
 // تحميل المستخدمين (من GitHub أولاً، ثم النسخة الاحتياطية)
 // ============================================
 async function loadUsers(forceRefresh = false) {
-    // ✅ إذا تم التحميل مسبقاً وليس مطلوباً تحديث قسري
-    if (!forceRefresh && usersLoadedOnce && users.length > 0) {
-        console.log('✅ المستخدمون محمّلون مسبقاً، تخطي التحميل');
-        return;
-    }
-    
     console.log('👥 تحميل المستخدمين...');
     
-    // ✅ المستوى 1: Google Apps Script
-    const loaded = await loadUsersFromDrive();
+    // ✅ 1. محاولة التحميل من Google Apps Script (Drive)
+    let loaded = false;
+    if (forceRefresh) {
+        loaded = await loadUsersFromDrive();
+    } else {
+        loaded = await loadUsersFromDrive();
+    }
+    
     if (loaded) {
         if (forceRefresh) showNotification('تم تحديث المستخدمين', 'success');
-        console.log('✅ تم تحميل المستخدمين من Drive');
+        console.log('✅ تم تحميل المستخدمين من Google Drive عبر Apps Script');
         return;
     }
     
-    // ✅ المستوى 2: النسخة الاحتياطية المحلية
+    // ✅ 2. فشل → محاولة التحميل من النسخة الاحتياطية المحلية
     if (loadUsersFromBackup()) {
-        console.warn('⚠️ تم تحميل المستخدمين من النسخة الاحتياطية');
+        console.warn('⚠️ تم تحميل المستخدمين من النسخة الاحتياطية المحلية');
         showNotification('تم تحميل المستخدمين من النسخة الاحتياطية', 'warning');
-        usersLoadedOnce = true;
         return;
     }
     
-    // ✅ المستوى 3: مدير احتياطي
-    console.error('❌ فشل كل المحاولات - إنشاء مدير احتياطي');
+    // ✅ 3. إنشاء مدير احتياطي (في حالة عدم وجود أي بيانات)
+    console.error('❌ فشل تحميل المستخدمين. سيتم إنشاء مدير احتياطي.');
     users = [{
         id: 'user_admin_emergency',
         username: 'admin',
@@ -1708,8 +1640,7 @@ async function loadUsers(forceRefresh = false) {
         createdAt: new Date().toISOString(),
         lastLogin: null
     }];
-    usersLoadedOnce = true;
-    showNotification('تم إنشاء مدير احتياطي', 'warning');
+    showNotification('تم إنشاء مدير احتياطي بسبب فشل تحميل المستخدمين', 'warning');
 }
 
 // تحديث المستخدمين يدوياً من Drive (للمدير فقط)
@@ -6412,7 +6343,6 @@ async function loadRemainingFilesInBackground(remainingFiles, cacheKey, latestFi
     }
     
     if (totalNewInvoices > 0) {
-		playNewInvoicesSound();  // ← ✅ السطر الجديد
         showNotification(`📥 تم تحميل ${totalNewInvoices} فاتورة إضافية`, 'info');
         refreshDataView();
     }
@@ -10789,19 +10719,3 @@ async function clearAllCache() {
 }
 
 window.clearAllCache = clearAllCache;
-
-
-// تفعيل الصوت بعد أول نقرة من المستخدم
-document.addEventListener('click', function() {
-    try {
-        const ctx = new (window.AudioContext || window.webkitAudioContext)();
-        const osc = ctx.createOscillator();
-        const gain = ctx.createGain();
-        gain.gain.value = 0;
-        osc.connect(gain);
-        gain.connect(ctx.destination);
-        osc.start();
-        osc.stop(ctx.currentTime + 0.01);
-        console.log('✅ الصوت جاهز');
-    } catch (e) {}
-}, { once: true });
