@@ -140,6 +140,52 @@ let filteredPayments = [];
 let currentPaymentPage = 1;
 let itemsPerPagePayments = 25;
 
+// ============================================
+// تنبيه صوتي عند وجود فواتير جديدة
+// ============================================
+let soundEnabled = true;
+
+function playNewInvoicesSound() {
+    if (!soundEnabled) return;
+    
+    try {
+        const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+        
+        // 3 نغمات قصيرة
+        const notes = [
+            { freq: 523.25, duration: 0.15 },
+            { freq: 659.25, duration: 0.15 },
+            { freq: 783.99, duration: 0.25 }
+        ];
+        
+        let startTime = audioContext.currentTime;
+        
+        notes.forEach(note => {
+            const oscillator = audioContext.createOscillator();
+            const gainNode = audioContext.createGain();
+            
+            oscillator.connect(gainNode);
+            gainNode.connect(audioContext.destination);
+            
+            oscillator.frequency.value = note.freq;
+            oscillator.type = 'sine';
+            
+            gainNode.gain.setValueAtTime(0, startTime);
+            gainNode.gain.linearRampToValueAtTime(0.3, startTime + 0.02);
+            gainNode.gain.linearRampToValueAtTime(0, startTime + note.duration);
+            
+            oscillator.start(startTime);
+            oscillator.stop(startTime + note.duration);
+            
+            startTime += note.duration;
+        });
+        
+        console.log('🔊 تنبيه صوتي');
+    } catch (error) {
+        console.warn('⚠️ فشل الصوت:', error);
+    }
+}
+
 async function loadViewedFromDrive() {
     console.log('🔍 بدء تحميل حالة المعاينة من Google Apps Script...');
     
@@ -6343,6 +6389,7 @@ async function loadRemainingFilesInBackground(remainingFiles, cacheKey, latestFi
     }
     
     if (totalNewInvoices > 0) {
+		playNewInvoicesSound();  // ← ✅ السطر الجديد
         showNotification(`📥 تم تحميل ${totalNewInvoices} فاتورة إضافية`, 'info');
         refreshDataView();
     }
@@ -10719,3 +10766,19 @@ async function clearAllCache() {
 }
 
 window.clearAllCache = clearAllCache;
+
+
+// تفعيل الصوت بعد أول نقرة من المستخدم
+document.addEventListener('click', function() {
+    try {
+        const ctx = new (window.AudioContext || window.webkitAudioContext)();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        gain.gain.value = 0;
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+        osc.stop(ctx.currentTime + 0.01);
+        console.log('✅ الصوت جاهز');
+    } catch (e) {}
+}, { once: true });
