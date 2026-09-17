@@ -109,6 +109,11 @@ window.driveFilesList = [];
 // متغير لتخزين الفواتير المحددة
 let selectedInvoices = new Set();
 
+// ✅ أضف هذه المتغيرات في بداية الملف مع باقي المتغيرات العامة
+let isLoadingUsers = false;       // منع التحميل المتزامن
+let usersLoadedOnce = false;      // تم التحميل مرة واحدة على الأقل
+let usersLoadPromise = null;      // لتخزين Promise الجاري
+
 // ============================================
 // إعدادات Web App للمزامنة
 // ============================================
@@ -1431,22 +1436,22 @@ async function autoConfigureDrive() {
     console.log('🔄 بدء الإعداد التلقائي للنظام...');
     showProgress('جاري إعداد النظام...', 20);
     
-    // ✅ تحميل إعدادات المستخدمين من Drive (إذا كانت موجودة)
-    // نضعها في try/catch حتى لا توقف النظام إذا فشلت
     try {
         const usersFound = await findUsersFileIdAuto();
         if (usersFound) {
-            await loadUsersFromDrive();
-            console.log('✅ تم تحميل المستخدمين من Drive');
+            // ✅ احفظ النتيجة واطبع فقط إذا نجح فعلاً
+            const success = await loadUsersFromDrive();
+            if (success) {
+                console.log('✅ تم تحميل المستخدمين من Drive');
+            } else {
+                console.warn('⚠️ فشل تحميل المستخدمين من Drive');
+            }
         }
     } catch(e) {
-        console.warn('⚠️ فشل تحميل المستخدمين من Drive:', e.message);
+        console.warn('⚠️ خطأ في تحميل المستخدمين:', e.message);
     }
     
-    // ✅ لم نعد بحاجة لاكتشاف ملفات البيانات من Drive
-    // لأننا سنستخدم GitHub بدلاً من ذلك
-    console.log('✅ تم إعداد النظام (سيتم استخدام GitHub لملفات البيانات)');
-    
+    console.log('✅ تم إعداد النظام');
     showProgress('تم إعداد النظام', 100);
     setTimeout(hideProgress, 1500);
 }
@@ -1553,54 +1558,70 @@ async function discoverFileDateRange(fileIndex) {
 // دوال المستخدمين
 // ============================================
 async function loadUsersFromDrive() {
-    try {
-        showProgress('جاري تحميل المستخدمين...', 30);
-        
-        const response = await fetch(USERS_SCRIPT_URL);
-        
-        if (!response.ok) {
-            throw new Error(`HTTP ${response.status}`);
-        }
-        
-        const content = await response.text();
-        
-        // التحقق من وجود خطأ (مثل: مفتاح غير صحيح)
-        try {
-            const parsed = JSON.parse(content);
-            if (parsed.error) {
-                throw new Error(parsed.error);
-            }
-        } catch (e) {
-            // إذا لم يكن JSON، فهذا هو المحتوى العادي
-        }
-        
-        // محاولة تحليل JSON
-        let usersData;
-        try {
-            usersData = JSON.parse(content);
-        } catch {
-            const fixed = repairJSON(content);
-            usersData = JSON.parse(fixed);
-        }
-        
-        if (!Array.isArray(usersData)) {
-            throw new Error('ملف غير صالح');
-        }
-        
-        users = usersData;
-        localStorage.setItem('backupUsers', JSON.stringify(users));
-        
-        showProgress('تم التحميل', 100);
-        setTimeout(hideProgress, 1500);
-        
-        return true;
-        
-    } catch (error) {
-        console.error('❌ فشل تحميل المستخدمين:', error);
-        showNotification(`فشل تحميل المستخدمين: ${error.message}`, 'error');
-        setTimeout(hideProgress, 1500);
-        return false;
+    // ✅ منع التحميل المتزامن
+    if (isLoadingUsers) {
+        console.log('⏳ تحميل المستخدمين جارٍ بالفعل، انتظر...');
+        return usersLoadPromise;
     }
+    
+    isLoadingUsers = true;
+    
+    usersLoadPromise = (async () => {
+        try {
+            showProgress('جاري تحميل المستخدمين...', 30);
+            
+            const response = await fetch(USERS_SCRIPT_URL);
+            
+            if (!response.ok) {
+                throw new Error(`HTTP ${response.status}`);
+            }
+            
+            const content = await response.text();
+            
+            // التحقق من خطأ السكريبت
+            try {
+                const parsed = JSON.parse(content);
+                if (parsed.error) {
+                    throw new Error(parsed.error);
+                }
+            } catch (e) {
+                // تجاهل - ربما المحتوى XML وليس JSON
+            }
+            
+            let usersData;
+            try {
+                usersData = JSON.parse(content);
+            } catch {
+                const fixed = repairJSON(content);
+                usersData = JSON.parse(fixed);
+            }
+            
+            if (!Array.isArray(usersData)) {
+                throw new Error('ملف غير صالح');
+            }
+            
+            users = usersData;
+            usersLoadedOnce = true;
+            localStorage.setItem('backupUsers', JSON.stringify(users));
+            
+            showProgress('تم التحميل', 100);
+            setTimeout(hideProgress, 1500);
+            
+            console.log(`✅ تم تحميل ${users.length} مستخدم`);
+            return true;
+            
+        } catch (error) {
+            console.error('❌ فشل تحميل المستخدمين:', error);
+            showNotification(`فشل تحميل المستخدمين: ${error.message}`, 'error');
+            setTimeout(hideProgress, 1500);
+            return false;  // ← يرجع false عند الفشل
+        } finally {
+            isLoadingUsers = false;
+            usersLoadPromise = null;
+        }
+    })();
+    
+    return usersLoadPromise;
 }
 
 async function saveUsersToDrive() {
@@ -1648,31 +1669,32 @@ function loadUsersFromBackup() {
 // تحميل المستخدمين (من GitHub أولاً، ثم النسخة الاحتياطية)
 // ============================================
 async function loadUsers(forceRefresh = false) {
+    // ✅ إذا تم التحميل مسبقاً وليس مطلوباً تحديث قسري
+    if (!forceRefresh && usersLoadedOnce && users.length > 0) {
+        console.log('✅ المستخدمون محمّلون مسبقاً، تخطي التحميل');
+        return;
+    }
+    
     console.log('👥 تحميل المستخدمين...');
     
-    // ✅ 1. محاولة التحميل من Google Apps Script (Drive)
-    let loaded = false;
-    if (forceRefresh) {
-        loaded = await loadUsersFromDrive();
-    } else {
-        loaded = await loadUsersFromDrive();
-    }
-    
+    // ✅ المستوى 1: Google Apps Script
+    const loaded = await loadUsersFromDrive();
     if (loaded) {
         if (forceRefresh) showNotification('تم تحديث المستخدمين', 'success');
-        console.log('✅ تم تحميل المستخدمين من Google Drive عبر Apps Script');
+        console.log('✅ تم تحميل المستخدمين من Drive');
         return;
     }
     
-    // ✅ 2. فشل → محاولة التحميل من النسخة الاحتياطية المحلية
+    // ✅ المستوى 2: النسخة الاحتياطية المحلية
     if (loadUsersFromBackup()) {
-        console.warn('⚠️ تم تحميل المستخدمين من النسخة الاحتياطية المحلية');
+        console.warn('⚠️ تم تحميل المستخدمين من النسخة الاحتياطية');
         showNotification('تم تحميل المستخدمين من النسخة الاحتياطية', 'warning');
+        usersLoadedOnce = true;
         return;
     }
     
-    // ✅ 3. إنشاء مدير احتياطي (في حالة عدم وجود أي بيانات)
-    console.error('❌ فشل تحميل المستخدمين. سيتم إنشاء مدير احتياطي.');
+    // ✅ المستوى 3: مدير احتياطي
+    console.error('❌ فشل كل المحاولات - إنشاء مدير احتياطي');
     users = [{
         id: 'user_admin_emergency',
         username: 'admin',
@@ -1686,7 +1708,8 @@ async function loadUsers(forceRefresh = false) {
         createdAt: new Date().toISOString(),
         lastLogin: null
     }];
-    showNotification('تم إنشاء مدير احتياطي بسبب فشل تحميل المستخدمين', 'warning');
+    usersLoadedOnce = true;
+    showNotification('تم إنشاء مدير احتياطي', 'warning');
 }
 
 // تحديث المستخدمين يدوياً من Drive (للمدير فقط)
