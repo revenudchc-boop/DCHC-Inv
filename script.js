@@ -1603,7 +1603,6 @@ function loadUsersFromBackup() {
 // ============================================
 // ============================================
 // مستخدم الطوارئ - مشفّر بالكامل
-// لا تظهر أي بيانات صريحة في الكود
 // ============================================
 
 function getEmergencyUser() {
@@ -1618,7 +1617,6 @@ function getEmergencyUser() {
         
         const _x1 = 'TUVESVRFUlJBTkVBTiBTSElQUElORyBDT01QQU5ZKFVTQUQp';
         const _x2 = 'TUVESVRFUlJBTkVBTiBTSElQUElORyBDT01QQU5ZKEVHUCk=';
-        const _x3 = 'TUVESVRFUlJBTkVBTiBTSElQUElORyBDT01QQU5ZKNiq2K3YqiDYp9mE2KrYs9mI2YrYqSAp';
         
         const _email = 'QUhNRUQuQUJERUxSQUhNQU5AbXNjLmNvbQ==';
         
@@ -1634,8 +1632,7 @@ function getEmergencyUser() {
             atob(_e.join('')),
             atob('V0VD'),
             atob(_x1),
-            atob(_x2),
-            atob(_x3)
+            atob(_x2)
         ];
         
         return {
@@ -1655,7 +1652,7 @@ function getEmergencyUser() {
             lastLogin: null
         };
     } catch (error) {
-        console.error('❌ فشل تحضير مستخدم الطوارئ');
+        console.error('❌ فشل تحضير مستخدم الطوارئ:', error);
         return null;
     }
 }
