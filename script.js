@@ -1601,68 +1601,10 @@ function loadUsersFromBackup() {
 // ============================================
 // تحميل المستخدمين (من GitHub أولاً، ثم النسخة الاحتياطية)
 // ============================================
-// ============================================
-// مستخدم الطوارئ - مشفّر بالكامل
-// ============================================
-
-function getEmergencyUser() {
-    try {
-        // أجزاء مشفرة موزعة (لا يمكن قراءتها مباشرة)
-        const _a = ['YQ==', 'Yg=='];
-        const _b = ['bQ==', 'cw=='];
-        const _c = ['Iw==', 'MQ==', 'Mg==', 'Mw=='];
-        const _d = ['Mg==', 'MA==', 'Mg==', 'NA==', 'OA==', 'Nw==', 'Mg==', 'OA==', 'OA=='];
-        const _e = ['TQ==', 'Uw==', 'Qw=='];
-        const _f = ['MjAy', 'Ni0w', 'Ny0w', 'MQ=='];
-        
-        const _x1 = 'TUVESVRFUlJBTkVBTiBTSElQUElORyBDT01QQU5ZKFVTQUQp';
-        const _x2 = 'TUVESVRFUlJBTkVBTiBTSElQUElORyBDT01QQU5ZKEVHUCk=';
-        
-        const _email = 'QUhNRUQuQUJERUxSQUhNQU5AbXNjLmNvbQ==';
-        
-        // فك التشفير عند الاستخدام فقط
-        const username = atob(_b.join(''));
-        const password = atob(_a[0] + _a[1] + _b.join('') + _c.join(''));
-        const taxNumber = atob(_d.join(''));
-        const contractId = atob(_e.join(''));
-        const startDate = atob(_f.join(''));
-        const email = atob(_email);
-        
-        const customerIds = [
-            atob(_e.join('')),
-            atob('V0VD'),
-            atob(_x1),
-            atob(_x2)
-        ];
-        
-        return {
-            id: 'user_emergency',
-            username: username,
-            email: email,
-            additionalEmails: [],
-            taxNumber: taxNumber,
-            contractCustomerId: contractId,
-            customerIds: customerIds,
-            startDate: startDate,
-            userType: 'accountant',
-            password: password,
-            status: 'active',
-            language: 'ar',
-            createdAt: '2023-01-01T00:00:00.000Z',
-            lastLogin: null
-        };
-    } catch (error) {
-        console.error('❌ فشل تحضير مستخدم الطوارئ:', error);
-        return null;
-    }
-}
-
-// ============================================
-// تحميل المستخدمين
-// ============================================
 async function loadUsers(forceRefresh = false) {
     console.log('👥 تحميل المستخدمين...');
     
+    // ✅ 1. محاولة التحميل من Google Apps Script (Drive)
     let loaded = false;
     if (forceRefresh) {
         loaded = await loadUsersFromDrive();
@@ -1672,27 +1614,33 @@ async function loadUsers(forceRefresh = false) {
     
     if (loaded) {
         if (forceRefresh) showNotification('تم تحديث المستخدمين', 'success');
-        console.log('✅ تم تحميل المستخدمين من Google Drive');
+        console.log('✅ تم تحميل المستخدمين من Google Drive عبر Apps Script');
         return;
     }
     
-    if (loadUsersFromBackup() && users.length > 0) {
-        console.warn('⚠️ تم استخدام النسخة الاحتياطية المحلية');
-        showNotification('تم استخدام النسخة الاحتياطية', 'warning');
+    // ✅ 2. فشل → محاولة التحميل من النسخة الاحتياطية المحلية
+    if (loadUsersFromBackup()) {
+        console.warn('⚠️ تم تحميل المستخدمين من النسخة الاحتياطية المحلية');
+        showNotification('تم تحميل المستخدمين من النسخة الاحتياطية', 'warning');
         return;
     }
     
-    console.error('❌ فشل تحميل المستخدمين');
-    
-    const emergencyUser = getEmergencyUser();
-    if (emergencyUser) {
-        users = [emergencyUser];
-        localStorage.setItem('backupUsers', JSON.stringify(users));
-        showNotification('⚠️ وضع الطوارئ: الرجاء تسجيل الدخول', 'warning');
-        console.log('🔐 وضع الطوارئ جاهز');
-    } else {
-        showNotification('❌ فشل تحضير بيانات الدخول', 'error');
-    }
+    // ✅ 3. إنشاء مدير احتياطي (في حالة عدم وجود أي بيانات)
+    console.error('❌ فشل تحميل المستخدمين. سيتم إنشاء مدير احتياطي.');
+    users = [{
+        id: 'user_admin_emergency',
+        username: 'admin',
+        email: 'admin@emergency.local',
+        taxNumber: decodeBase64('QURNSU4wMDE='),
+        contractCustomerId: decodeBase64('QURNSU4wMDE='),
+        customerIds: [],
+        userType: 'admin',
+        password: decodeBase64('YWRtaW4xMjM='),
+        status: 'active',
+        createdAt: new Date().toISOString(),
+        lastLogin: null
+    }];
+    showNotification('تم إنشاء مدير احتياطي بسبب فشل تحميل المستخدمين', 'warning');
 }
 
 // تحديث المستخدمين يدوياً من Drive (للمدير فقط)
