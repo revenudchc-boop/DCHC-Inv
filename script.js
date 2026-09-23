@@ -3413,7 +3413,6 @@ window.exportSelectedContainers = async function() {
     showProgress(`جاري تجهيز بيانات الحاويات من ${selectedIndices.length} فاتورة...`, 30);
     
     try {
-        // تجميع كل الحاويات من جميع الفواتير المحددة
         let allContainers = [];
         let containerCounter = 0;
         
@@ -3421,36 +3420,49 @@ window.exportSelectedContainers = async function() {
             const inv = invoicesData[index];
             const finalNum = inv['final-number'] || '';
             const isPostponed = finalNum.startsWith('P') || finalNum.startsWith('p');
-            const grouped = isPostponed ? groupPostponedCharges(inv.charges) : groupCashCharges(inv.charges);
+            const currency = inv['currency'] || 'EGP';
+            const exRate = parseFloat(inv['flex-string-06']) || 48.0215;
             
-            grouped.forEach(charge => {
-                if (charge.containerNumbers?.length > 0) {
-                    charge.containerNumbers.forEach((container, idx) => {
-                        const dateInfo = charge.dates && charge.dates[idx] ? charge.dates[idx] : {
-                            from: charge['event-performed-from'] || '-',
-                            to: charge['event-performed-to'] || '-',
-                            days: charge['storage-days'] || 1
-                        };
-                        
-                        allContainers.push({
-                            'رقم': ++containerCounter,
-                            'رقم الفاتورة': inv['final-number'] || '-',
-                            'رقم المسودة': inv['draft-number'] || '-',
-                            'العميل': inv['payee-customer-id'] || '-',
-                            'السفينة': inv['key-word1'] || '-',
-                            'البوليصة': inv['key-word2'] || '-',
-                            'الوصف': charge.description || '-',
-                            'نوع المصروف': charge['event-type-id'] || '-',
-                            'رقم الحاوية': container,
-                            'التاريخ من': dateInfo.from,
-                            'التاريخ إلى': dateInfo.to,
-                            'عدد الأيام': dateInfo.days,
-                            'سعر الوحدة': (charge['rate-billed'] || 0).toFixed(2),
-                            'المبلغ': (charge.amount || 0).toFixed(2),
-                            'العملة': (isPostponed && inv['currency'] === 'USAD') ? 'USAD' : 'EGP'
-                        });
-                    });
+            // ✅ استخدام الفواتير الأصلية مباشرة (بدون تجميع)
+            // كل charge في XML يمثل حاوية واحدة بأيامها الفعلية
+            inv.charges.forEach(charge => {
+                if (!charge.containerNumbers || charge.containerNumbers.length === 0) return;
+                
+                const numContainersInCharge = charge.containerNumbers.length;
+                
+                // ✅ حساب المبلغ لكل حاوية من charge.amount الأصلي
+                let amountInDisplayCurrency;
+                if (isPostponed && currency === 'USAD') {
+                    // charge.amount في XML بالجنيه، نحول للدولار
+                    amountInDisplayCurrency = charge.amount / exRate;
+                } else {
+                    amountInDisplayCurrency = charge.amount;
                 }
+                
+                // إذا كان نفس الـ charge يحتوي على أكثر من حاوية، نقسم بالتساوي
+                const amountPerContainer = amountInDisplayCurrency / numContainersInCharge;
+                
+                const displayCurrency = (isPostponed && currency === 'USAD') ? 'USAD' : 'EGP';
+                
+                charge.containerNumbers.forEach((container) => {
+                    allContainers.push({
+                        'رقم': ++containerCounter,
+                        'رقم الفاتورة': inv['final-number'] || '-',
+                        'رقم المسودة': inv['draft-number'] || '-',
+                        'العميل': inv['payee-customer-id'] || '-',
+                        'السفينة': inv['key-word1'] || '-',
+                        'البوليصة': inv['key-word2'] || '-',
+                        'الوصف': charge.description || '-',
+                        'نوع المصروف': charge['event-type-id'] || '-',
+                        'رقم الحاوية': container,
+                        'التاريخ من': (charge['event-performed-from'] || '-').split('T')[0],
+                        'التاريخ إلى': (charge['event-performed-to'] || '-').split('T')[0],
+                        'عدد الأيام': charge['storage-days'] || 1,
+                        'سعر الوحدة': (charge['rate-billed'] || 0).toFixed(2),
+                        'المبلغ': amountPerContainer.toFixed(2),
+                        'العملة': displayCurrency
+                    });
+                });
             });
         });
         
