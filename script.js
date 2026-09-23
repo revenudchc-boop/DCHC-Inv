@@ -3444,6 +3444,9 @@ window.exportSelectedContainers = async function() {
                 
                 const displayCurrency = (isPostponed && currency === 'USAD') ? 'USAD' : 'EGP';
                 
+                // ✅ تحديد عدد المنازل العشرية حسب العملة
+                const decimals = (displayCurrency === 'EGP') ? 4 : 2;
+                
                 charge.containerNumbers.forEach((container) => {
                     allContainers.push({
                         'رقم': ++containerCounter,
@@ -3458,8 +3461,8 @@ window.exportSelectedContainers = async function() {
                         'التاريخ من': (charge['event-performed-from'] || '-').split('T')[0],
                         'التاريخ إلى': (charge['event-performed-to'] || '-').split('T')[0],
                         'عدد الأيام': charge['storage-days'] || 1,
-                        'سعر الوحدة': (charge['rate-billed'] || 0).toFixed(2),
-                        'المبلغ': amountPerContainer.toFixed(2),
+                        'سعر الوحدة': (charge['rate-billed'] || 0).toFixed(decimals),
+                        'المبلغ': amountPerContainer.toFixed(decimals),
                         'العملة': displayCurrency
                     });
                 });
@@ -3509,9 +3512,11 @@ window.exportSelectedContainers = async function() {
         excelData.push(['ملخص']);
         excelData.push(['إجمالي عدد الحاويات:', allContainers.length]);
         
-        // حساب إجمالي المبالغ
+        // ✅ حساب إجمالي المبالغ مع تحديد عدد المنازل حسب العملة
         const totalAmount = allContainers.reduce((sum, c) => sum + parseFloat(c['المبلغ']), 0);
-        excelData.push(['إجمالي المبالغ:', totalAmount.toFixed(2)]);
+        const firstCurrency = allContainers[0]?.['العملة'] || 'EGP';
+        const totalDecimals = (firstCurrency === 'EGP') ? 4 : 2;
+        excelData.push(['إجمالي المبالغ:', totalAmount.toFixed(totalDecimals)]);
         
         const wb = XLSX.utils.book_new();
         const ws = XLSX.utils.aoa_to_sheet(excelData);
