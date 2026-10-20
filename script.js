@@ -198,45 +198,61 @@ async function saveViewedToDrive() {
         return;
     }
     
+    // ✅ لا توجد جلسة مستخدم → لا تحفظ
+    if (!currentUser || !currentUser.username) {
+        console.warn('⚠️ لا يوجد مستخدم مسجل، تم تجاهل الحفظ');
+        return false;
+    }
+    
     isSavingToDrive = true;
     lastSaveTime = now;
     console.log('💾 بدء حفظ حالة المعاينة...');
     
+    // ✅ تجهيز بيانات المستخدم الحالي فقط (مرة واحدة قبل المحاولات)
+    const userKey = currentUser.username;
+    const userViewed = [...viewedInvoices].filter(k => !k.startsWith('credit_'));
+    const userCredits = [...viewedInvoices].filter(k => k.startsWith('credit_'));
+    
+    const payload = {
+        username: userKey,
+        viewed: userViewed,
+        credits: userCredits
+    };
+    
     for (let attempt = 1; attempt <= 3; attempt++) {
         try {
-            let allData = {};
-            try {
-                const readResponse = await fetch(VIEWED_CLOUD_URL);
-                if (readResponse.ok) {
-                    const text = await readResponse.text();
-                    if (text && text.trim()) {
-                        allData = JSON.parse(text);
-                    }
-                }
-            } catch (e) {}
-
-            const userKey = currentUser?.username || 'guest';
-            allData[userKey] = [...viewedInvoices].filter(k => !k.startsWith('credit_'));
-            allData[userKey + '_credits'] = [...viewedInvoices].filter(k => k.startsWith('credit_'));
-            allData.lastUpdated = new Date().toISOString();
-
             const saveResponse = await fetch(VIEWED_CLOUD_URL, {
                 method: 'POST',
                 headers: { 'Content-Type': 'text/plain' },
-                body: JSON.stringify(allData)
+                body: JSON.stringify(payload)
             });
-
+            
             if (saveResponse.ok) {
+                const result = await saveResponse.json().catch(() => ({}));
+                
+                if (result.success === false) {
+                    console.warn(`⚠️ محاولة ${attempt}: السيرفر رفض الحفظ - ${result.error || 'غير معروف'}`);
+                    await new Promise(resolve => setTimeout(resolve, 2000));
+                    continue;
+                }
+                
                 console.log(`✅ تم حفظ ${viewedInvoices.size} عنصر للمستخدم ${userKey}`);
                 isSavingToDrive = false;
                 return true;
             }
+            
+            console.warn(`⚠️ محاولة ${attempt} فشلت - HTTP ${saveResponse.status}`);
         } catch (error) {
-            console.warn(`⚠️ محاولة ${attempt} فشلت`);
+            console.warn(`⚠️ محاولة ${attempt} فشلت:`, error.message);
+        }
+        
+        // ✅ انتظار قبل المحاولة التالية (إلا في المحاولة الأخيرة)
+        if (attempt < 3) {
             await new Promise(resolve => setTimeout(resolve, 2000));
         }
     }
     
+    console.error('❌ فشلت جميع محاولات الحفظ');
     isSavingToDrive = false;
     return false;
 }
