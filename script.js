@@ -10405,9 +10405,10 @@ function updateSidebarActive(tab) {
         'credit': 2,
         'payments': 3,
         'statement': 4,
-        'reports': 5,
-        'users': 6,
-        'settings': 7
+        // index 5 = بيان التخزين (رابط خارجي — لا حالة active)
+        'reports': 6,
+        'users': 7,
+        'settings': 8
     };
     const index = links[tab];
     if (index !== undefined) {
