@@ -7079,24 +7079,16 @@ async function handleQRCodeLink() {
         
         loadDriveSettings();
         
-        statusDiv.innerHTML = '📥 جاري تحميل البيانات من Drive...';
+        statusDiv.innerHTML = '📥 جاري البحث في ملفات GitHub...';
         
         const data = await loadQRCodeData(invoiceNumber, draftNumber);
         
         if (!data || data.length === 0) {
-            throw new Error('لا توجد بيانات متاحة');
+            throw new Error('لم يتم العثور على الفاتورة في ملفات البيانات');
         }
         
-        statusDiv.innerHTML = '🔍 جاري البحث عن الفاتورة...';
-        
-        const invoice = data.find(inv => 
-            inv['final-number'] === invoiceNumber || 
-            (draftNumber && inv['draft-number'] === draftNumber)
-        );
-        
-        if (!invoice) {
-            throw new Error('لم يتم العثور على الفاتورة');
-        }
+        // ✅ نأخذ الفاتورة مباشرة (لأن الدالة الجديدة ترجع الفاتورة المطلوبة فقط)
+        const invoice = data[0];
         
         statusDiv.innerHTML = '📄 جاري إنشاء الفاتورة...';
         
