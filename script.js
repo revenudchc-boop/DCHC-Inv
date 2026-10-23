@@ -6950,55 +6950,82 @@ async function generateQRCodePDF(element, fileName) {
 /**
  * تحميل البيانات من Drive بشكل مستقل
  */
-async function loadQRCodeData() {
+async function loadQRCodeData(targetInvoice, targetDraft) {
+    console.log(`📱 QR: البحث عن "${targetInvoice}"...`);
+    
+    const norm = s => (s ?? '').toString().trim().toUpperCase();
+    const ti = norm(targetInvoice);
+    const td = norm(targetDraft);
+
+    // 1. جلب أسماء الملفات الحقيقية من GitHub API
+    let files = [];
     try {
-        console.log('📱 QR: تحميل البيانات من GitHub...');
-        
-        // ✅ 1. اكتشاف ملفات datatxt_Q من GitHub (نفس مصدر التطبيق الرئيسي)
-        const response = await fetch(GITHUB_CONFIG.apiUrl);
-        if (!response.ok) throw new Error(`فشل الاتصال بـ GitHub: ${response.status}`);
-        
-        const files = await response.json();
-        const dataFiles = files.filter(f => 
-            f.type === 'file' && 
-            f.name.startsWith('datatxt_Q') && 
-            f.name.endsWith('.txt')
-        );
-        
-        if (dataFiles.length === 0) throw new Error('لا توجد ملفات بيانات في GitHub');
-        
-        // ✅ 2. الترتيب من الأحدث (Q3, Q2, Q1...)
-        dataFiles.sort((a, b) => {
-            const numA = parseInt((a.name.match(/datatxt_Q(\d+)/) || [0, 0])[1], 10) || 0;
-            const numB = parseInt((b.name.match(/datatxt_Q(\d+)/) || [0, 0])[1], 10) || 0;
-            return numB - numA;
-        });
-        
-        const latestFile = dataFiles[0];
-        const fileUrl = GITHUB_CONFIG.rawBaseUrl + latestFile.name;
-        
-        console.log(`📱 QR: تحميل ${latestFile.name}`);
-        
-        // ✅ 3. تحميل الملف
-        const fileRes = await fetch(fileUrl);
-        if (!fileRes.ok) throw new Error(`فشل تحميل ${latestFile.name}: ${fileRes.status}`);
-        
-        const content = await fileRes.text();
-        
-        // ✅ 4. استخدام الدالة الموجودة فعلياً (parseInvoicesFromContent — Regex)
-        const invoices = parseInvoicesFromContent(content);
-        
-        if (!invoices || invoices.length === 0) {
-            throw new Error('لم يتم استخراج أي فاتورة من الملف');
+        const r = await fetch(GITHUB_CONFIG.apiUrl);
+        if (r.ok) {
+            const j = await r.json();
+            files = j.filter(f => f.type === 'file' && /^datatxt_Q\d+\.txt$/i.test(f.name))
+                     .map(f => f.name)
+                     .sort((a, b) => {
+                         const na = parseInt((a.match(/Q(\d+)/i) || [0,0])[1], 10);
+                         const nb = parseInt((b.match(/Q(\d+)/i) || [0,0])[1], 10);
+                         return nb - na;
+                     });
         }
-        
-        console.log(`✅ QR: تم تحميل ${invoices.length} فاتورة من ${latestFile.name}`);
-        return invoices;
-        
-    } catch (error) {
-        console.error('❌ QR: خطأ في تحميل البيانات:', error);
-        throw error;
+    } catch(e) {
+        console.warn('API خطأ', e);
     }
+
+    if (files.length === 0) {
+        // احتياطي في حال فشل API
+        for (let i = 30; i >= 1; i--) {
+            const numStr = i < 10 ? '00'+i : (i < 100 ? '0'+i : i);
+            files.push(`datatxt_Q${numStr}.txt`);
+        }
+    }
+
+    // 2. البحث في الملفات (من الأحدث للأقدم)
+    for (const fileName of files) {
+        try {
+            console.log(`📥 QR: تحميل ${fileName} (جاري الفحص السريع...)`);
+            const res = await fetch(GITHUB_CONFIG.rawBaseUrl + fileName);
+            if (!res.ok) continue;
+            
+            const content = await res.text();
+            
+            // ✅ استخراج الفاتورة المطلوبة فقط بـ Regex (بدون تحليل الملف كاملاً)
+            const regex = /<invoice\s+([^>]*?)(?:\/>|>([\s\S]*?)<\/invoice>)/g;
+            let match;
+            let invoiceHtml = null;
+            
+            while ((match = regex.exec(content)) !== null) {
+                const attrsString = match[1];
+                const fullMatch = match[0];
+                
+                const finalMatch = attrsString.match(/final-number="([^"]*)"/i);
+                const draftMatch = attrsString.match(/draft-number="([^"]*)"/i);
+                
+                const f = finalMatch ? norm(finalMatch[1]) : '';
+                const d = draftMatch ? norm(draftMatch[1]) : '';
+                
+                if ((ti && f === ti) || (td && d === td)) {
+                    invoiceHtml = fullMatch;
+                    break; // وجدناها! نوقف البحث فوراً
+                }
+            }
+
+            // إذا وجدنا الفاتورة، نحللها فقط
+            if (invoiceHtml) {
+                console.log(`🎯 QR: تم العثور على الفاتورة داخل ${fileName}!`);
+                const invoices = parseInvoicesFromContent(invoiceHtml);
+                if (invoices && invoices.length > 0) return invoices;
+            }
+
+        } catch(e) {
+            console.warn(`   ⚠️ ${fileName}: ${e.message}`);
+        }
+    }
+    
+    throw new Error(`الفاتورة ${targetInvoice} غير موجودة في أي ملف`);
 }
 
 /**
@@ -7019,7 +7046,7 @@ async function handleQRCodeLink() {
     
     qrContainer = document.createElement('div');
     qrContainer.id = 'qrCodeSystem';
-    qrContainer.style.cssText = `
+		qrContainer.style.cssText = `
         position: fixed;
         top: 0;
         left: 0;
@@ -7054,7 +7081,7 @@ async function handleQRCodeLink() {
         
         statusDiv.innerHTML = '📥 جاري تحميل البيانات من Drive...';
         
-        const data = await loadQRCodeData();
+        const data = await loadQRCodeData(invoiceNumber, draftNumber);
         
         if (!data || data.length === 0) {
             throw new Error('لا توجد بيانات متاحة');
