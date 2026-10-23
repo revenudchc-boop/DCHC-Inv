@@ -16,7 +16,7 @@ const COMPANY_INFO = {
     email: 'revenue@dchc-egdam.com',
     taxNumber: '100/221/823',
     logo: '<i class="fas fa-ship"></i>',
-    baseUrl: 'https://revenudchc-boop.github.io/DCHC-Inv/'
+    baseUrl: 'https://revenudchc-boop.github.io/DCHC/'
 };
 
 // ============================================
