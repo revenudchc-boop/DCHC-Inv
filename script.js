@@ -6952,55 +6952,51 @@ async function generateQRCodePDF(element, fileName) {
  */
 async function loadQRCodeData() {
     try {
-        const apiKey = driveConfig.apiKey || 'AIzaSyBy4WRI3zkUwlCvbrXpB8o9ZbFMuH4AdGA';
-        const folderId = driveConfig.folderId || '1FlBXLupfXCICs6xt7xxEE02wr_cjAapC';
-        const fileName = driveConfig.fileName || 'datatxt.txt';
-        let fileId = driveConfig.fileId;
+        console.log('📱 QR: تحميل البيانات من GitHub...');
         
-        if (!fileId) {
-            const searchUrl = `https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(`'${folderId}' in parents and name='${fileName}' and trashed=false`)}&key=${apiKey}&fields=files(id,name)`;
-            const searchRes = await fetch(searchUrl);
-            if (!searchRes.ok) throw new Error('فشل البحث عن الملف');
-            const searchData = await searchRes.json();
-            if (!searchData.files?.length) throw new Error('لم يتم العثور على ملف البيانات');
-            fileId = searchData.files[0].id;
-            driveConfig.fileId = fileId;
-            localStorage.setItem('driveConfig', JSON.stringify(driveConfig));
+        // ✅ 1. اكتشاف ملفات datatxt_Q من GitHub (نفس مصدر التطبيق الرئيسي)
+        const response = await fetch(GITHUB_CONFIG.apiUrl);
+        if (!response.ok) throw new Error(`فشل الاتصال بـ GitHub: ${response.status}`);
+        
+        const files = await response.json();
+        const dataFiles = files.filter(f => 
+            f.type === 'file' && 
+            f.name.startsWith('datatxt_Q') && 
+            f.name.endsWith('.txt')
+        );
+        
+        if (dataFiles.length === 0) throw new Error('لا توجد ملفات بيانات في GitHub');
+        
+        // ✅ 2. الترتيب من الأحدث (Q3, Q2, Q1...)
+        dataFiles.sort((a, b) => {
+            const numA = parseInt((a.name.match(/datatxt_Q(\d+)/) || [0, 0])[1], 10) || 0;
+            const numB = parseInt((b.name.match(/datatxt_Q(\d+)/) || [0, 0])[1], 10) || 0;
+            return numB - numA;
+        });
+        
+        const latestFile = dataFiles[0];
+        const fileUrl = GITHUB_CONFIG.rawBaseUrl + latestFile.name;
+        
+        console.log(`📱 QR: تحميل ${latestFile.name}`);
+        
+        // ✅ 3. تحميل الملف
+        const fileRes = await fetch(fileUrl);
+        if (!fileRes.ok) throw new Error(`فشل تحميل ${latestFile.name}: ${fileRes.status}`);
+        
+        const content = await fileRes.text();
+        
+        // ✅ 4. استخدام الدالة الموجودة فعلياً (parseInvoicesFromContent — Regex)
+        const invoices = parseInvoicesFromContent(content);
+        
+        if (!invoices || invoices.length === 0) {
+            throw new Error('لم يتم استخراج أي فاتورة من الملف');
         }
         
-        const url = `https://www.googleapis.com/drive/v3/files/${fileId}?alt=media&key=${apiKey}`;
-        const res = await fetch(url);
-        if (!res.ok) throw new Error('فشل تحميل الملف');
-        const content = await res.text();
-        
-        const parser = new DOMParser();
-        const xmlDoc = parser.parseFromString(content, "text/xml");
-        const parseError = xmlDoc.querySelector('parsererror');
-        let newInvoices = [];
-
-        if (parseError) {
-            const matches = content.match(/<invoice[\s\S]*?<\/invoice>/g);
-            if (!matches?.length) throw new Error('لا توجد فواتير');
-            const wrapped = parser.parseFromString(`<root>${matches.join('')}</root>`, 'text/xml');
-            const nodes = wrapped.querySelectorAll('invoice');
-            for (let i = 0; i < nodes.length; i++) { 
-                const inv = parseInvoiceNode(nodes[i]); 
-                if (inv) newInvoices.push(inv); 
-            }
-        } else {
-            const nodes = xmlDoc.getElementsByTagName('invoice');
-            for (let i = 0; i < nodes.length; i++) { 
-                const inv = parseInvoiceNode(nodes[i]); 
-                if (inv) newInvoices.push(inv); 
-            }
-        }
-
-        if (!newInvoices.length) throw new Error('لا توجد فواتير');
-        
-        return newInvoices;
+        console.log(`✅ QR: تم تحميل ${invoices.length} فاتورة من ${latestFile.name}`);
+        return invoices;
         
     } catch (error) {
-        console.error('خطأ في تحميل بيانات QR Code:', error);
+        console.error('❌ QR: خطأ في تحميل البيانات:', error);
         throw error;
     }
 }
