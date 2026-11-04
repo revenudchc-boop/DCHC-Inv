@@ -2953,29 +2953,50 @@ function filterInvoicesByUser() {
 }
 
 function filterInvoicesByGuest(taxNumber, blNumber) {
-    if (!invoicesData.length) { filteredInvoices = []; renderData(); showNotification('لا توجد بيانات', 'warning'); return; }
+    if (!invoicesData.length) { 
+        filteredInvoices = []; 
+        renderData(); 
+        showNotification('لا توجد بيانات', 'warning'); 
+        return; 
+    }
+    
     filteredInvoices = invoicesData.filter(inv => {
         let match = true;
+        
         if (taxNumber) {
             const num = inv['final-number'] || '';
+            // استبعاد الفواتير الآجلة في وضع الزائر
             if (num.startsWith('P') || num.startsWith('p')) return false;
-            const payeeMatch = (inv['payee-customer-id'] || '').toLowerCase().includes(taxNumber.toLowerCase());
-            const contractMatch = (inv['contract-customer-id'] || '').toLowerCase().includes(taxNumber.toLowerCase());
-            match = match && (payeeMatch || contractMatch);
+            
+            // ✅ مطابقة تامة (Exact Match) بدون تحويل لحروف صغيرة
+            const payee = (inv['payee-customer-id'] || '').trim();
+            const contract = (inv['contract-customer-id'] || '').trim();
+            
+            match = match && (payee === taxNumber || contract === taxNumber);
         }
-        if (blNumber) match = match && (inv['key-word2'] || '').toLowerCase().includes(blNumber.toLowerCase());
+        
+        if (blNumber) {
+            // ✅ مطابقة تامة للبوليصة
+            const bl = (inv['key-word2'] || '').trim();
+            match = match && (bl === blNumber);
+        }
+        
         return match;
     });
+    
     currentPage = 1;
     clearSelectedInvoices();
     renderData();
+    
     if (!filteredInvoices.length) {
         let msg = 'لم يتم العثور على فواتير';
         if (taxNumber && blNumber) msg += ` للضريبي ${taxNumber} والبوليصة ${blNumber}`;
         else if (taxNumber) msg += ` للضريبي ${taxNumber}`;
         else if (blNumber) msg += ` للبوليصة ${blNumber}`;
         showNotification(msg, 'warning');
-    } else showNotification(`تم العثور على ${formatNumberWithCommas(filteredInvoices.length)} فاتورة`, 'success');
+    } else {
+        showNotification(`تم العثور على ${formatNumberWithCommas(filteredInvoices.length)} فاتورة`, 'success');
+    }
 }
 
 function renderData() {
