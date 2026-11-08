@@ -1426,53 +1426,56 @@ async function autoConfigureDrive() {
 // اكتشاف ملفات datatxt_Q من GitHub وترتيبها (الأحدث أولاً)
 // ============================================
 async function discoverDataFiles() {
-    console.log('🔍 بدء البحث عن ملفات datatxt_Q (تجاوز API)...');
+    console.log('🔍 بدء فحص الملفات المتاحة...');
     
-    // ✅ قائمة أسماء الملفات المتوقعة (من الأحدث للأقدم)
-    const expectedFiles = [];
-    for (let i = 300; i >= 1; i--) {
-        const numStr = i < 10 ? '00'+i : (i < 100 ? '0'+i : i);
-        expectedFiles.push(`datatxt_Q${numStr}.txt`);
+    // 1. قائمة بأرقام الملفات المتوقعة (من 1 إلى 300)
+    const allNumbers = [];
+    for (let i = 1; i <= 300; i++) {
+        allNumbers.push(i);
     }
 
-    const filesWithNumbers = [];
-    
-    // ✅ التحقق من وجود كل ملف عبر raw.githubusercontent.com (لا يوجد CORS)
-    for (const fileName of expectedFiles) {
+    // 2. فحص جميع الملفات في وقت واحد (بالتوازي)
+    const checkPromises = allNumbers.map(async (num) => {
+        const numStr = num.toString().padStart(3, '0');
+        const fileName = `datatxt_Q${numStr}.txt`;
+        const url = GITHUB_CONFIG.rawBaseUrl + fileName;
+        
         try {
-            const url = GITHUB_CONFIG.rawBaseUrl + fileName;
-            // نستخدم طلب HEAD سريع فقط للتأكد من وجود الملف
+            // نستخدم طلب HEAD خفيف جداً (لا يحمل الملف نفسه، فقط يتأكد من وجوده)
             const res = await fetch(url, { method: 'HEAD' });
-            
             if (res.ok) {
-                const match = fileName.match(/datatxt_Q(\d+)\.txt/);
-                const number = match ? parseInt(match[1]) : 0;
-                filesWithNumbers.push({
+                return {
                     name: fileName,
                     url: url,
-                    number: number,
+                    number: num,
                     size: res.headers.get('Content-Length'),
                     downloadUrl: url
-                });
-                console.log(`   ✅ موجود: ${fileName}`);
+                };
             }
-        } catch (e) {
-            // الملف غير موجود أو الشبكة فشلت، نتجاهل ونكمل
-        }
-    }
+        } catch (e) {}
+        return null; // الملف غير موجود
+    });
 
-    if (filesWithNumbers.length === 0) {
-        console.warn('⚠️ لم يتم العثور على أي ملفات');
+    // 3. انتظار انتهاء جميع الفحوصات
+    const results = await Promise.all(checkPromises);
+    
+    // 4. تصفية الملفات الموجودة فقط
+    const existingFiles = results.filter(file => file !== null);
+    
+    if (existingFiles.length === 0) {
+        console.warn('⚠️ لم يتم العثور على أي ملفات بيانات');
         return false;
     }
 
-    // الترتيب من الأحدث للأقدم
-    filesWithNumbers.sort((a, b) => b.number - a.number);
+    // 5. الترتيب من الأحدث للأقدم
+    existingFiles.sort((a, b) => b.number - a.number);
     
-    GITHUB_CONFIG.filesList = filesWithNumbers;
-    console.log(`✅ تم اكتشاف ${GITHUB_CONFIG.filesList.length} ملف:`);
-    GITHUB_CONFIG.filesList.forEach((file, index) => {
-        console.log(`   ${index + 1}. ${file.name} (رقم ${file.number})`);
+    // 6. حفظ القائمة
+    GITHUB_CONFIG.filesList = existingFiles;
+    
+    console.log(`✅ تم العثور على ${existingFiles.length} ملف متاح:`);
+    existingFiles.forEach((file, index) => {
+        console.log(`   ${index + 1}. ${file.name}`);
     });
     
     return true;
