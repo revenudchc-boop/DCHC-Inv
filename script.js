@@ -1426,66 +1426,56 @@ async function autoConfigureDrive() {
 // اكتشاف ملفات datatxt_Q من GitHub وترتيبها (الأحدث أولاً)
 // ============================================
 async function discoverDataFiles() {
-    console.log('🔍 بدء البحث عن ملفات datatxt_Q في مجلد data...');
+    console.log('🔍 بدء البحث عن ملفات datatxt_Q (تجاوز API)...');
     
-    try {
-        // 1. الاتصال بـ GitHub API لجلب محتويات المجلد
-        const response = await fetch(GITHUB_CONFIG.apiUrl);
-        
-        // 2. التحقق من نجاح الاتصال
-        if (!response.ok) {
-            console.error(`❌ فشل الاتصال: ${response.status}`);
-            return false;
-        }
-        
-        // 3. قراءة قائمة الملفات
-        const files = await response.json();
-        
-        // 4. تصفية الملفات: فقط الملفات التي تبدأ بـ datatxt_Q وتنتهي بـ .txt
-        const dataFiles = files.filter(file => {
-            return file.type === 'file' && 
-                   file.name.startsWith('datatxt_Q') && 
-                   file.name.endsWith('.txt');
-        });
-        
-        if (dataFiles.length === 0) {
-            console.warn('⚠️ لم يتم العثور على أي ملفات تبدأ بـ datatxt_Q');
-            return false;
-        }
-        
-        // 5. استخراج الرقم من اسم الملف (مثلاً: Q003 -> 3)
-        const filesWithNumbers = dataFiles.map(file => {
-            // استخراج الرقم باستخدام Regex
-            const match = file.name.match(/datatxt_Q(\d+)\.txt/);
-            const number = match ? parseInt(match[1]) : 0;
+    // ✅ قائمة أسماء الملفات المتوقعة (من الأحدث للأقدم)
+    const expectedFiles = [];
+    for (let i = 300; i >= 1; i--) {
+        const numStr = i < 10 ? '00'+i : (i < 100 ? '0'+i : i);
+        expectedFiles.push(`datatxt_Q${numStr}.txt`);
+    }
+
+    const filesWithNumbers = [];
+    
+    // ✅ التحقق من وجود كل ملف عبر raw.githubusercontent.com (لا يوجد CORS)
+    for (const fileName of expectedFiles) {
+        try {
+            const url = GITHUB_CONFIG.rawBaseUrl + fileName;
+            // نستخدم طلب HEAD سريع فقط للتأكد من وجود الملف
+            const res = await fetch(url, { method: 'HEAD' });
             
-            return {
-                name: file.name,
-                url: GITHUB_CONFIG.rawBaseUrl + file.name,
-                number: number,
-                size: file.size,
-                downloadUrl: file.download_url
-            };
-        });
-        
-        // 6. الترتيب من الأحدث (أكبر رقم) إلى الأقدم (أصغر رقم)
-        filesWithNumbers.sort((a, b) => b.number - a.number);
-        
-        // 7. تخزين القائمة
-        GITHUB_CONFIG.filesList = filesWithNumbers;
-        
-        // 8. عرض النتائج في Console
-        console.log(`✅ تم اكتشاف ${GITHUB_CONFIG.filesList.length} ملف:`);
-        GITHUB_CONFIG.filesList.forEach((file, index) => {
-            console.log(`   ${index + 1}. ${file.name} (رقم ${file.number})`);
-        });
-        
-        return true;
-        
-    } catch (error) {
-        console.error('❌ خطأ في الاكتشاف:', error);
+            if (res.ok) {
+                const match = fileName.match(/datatxt_Q(\d+)\.txt/);
+                const number = match ? parseInt(match[1]) : 0;
+                filesWithNumbers.push({
+                    name: fileName,
+                    url: url,
+                    number: number,
+                    size: res.headers.get('Content-Length'),
+                    downloadUrl: url
+                });
+                console.log(`   ✅ موجود: ${fileName}`);
+            }
+        } catch (e) {
+            // الملف غير موجود أو الشبكة فشلت، نتجاهل ونكمل
+        }
+    }
+
+    if (filesWithNumbers.length === 0) {
+        console.warn('⚠️ لم يتم العثور على أي ملفات');
         return false;
     }
+
+    // الترتيب من الأحدث للأقدم
+    filesWithNumbers.sort((a, b) => b.number - a.number);
+    
+    GITHUB_CONFIG.filesList = filesWithNumbers;
+    console.log(`✅ تم اكتشاف ${GITHUB_CONFIG.filesList.length} ملف:`);
+    GITHUB_CONFIG.filesList.forEach((file, index) => {
+        console.log(`   ${index + 1}. ${file.name} (رقم ${file.number})`);
+    });
+    
+    return true;
 }
 
 // ✅ دالة جديدة: قراءة نطاق التاريخ من ملف
