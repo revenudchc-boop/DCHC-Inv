@@ -1426,60 +1426,68 @@ async function autoConfigureDrive() {
 // اكتشاف ملفات datatxt_Q من GitHub وترتيبها (الأحدث أولاً)
 // ============================================
 async function discoverDataFiles() {
-    console.log('🔍 بدء فحص الملفات المتاحة...');
+    console.log('🔍 بدء البحث عن ملفات datatxt_Q في مجلد data...');
     
-    // 1. قائمة بأرقام الملفات المتوقعة (من 1 إلى 300)
-    const allNumbers = [];
-    for (let i = 1; i <= 300; i++) {
-        allNumbers.push(i);
-    }
-
-    // 2. فحص جميع الملفات في وقت واحد (بالتوازي)
-    const checkPromises = allNumbers.map(async (num) => {
-        const numStr = num.toString().padStart(3, '0');
-        const fileName = `datatxt_Q${numStr}.txt`;
-        const url = GITHUB_CONFIG.rawBaseUrl + fileName;
+    try {
+        // 1. الاتصال بـ GitHub API لجلب محتويات المجلد
+        const response = await fetch(GITHUB_CONFIG.apiUrl);
         
-        try {
-            // نستخدم طلب HEAD خفيف جداً (لا يحمل الملف نفسه، فقط يتأكد من وجوده)
-            const res = await fetch(url, { method: 'HEAD' });
-            if (res.ok) {
-                return {
-                    name: fileName,
-                    url: url,
-                    number: num,
-                    size: res.headers.get('Content-Length'),
-                    downloadUrl: url
-                };
-            }
-        } catch (e) {}
-        return null; // الملف غير موجود
-    });
-
-    // 3. انتظار انتهاء جميع الفحوصات
-    const results = await Promise.all(checkPromises);
-    
-    // 4. تصفية الملفات الموجودة فقط
-    const existingFiles = results.filter(file => file !== null);
-    
-    if (existingFiles.length === 0) {
-        console.warn('⚠️ لم يتم العثور على أي ملفات بيانات');
+        // 2. التحقق من نجاح الاتصال
+        if (!response.ok) {
+            console.error(`❌ فشل الاتصال: ${response.status}`);
+            return false;
+        }
+        
+        // 3. قراءة قائمة الملفات
+        const files = await response.json();
+        
+        // 4. تصفية الملفات: فقط الملفات التي تبدأ بـ datatxt_Q وتنتهي بـ .txt
+        const dataFiles = files.filter(file => {
+            return file.type === 'file' && 
+                   file.name.startsWith('datatxt_Q') && 
+                   file.name.endsWith('.txt');
+        });
+        
+        if (dataFiles.length === 0) {
+            console.warn('⚠️ لم يتم العثور على أي ملفات تبدأ بـ datatxt_Q');
+            return false;
+        }
+        
+        // 5. استخراج الرقم من اسم الملف (مثلاً: Q003 -> 3)
+        const filesWithNumbers = dataFiles.map(file => {
+            // استخراج الرقم باستخدام Regex
+            const match = file.name.match(/datatxt_Q(\d+)\.txt/);
+            const number = match ? parseInt(match[1]) : 0;
+            
+            return {
+                name: file.name,
+                url: GITHUB_CONFIG.rawBaseUrl + file.name,
+                number: number,
+                size: file.size,
+                downloadUrl: file.download_url
+            };
+        });
+        
+        // 6. الترتيب من الأحدث (أكبر رقم) إلى الأقدم (أصغر رقم)
+        filesWithNumbers.sort((a, b) => b.number - a.number);
+        
+        // 7. تخزين القائمة
+        GITHUB_CONFIG.filesList = filesWithNumbers;
+        
+        // 8. عرض النتائج في Console
+        console.log(`✅ تم اكتشاف ${GITHUB_CONFIG.filesList.length} ملف:`);
+        GITHUB_CONFIG.filesList.forEach((file, index) => {
+            console.log(`   ${index + 1}. ${file.name} (رقم ${file.number})`);
+        });
+        
+        return true;
+        
+    } catch (error) {
+        console.error('❌ خطأ في الاكتشاف:', error);
         return false;
     }
-
-    // 5. الترتيب من الأحدث للأقدم
-    existingFiles.sort((a, b) => b.number - a.number);
-    
-    // 6. حفظ القائمة
-    GITHUB_CONFIG.filesList = existingFiles;
-    
-    console.log(`✅ تم العثور على ${existingFiles.length} ملف متاح:`);
-    existingFiles.forEach((file, index) => {
-        console.log(`   ${index + 1}. ${file.name}`);
-    });
-    
-    return true;
 }
+
 
 // ✅ دالة جديدة: قراءة نطاق التاريخ من ملف
 async function discoverFileDateRange(fileIndex) {
