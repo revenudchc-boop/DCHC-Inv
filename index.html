@@ -241,7 +241,7 @@
                 <div class="search-row">
                     <div class="search-field">
                         <label><i class="fas fa-container-storage"></i> رقم الحاوية</label>
-                        <input type="text" id="searchContainer" placeholder="رقم الحاوية...">
+                        <div style="display:flex;gap:6px;align-items:stretch;"><input type="text" id="searchContainer" placeholder="رقم حاوية، أو عدة أرقام بينها مسافة..." style="flex:1;min-width:0;"><button type="button" onclick="openContainerListDialog()" title="لصق قائمة حاويات" style="padding:0 12px;border-radius:10px;border:1px solid var(--border,#ccc);background:var(--bg-card,#fff);cursor:pointer;font-size:16px;">📋</button></div>
                     </div>
                     <div class="search-field">
                         <label><i class="fas fa-tag"></i> الحالة</label>
@@ -291,7 +291,7 @@
                         <option value="25" selected>25</option>
                         <option value="50">50</option>
                         <option value="100">100</option>
-                        <option value="all">الكل</option>
+                        <option value="all">الكل (حتى 500)</option>
                     </select>
                     <label style="font-size:0.8em; color:var(--text-muted); margin-right:10px;">ترتيب:</label>
                     <select id="sortSelect" onchange="document.getElementById('sortSelect').dispatchEvent(new Event('change'))" style="padding:6px 10px; border-radius:6px; border:1px solid var(--border); background:var(--input-bg); color:var(--text); font-family:'Cairo';">
@@ -347,9 +347,6 @@
          <span id="dataSource" style="display:none;"></span>
     </main>
 
-    <!-- عناصر مخفية للتوافق مع التصميم الجديد -->
-    <span id="totalEGPWithoutTax" style="display:none;"></span>
-    <span id="totalMartyr" style="display:none;"></span>
 
     <!-- ==================== نافذة تفاصيل الفاتورة ==================== -->
     <div id="invoiceModal" class="modal">
@@ -819,7 +816,7 @@
     <div id="progressMessage" class="progress-message" style="display: none;"></div>
 
     <!-- JavaScript File -->
-    <script src="script.js?v=3"></script>
+    <script src="script.js?v=4"></script>
 	
 	    <!-- عناصر مخفية للتوافق -->
     <span id="fileStatus" style="display:none;"></span>

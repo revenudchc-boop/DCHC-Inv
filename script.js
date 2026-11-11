@@ -46,6 +46,288 @@ let currentInvoiceType = INVOICE_TYPES.CASH;
 
 // المتغيرات العامة
 let invoicesData = [];
+
+// ============================================
+// [تعديل] دوال مساعدة: أمان + أداء
+// ============================================
+function escapeHtml(v) {
+    return String(v === null || v === undefined ? '' : v).replace(/[&<>"']/g, c => (
+        { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]
+    ));
+}
+window.escapeHtml = escapeHtml;
+
+// [تعديل] تقليل الذاكرة: نحتفظ فقط بخصائص الـ XML التي يذكرها البرنامج (أي خاصية لا يذكرها الكود لا يمكن استخدامها)
+const SLIM_PARSED_ATTRIBUTES = true; // اجعلها false للعودة إلى الاحتفاظ بكل خصائص الـ XML
+const _KEEP_ATTRS = new Set('A A4 API AbortController Access Action App Apps Array Auto Awesome B B7D44 Base64 Blob Boolean C C25 C25-12345 C25-22491 C25-25656 C26 CACHE_CHUNK_SIZE CACHE_DB_NAME CACHE_DB_VERSION CACHE_STORE CACHE_TTL CAP CASH COMPANY_INFO CONCURRENCY CONTAINER CP CREDIT CREDIT_SCRIPT_URL CSS Cache Cairo Canvas Cargo Charges Checkbox Code Company Container Content-Length Content-Type Credit Currency DAMIETTA DCHC DCHC-Inv DCHC_Cache DISCOVERY_FRESH_MS DISCOVERY_STORE_KEY DOCTYPE DOM DOMContentLoaded DOMParser DRAFT DRIVE_CONFIG Damietta Data Date Debug Draft Drive DugYxs9a21e6J0ynTu6pE0yHXM2wRXSP EGP EMER_STORAGE ETag Element Emoji Error Event Excel F9D58 FAST FAST_BATCH FAST_SIZE_LIMIT FINAL File FileReader Final Finalized FlBXLupfXCICs6xt7xxEE02wr_cjAapC Font FormData GITHUB_CONFIG Geneva GitHub Google H HEAD HTML HTTP Handling IB ID INVOICE_TYPES IP Index IndexedDB Infinity Invoice InvoiceDB JPEG JPG JSON JavaScript KB KEEP_ATTRS Key Last-Modified Libraries Library Logo MANIFEST_MISSING_KEY MANIFEST_RECHECK_MS MB MSC Map Martyr Mastercard Math Modal N NEWS_VISIBLE_KEY Nbr Number OB Object P P25 P25-12345 PATCH PAYMENTS_API_URL PDF PNG POST POSTPONED Payee Personal Promise Q QR QRCode REEFER RENIQ19TRUNVUkVfMjAyNA Refresh Regex S SECRET_KEY SELECT SLIM_PARSED_ATTRIBUTES STEP STORAGE SYNC_WEB_APP_URL Script Segoe Set String T TRX-12345 Tahoma Taxes Token Total Type UI URL URLSearchParams USAD USD USERS_SCRIPT_URL UTF-8 VIEWED_CLOUD_URL Verdana Visa W WU9R9Yby0_QoJeulIgYRuCQk9XV-N_e1 WeakMap Web Word Worker Workers XLSX XML a a-zA-Z a-zA-Z0-9 a0aec0 a0ca3 a4 a5298 a5a6 aaa abort aborted abs absolute acc accept accountId accountStatementModal accountant action action-btn active add addDatabaseControls addEventListener addImage addPage added address ade80 adjustedTotal admin admin123 adminPanelBtn advanced-search advancedSearch advancedSearchBody ae60 afterTableHtml age ajax alert alert-info align-items alignItems all allCheckboxes allChecked allContainers allCustomers allElements allFiles allInvoices allLinks allLoadedInvoices allPayments allRows allSelected allSettled allowTaint allowed allowedCustomers allowedIds allowedItems allowedTypes alt amber amount amount-credited amountCredited amountDisplay amountInDisplayCurrency amountPerContainer amountPerInvoice amp and animation aoa_to_sheet api apiKey apiUrl append appendChild appendUnique application apply applyAdvancedSearch applyCreditSearch applyMartyr applyRefreshSetting ar ar-EG args arguments asc aside assets assign async atob att attachmentInput attachments attempt attrStats attrs attrsString auto autoConfigureDrive autoIncrement autoRefreshEnabled autoRefreshInterval autoRefreshTimer autoSaveEnabled availableHeightMM availableIds await b b5179e b82f6 b981 ba2 backdrop-filter background background-color backgroundColor backgroundLoader backup backupUsers badgeClass badgeText balance balanceColor balanceType bankFields bankName bank_transfer bar base64 baseTotal baseUrl batchSize beforeTableHtml belongsToUser bg-card bg-hover bgLoaderStyles bgLoadingActive bl blLower blNumber blank blob blobUrl block blur body bold book_append_sheet book_new border border-bottom border-collapse border-left border-light border-radius border-right border-top borderRadius bottom box-shadow boxShadow br branch break break-all btn btn-accent btn-drive btn-icon btn-info btn-outline btn-preview btn-primary btn-save btn-secondary btn-sm btn-small btn-success build buildAccountStatement buildCreditSearchUI buildInvoiceSearchUI button c c24 c55e c757d cache cacheDB cacheError cacheKey cached cachedCount cachedInfo calculateRowsTotal call called cancel cancelPaymentInCloud cancelUserForm cancelled canvas caption card card-badge card-body card-footer card-header card-label card-row card-total card-value cardFields cardLast4 cardType cards cards-container cardsBtn carryForwardBalance carryForwardCurrency cash catch cb cc9f0 ccc cdn cdnjs ceil cellpadding cells cellspacing center cf8 ch chaining change changeCreditPage changeItemsPerPage changePage changePasswordMessage changePasswordModal changePaymentPage changer charAt charge chargeDate chargeExRate chargeExRateAttr chargeRegex charges charges-section charges-table chargesRows charset check-circle checkFileUpdate checkForUpdatesInBackground checkIfInvoiceBelongsToUser checkSession checkbox checkboxes checked checks cheque chequeBank chequeDate chequeFields chequeNumber chunk chunks cid class classList className cleanToken clear clearAllCache clearInterval clearSelectedInvoices clearTimeout click close close-button closeBtn closeChangePasswordModal closeDriveSettings closeModal closeOpeningBalanceModal closePaymentModal closePreviewBtn closeRefreshSettingsModal closeReports closeStatementModal closeUserManagementModal closest cloudflare cm code col collapse color cols colspan column com company-info company-logo-container company-logo-image company-title companyLogoBase64 compress computeFilesSignature concat configurable confirm confirmNewPassword confirmPaymentInCloud confirmed confirmedBy console const cont container container-number-cell containerCount containerCounter containerDetails containerId containerNumber containerNumbers containers containers-detail-table containersBtn contains content content-section contentArea contentDiv contentHTML contentLength contentRes contentSection contentWidth contents continue contract contract-customer-id contractCustomerId contractId controller controlsDiv conts convertCustomerFieldToSelect correctedCurrency count countSpan cover create createElement createIndex createInvoiceKey createObjectStore createObjectURL createQRCodeInvoiceHTML created createdAt createdBy createdTime creator credit credit-checkbox credit-detail-grid credit-detail-header credit-detail-title credit-info-box credit-item credit-summary-box credit-summary-row creditArray creditCustomerId creditData creditDate creditDoc creditElement creditExchangeRate creditFileId creditFileName creditItems creditPrint creditSearchCustomer creditSearchDateFrom creditSearchDateTo creditSearchInvoiceNumber creditSearchSerial creditSearchStatus creditViewed creditXml credit_card credit_data creditdata credits css css2 cssText csv ctx curr currency currencyCell currencySymbol current currentCreditData currentCreditPage currentCreditSerial currentCreditSortField currentCreditSortOrder currentDate currentDisplayType currentEditingUserId currentInvoice currentInvoiceType currentPage currentPassword currentPaymentPage currentQRCodeHTML currentQRCodeInvoice currentRefreshEnabled currentRefreshMinutes currentReportType currentSignature currentSortField currentSortedIndex currentUser currentUserDisplay cursor cust custId customer customer-id customer-name customerCredits customerFieldHtml customerId customerIds customerIdsRaw customerInvoices customerLower customerPayments customers cyan d d1ecf1 d3748 d4edda daily danger dark dark-mode dashed data data-index data-key data-remaining data-serial data-table data-uid dataFiles dataSource dataViewContainer dataViewInfo dataViewTitle data_cache dataset datatxt datatxt_Q date dateA dateB dateFrom dateFromElem dateInfo dateRange dateStr dateTo dateToElem dates day days db db-controls dbControls dchc dchc-egdam dchc_files_list_v1 dchc_manifest_missing_v1 ddd debit debounce debugCreditData decimals decodeBase64 dee2e6 defineProperty defined deg delete deleteFromCache deleteObjectStore deleteUser desc description deselectAllCredit deselectAllInvoices detail device-width dir direct_deposit direction disabled discount discountValue discoverDataFiles discoverFileDateRange discoverViaApi discoverViaManifest discovered dispatchEvent display displayAmount displayCurrency displayName displayQuantity displayStorageDays displayTax displayTotal displayTotalCredit displayTotalTax dist div document documentElement done download downloadQRCodePDF downloadReportPdfBtn downloadUrl download_url draft draft-number draftMatch draftNum draftNumber drawImage drive drive-result-box driveApiKey driveBtn driveConfig driveCreditFileId driveCreditFileName driveFileId driveFileName driveFilesList driveFolderId driveMessage driveSettingsBtn driveSettingsModal driveTestResult driveUpdateBtn driveUsersFileId driveUsersFileName dropped duplicateCount duration e e0e0e0 e293b e2e8f0 e3c72 e3f2fd e63946 e74c3c e8f4f8 e9ecef ease edit editContractCustomerId editCustomerIds editEmail editPassword editStatus editTaxNumber editUser editUserType editUsername ee eea ef4444 egpAmount egpCharges egpTax egpTaxes egpTotal el element else em email emerald empty enabled enabledSelect encodeURIComponent encoded end endY endsWith ensureDataForDateRange ensureSeenKeys entity-id entries entry err error errorCorrectionLevel escapeHtml escapeHtmlNews escapedId etag event event-performed-from event-performed-to event-type-id eventFrom eventTo every ex exRate exRateAttr exact excelBtn excelData exchange-rate exchangeRate exchangeRateRow exclamation-circle exec existing existingModal exitQRCodeSystem expandedContainers export-btn export-buttons exportContainerDetails exportContainersBtn exportCreditNoteExcel exportCreditNotePDF exportData exportDirectPDF exportInvoiceExcel exportInvoicePDF exportMultipleInvoices exportReportAsProfessionalPDF exportReportExcel exportReportPDF exportSelectedBtn exportSelectedContainers exportSelectedCreditExcel exportSelectedCreditExcelBtn exportSelectedCreditPDF exportSelectedCreditPDFBtn exportSelectedExcelBtn exportSelectedInvoices exportSelectedInvoicesExcel exportSelectedReport exportSingleInvoice exportStatementExcel exportStatementPDF extra extractDateRange f f0f0f0 f0f2f5 f3 f37c9 f39c12 f59e0b f5f5f5 f72585 f8d7da f8f9fa fa fa-3x fa-ban fa-barcode fa-bars fa-bell fa-bolt fa-box fa-building fa-calendar fa-calendar-alt fa-calendar-day fa-certificate fa-chart-bar fa-check fa-check-circle fa-check-double fa-check-square fa-chevron-down fa-chevron-left fa-chevron-right fa-chevron-up fa-clock fa-cog fa-coins fa-container-storage fa-credit-card fa-dollar-sign fa-download fa-edit fa-exclamation-circle fa-exclamation-triangle fa-external-link-alt fa-eye fa-file fa-file-alt fa-file-contract fa-file-excel fa-file-invoice fa-file-invoice-dollar fa-file-pdf fa-file-signature fa-filter fa-folder fa-gift fa-github fa-google-drive fa-hashtag fa-home fa-hourglass-half fa-id-card fa-inbox fa-info-circle fa-key fa-list fa-lock fa-map-marker-alt fa-money-bill-wave fa-moon fa-newspaper fa-paperclip fa-party-horn fa-percent fa-phone fa-plug fa-plus fa-plus-circle fa-print fa-save fa-search fa-ship fa-sign-in-alt fa-sign-out-alt fa-sort-amount-down-alt fa-sort-amount-up-alt fa-spin fa-spinner fa-stamp fa-star fa-sticky-note fa-sun fa-sync-alt fa-table fa-tag fa-tags fa-th-large fa-times fa-trash fa-undo fa-university fa-upload fa-user fa-user-guest fa-user-plus fa-user-tie fa-users fa-users-cog fa-warehouse fab facilityDisplay false family fas fastFiles fastResults fbbf24 fetch fetchWithTimeout ffc107 ffd700 fff3cd ffffff field fields file fileContent fileCount fileEnd fileFrom fileId fileIndex fileInfo fileInput fileInvoices fileLabel fileName fileStart fileStatus fileTo fileToBase64 fileUrl files filesList fill filter filter-section filterCreditByUser filterCreditData filterInvoicesByGuest filterInvoicesByUser filtered filteredByDate filteredCreditData filteredInvoices filteredPayments final final-number finalBalanceColor finalBalanceType finalBody finalCustomerId finalDisplay finalMatch finalNum finalNumber finalized-date finally find findCreditFileIdAuto findDataFileId findDataFileIdAuto findIndex findUsersFileId findUsersFileIdAuto first-child firstChild firstCreditItem firstCurrency firstDay firstDayStr firstItem firstNum fixed flex flex-date-02 flex-direction flex-end flex-string-06 flex-wrap floor fmtDate focus folder folderId font-awesome font-family font-size font-weight fontSize fonts footer footerHtml footerMatch footerNote for forEach force forceRefresh form form-actions form-control form-group form-row form-text format formatAmount formatNumberWithCommas formattedAmount formattedChargeDate formattedDate formattedDisplayAmount found fr from fromDate fulfilled full fullAmount fullCanvas fullMatch func function g gap generateCreditPrintHTML generateCustomerReport generateDailyReport generateMonthlyReport generateQRCode generateQRCodePDF generateReportHTML generateVesselReport get getAll getAttribute getContext getElementById getElementsByTagName getFullYear getHeight getInvoiceKey getInvoiceLink getInvoicePaymentStatus getInvoiceSerialNumber getItem getMonth getNum getOwnPropertyDescriptor getParserWorker getPaymentMethodName getSetting getWidth gif github githubusercontent google googleapis grand-total-row grandTotal grandTotalEgpCharges grandTotalEgpTaxes grandTotalRow grandTotalUsadCharges grandTotalUsadTaxes gray green grid grid-template-columns groupCashCharges groupIndex groupPostponedCharges grouped gt guest guestBlNumber guestForm guestIdMatch guestTaxNumber h1 h2 h3 h4 handleFileUpload handleGuestLogin handleLogin handleQRCodeLink handleRowClick hardwareConcurrency has hasActiveSearch hasCarryForward hasCustomerIds hasInvoices hasNewData hasOpeningBalance hasPending hasRejected head headResponse header headers height hidden hideBackgroundLoader hideProgress hideProgressInsideModal hover hr href html html2canvas htmlWithoutFooter http https i icon id idbGet idbPut ids idx if iframe ignore image imageTimeout img imgData imgHeight imgWidth import important in inactive includes indeterminate index indexOf indexedDB indices indigo infinite info info-box info-circle info-grid info-row initDatabase initNewsBar initial-scale initialInvoices initialQuantity inline-flex innerContent innerHTML innerText input input-bg inputElement internal intervalInput inv invDate invDateStr invDates invKey invNum invType invoice invoice-card invoice-checkbox invoice-company-header invoice-company-logo invoice-container invoice-date-bold invoice-draft-number invoice-final-number invoice-footer invoice-header invoice-info-grid invoice-number-bold invoice-summary invoice-type-id invoiceAmounts invoiceCount invoiceData invoiceDate invoiceDateRaw invoiceDraftNumber invoiceElement invoiceExRate invoiceFinalNumber invoiceHTML invoiceHasPending invoiceHtml invoiceKey invoiceModal invoiceNumber invoicePaidAmounts invoicePrint invoiceRegex invoiceTotal invoiceTypeDisplay invoiceTypeText invoiceViewed invoices invoicesData io is isAdmin isArray isChecked isCredit isDateRangeOverlap isGuest isImage isLast isLoaded isNaN isOpening isOpeningBalance isPDF isPartial isPostponed isQRCode isQRCodeMode isQuickPayment isReeferOrStorage isSavingToDrive isSearching isSelected isTempElement isUpdated isUserBusy isUsers isViewed item itemRate items itemsHtml itemsPerPage itemsPerPageCredit itemsPerPagePayments j javascript join jpeg jpg js jsPDF jsdelivr json jsonString jspdf justify-content k kb keepState kept key key-word1 key-word2 key-word3 keyPath keyframes keys known ktLLXz1Febs44lB-aqfuNmTRs1GNB0w kw1 kw2 l label landscape lang last-child lastLoadedUsersCount lastLogin lastModified lastNum lastSaveTime lastSearchDateRange lastUpdate latestFile latestFileInfo latestInvoices lc lcCache lcFields left len length let libs light light-mode line lineOperators lineOperatorsText linear linear-gradient link link-invoice-check linkedChecks linkedInvoices linkedInvoicesContainer links list loadAdditionalDataFile loadAllDataFiles loadAllInvoices loadCreditDataFromDrive loadCreditDataFromDriveSilent loadDriveSettings loadFilesListFromDrive loadFromCache loadInvoicesFromDrive loadLogoFromDrive loadNewsFromDrive loadPaymentCustomers loadPaymentsFromCloud loadQRCodeData loadRefreshSettings loadRefreshTokenFromDrive loadRemainingFilesInBackground loadSavedData loadSingleDataFile loadSingleDataFileMainThread loadUnpaidInvoicesForPayment loadUsers loadUsersFromBackup loadUsersFromDrive loadViewedFromDrive loadViewedInvoices loaded loadedFilesCache loadedInvoices loader loading loadingDiv localStorage localeCompare location log logging login login-btn login-container login-form login-header login-message login-screen login-tabs loginForm loginMessage loginPassword loginScreen loginUsername logo logo-area logo-placeholder logoBase64 logoFileId logoHtml logoSrc logout long lt ltr m macros main main-content mainApp makeFileEntry manualRefresh map margin margin-bottom margin-inline-start margin-left margin-right margin-top marginTop marking markingdchc martyr mastercard match matchCustomer matched matches max max-height max-width maxDate maxFiles maxMiss maxPages maxWidth maxlength media menu-toggle mergeReady message meta metadata method middle mimeType min min-height min-width minDate minutes missAt misses missing mm modal modal-actions modal-body modal-content modal-header modal-lg modalBody modalContent modalHeader modalInvoiceNumber modalProgressBar modalProgressContainer modalProgressMessage modalTitle mode modifiedTime monospace month monthly ms ms-excel msg msgSpan multipart multiple n na name nameEn names namespace nav nav-badge nav-section navigateInvoice navigator nb net new newC newCredits newInvoices newOriginalIndex newPass newPassword newSortedIndex newValue news news-bar news-dot news-icon news-item news-separator news-ticker news-ticker-content newsBar newsBarContainer newsBarElem newsBarVisible newsContent newsContentElem newsItems newsTicker newsTickerContent newsUrl next nextBtn nextToMerge nextToStart no-cache no-data no-store nodes none noopener noreferrer norm not not-allowed not_viewed notes notes-box notif notif-btn notif-dot notifBtn notifDot now nowrap npm null num numA numB numContainersInCharge numStr number numeric nums object-fit objectStore objectStoreNames of offsetHeight ok onPaymentCustomerChange onPaymentMethodChange onWorkerError onWorkerMessage onabort onchange onclick oncomplete onerror onload onloadend onmessage onsuccess onupgradeneeded op opacity open openAccountStatement openAllPaymentsView openCacheDB openDriveSettings openModal openModals openMyPayments openOpeningBalanceModal openPaymentModal openPaymentsTab openRefreshSettings openingAmount openingBalanceAmount openingBalanceBtn openingBalanceCurrency openingBalanceDate openingBalanceModal openingBalanceRecord openingBalanceType openingCurrency openingCustomer openingDate openingMessage openingNotes openingType opening_balance option optional options opts or order org orientation originalContent originalRenderData originalSelectedIndex originalSetInnerHTML originalTotal other out outerHTML overflow overflow-x overflow-y overlapPx owner p package padStart padded padding padding-bottom padding-top page page-total-row pageBody pageBodyWithTotal pageData pageFullHtml pageHeightPx pageHtml pageNumber pageRows pageSize pageTitle pageTotal pages pagination pagination-btn paid paid-thru-day parent parentElement parentNode parents parse parseAttributesRegex parseChargesRegex parseCreditData parseCreditNode parseError parseFinalNumber parseFloat parseFromString parseInt parseInvoiceNode parseInvoicesFromContent parseXMLContent parseXMLContentFast parsed parsedA parsedB parsedData parser parserWorkerFailed parsererror part partial partialPayment parts password pay-btn payDate payee payee-customer-id payee-customer-role payeeId payload payment paymentAmount paymentAttachment paymentBankName paymentCardLast4 paymentCardType paymentCell paymentChequeBank paymentChequeDate paymentChequeNumber paymentCurrency paymentCustomer paymentData paymentDate paymentDateFrom paymentDateTo paymentIcon paymentId paymentInvoices paymentMessage paymentMethod paymentModal paymentNotes paymentReference paymentStatus payments paymentsBadge paymentsData paymentsTab pdf pdf-export-nowrap pdfBtn pdfHeight pdfWidth pending percentage performance phone placeholder plain png pointer pool portrait position postMessage postal_order postponed pre pre-wrap preparedBy preparer prev prevBtn primary print print-color-adjust print-container print-items-table printBtn printCreditNote printHtml printInvoice printReportBtn printStatement printStyles printWindow probeForFiles probeOne probed processedCount progress-bar progress-bar-container progress-message progressBar progressBarContainer progressContainer progressMessage prompt prototype pt push put px q qr-btn qr-btn-danger qr-btn-primary qr-btn-secondary qr-charges-table qr-controls qr-footer qr-info-box qr-info-grid qr-info-row qr-invoice-container qr-invoice-header qr-invoice-title qr-logo-container qr-logo-image qr-pdf-container qr-signature qr-summary qrCodeSystem qrContainer qrContainerId qrPdfContainer qrStatus qrcode qrcode-container qtyDisplay quantity quantity-billed quantityToShow query querySelector querySelectorAll quickPayInvoice quot r random range rate-billed rate-credited rateCredited raw rawBaseUrl readAsDataURL readAsText readStoredFileList reader readonly readwrite reason rec record rect red reduce ref reference refresh-settings-btn refreshDataView refreshDataViewKeepState refreshEnabled refreshInterval refreshIntervalId refreshSettingsModal refreshStatus refreshToken refreshUsersFromDrive refresh_enabled refresh_minutes refreshtoken regex registeredUser reject rejectPaymentInCloud rejectPaymentPrompt rejected rejectionReason rel relative reload remaining remainingFiles remainingOriginal remove removeChild removeDuplicateInvoices removeItem renderCardsView renderCreditCardsView renderCreditData renderCreditPagination renderCreditTableView renderData renderPagination renderPaymentsPagination renderPaymentsView renderTableView renderUsersTable repairJSON repeat replace replaceChild repo report-card report-content report-footer report-header report-info report-stats report-tab report-table reportContent reportHtml reportHtmlWithSummary reportHtmlWithoutSummary reportInfo reportPreviewModal reportPreviewModalContent reportTitle reports reports-tabs reportsContainer repos req request res reset resetAdvancedSearch resetCreditSearch resetUserPassword resolve response result results return revenudchc-boop revenue reviewedBy reviewer rgba right roleMap root rose rotate round row rowCurrency rowStyle rows rowsPerPage rtl runner s sans-serif save saveData saveDriveSettings saveDriveSettingsToStorage saveOpeningBalance savePaymentToCloud saveQueueTimer saveRefreshSettings saveResponse saveSetting saveToCache saveUserFromForm saveUsersManually saveUsersToDrive saveUsersToGitHub saveViewedInvoices saveViewedToDrive saved savedTheme scale scaleX script scrollHeight scrollTicker scrollWidth search search-actions search-body search-field search-grid search-row searchBlNumber searchBody searchContainer searchContractCustomerId searchCustomer searchDateFrom searchDateTo searchDraftNumber searchEnd searchFields searchFinalNumber searchFrom searchIds searchInvoiceType searchStart searchStatus searchTo searchToggleIcon searchVessel searchViewedStatus searched seconds seenInvoiceKeys seenKeys select selectAll selectAllCheckbox selectAllCredit selectAllCreditCheckbox selectAllInvoices selectCreditFile selectDataFile selectLogoFile selectUsersFile selected selected-row selectedClass selectedCount selectedCreditCount selectedCreditNotes selectedIndices selectedInvoiceIndex selectedInvoices selectedInvoicesData selectedItems self serial sessionStorage set setDate setHours setInterval setInvoicesData setItem setNewsTickerSpeed setTimeout setViewMode settings sha sheet sheetjs show showAddUserForm showBackgroundLoader showChangePassword showChangePasswordBtn showCommas showCreditDetails showCreditTestWindow showInvoiceDetails showLoginMessage showMartyr showMsg showNotification showOpeningMessage showPaymentInvoices showPaymentMessage showProgress showProgressInsideModal showReportPreview showReports showUserManagement sidebar sidebar-footer sidebar-header sidebar-logo sidebar-nav sidebar-user sidebarAdminLink sidebarAvatar sidebarName sidebarRole sidebarStorageLink signal signature signature-box signature-date signature-line signature-name signature-section signature-stamp signature-title size slice sliceCanvas sliceHeightMM slideInBottom slideOutBottom slideUp small snx solid some sort sortCreditData sortInvoices sortOrder sortSelect sortToggle sorted sortedCharges sortedFiltered sortedInvoices source space-around space-between span split splitReportIntoPages src st start startDate startPeriodicUserUpdate startRefreshTimer startY startsWith stat-card stat-icon stat-item stat-label stat-value statement statementAccount statementBody statementDateFrom statementDateTo stats-grid status status-badge statusColors statusDiv statusLabels statusText step stopPropagation stopRefreshTimer storage-days storageDays storageDaysToShow store storeFileList stored str string stringify strong style stylesheet submitPayment substr substring success sum summary-box summary-row summary-section summaryCards summaryHtml svg swap switchInvoiceType switchLoginTab syncViewModeButtons t t0 t1 t2 tStart tab tab-btn table table-container table-responsive table-row table-style table-toolbar tableBtn tableHeaders table_to_book tables tabs tagName target targetDraft targetId targetInvoice tax tax-credited tax-info taxCredited taxDisplay taxEGP taxMatch taxNumber taxRegex taxSum taxes tbody td temp tempBalance tempContainer tempCurrency tempDiv tempInvoices terminate test testCreditFileLoad testDriveConnection text text-align text-anchor text-muted textContent textarea th thead theadHtml theme theme-toggle themeIcon then this throw thumbnail ti ticker tickerScroll time timeout timer times timestamp timings title to toCanvas toDataURL toDate toFixed toISOString toLocaleDateString toLocaleString toLowerCase toString toUpperCase today toggle toggle-off toggle-on toggleAdvancedSearch toggleAllCheckboxes toggleAllCreditCheckboxes toggleAutoSave toggleContainers toggleInvoiceViewed toggleNewsBar togglePaymentInvoices toggleSortOrder toggleTheme token toolbar toolbar-section top topbar topbar-left topbar-right total total-charges total-credit total-credit-taxes total-credits total-discounts total-owed total-paid total-row total-tax-credit total-taxes total-total totalAmount totalCharges totalChargesDisplay totalConfirmed totalCredit totalCurrency totalCustomers totalCustomersTop totalDebit totalDecimals totalEGP totalEGPWithoutTax totalEGPWithoutTaxEl totalFiles totalFinal totalGross totalInvoicesHeader totalMartyr totalMartyrEl totalNet totalNewInvoices totalOriginal totalPages totalPaid totalPending totalRemaining totalRow totalStorageDays totalSum totalTax totalTaxCredit totalTaxes totalTaxesDisplay totalUSD totalUSDEl totalValueHeader totalVessels totalVesselsTop totals tr trailing transaction transactions transform transition translate translateX translateY trashed trim true try tx txt type type-tab typeof u uD800 uDBFF uDC00 uDFFF uFEFF uid umd uname undefined unique uniqueInvoices unit unpaid unpaidInvoices unviewedCredits unviewedInvoices updateCreditSummary updateDataSource updateFromDrive updateFromGitHub updateLinkedTotal updatePageTitle updatePassword updatePaymentsSummary updateRefreshSettingsForm updateRefreshStatusDisplay updateSelectAllCheckbox updateSelectedCount updateSelectedCredit updateSelectedCreditCount updateSelectedInvoices updateSidebarActive updateStatement updateSummary updateUserInterface upload uploadPaymentAttachments uploadType uploadXmlBtn upload_attachment url urlParams urole usadAmount usadCharges usadTax usadTaxes usadTotal useCORS useLocalStorageFallback useStoredFileListOrFail user user-avatar user-badge user-info user001 userCredits userCustomerIds userForm userFormTitle userId userInvoices userKey userManagementModal userStartDate userTaxDisplay userType userTypeBadge userViewed username users users-table users-table-container usersData usersFileId usersFileName usersFileUrl usersFound usersTableBody utf-8 utils v v3 va value values var vb version ves vessel vessel-info vessel-info-row vh viewAttachments viewKey viewMode viewModeCredit viewed viewed-cell viewed-checkbox viewedArray viewedInvoices viewedStatus viewport visa vnd voyage-date voyageDate w w3 wait waitCount warn warning wasSelect wb wch webkit-print-color-adjust wght while white white-space width window windowHeight windowWidth with word-break worker worker-failed workerPending workerPool workerRR workerSeq wrap wrapped write writeFile ws www x xZSobMThbWKcZ53OmZEWlbn6mzz5Nsnr xlsx xlsx-0 xml xmlDoc xmlString xmlns y year yieldToMain z-index zIndex'.split(' '));
+const _attrStats = { kept: 0, dropped: 0 };
+
+// مفاتيح الفواتير المحمّلة (لإزالة التكرار تدريجياً بدل إعادة بناء المصفوفة كل مرة)
+const seenInvoiceKeys = new Set();
+function _invKey(inv) { return `${inv['final-number']}|${inv['draft-number']}`; }
+function _ensureSeenKeys() {
+    if (seenInvoiceKeys.size !== invoicesData.length) {
+        seenInvoiceKeys.clear();
+        for (let i = 0; i < invoicesData.length; i++) seenInvoiceKeys.add(_invKey(invoicesData[i]));
+    }
+}
+function setInvoicesData(list) {
+    invoicesData = [];
+    seenInvoiceKeys.clear();
+    appendUnique(list || []);
+}
+function appendUnique(list) {
+    _ensureSeenKeys();
+    let added = 0;
+    for (let i = 0; i < list.length; i++) {
+        const inv = list[i];
+        const k = _invKey(inv);
+        if (!seenInvoiceKeys.has(k)) { seenInvoiceKeys.add(k); invoicesData.push(inv); added++; }
+    }
+    return added;
+}
+function yieldToMain(ms = 30) { return new Promise(r => setTimeout(r, ms)); }
+let _bgLoadingActive = false;
+let lastLoadedUsersCount = 0;
+
+// مطابقة معرف الزائر: تطابق تام (بدل includes التي تسمح بإدخال حرف واحد لرؤية كل الفواتير)
+function guestIdMatch(value, taxNumber) {
+    const a = String(value || '').trim().toLowerCase();
+    const b = String(taxNumber || '').trim().toLowerCase();
+    return !!b && a === b;
+}
+
+// ============================================
+// [تعديل] فك رموز XML (&amp; &lt; ...) عند التصدير فقط. العرض على الشاشة لا يتأثر
+// ============================================
+function xmlDecode(v) {
+    if (typeof v !== 'string' || v.indexOf('&') === -1) return v;
+    return v.replace(/&(#x[0-9a-fA-F]+|#\d+|amp|lt|gt|quot|apos);/g, (m, e) => {
+        switch (e) {
+            case 'amp': return '&';
+            case 'lt': return '<';
+            case 'gt': return '>';
+            case 'quot': return '"';
+            case 'apos': return "'";
+            default: {
+                const code = e[1] === 'x' ? parseInt(e.slice(2), 16) : parseInt(e.slice(1), 10);
+                try { return String.fromCodePoint(code); } catch (err) { return m; }
+            }
+        }
+    });
+}
+
+// كل تصدير Excel في البرنامج يمر عبر aoa_to_sheet/json_to_sheet، فنفك الرموز هناك مرة واحدة
+function patchXlsxDecode() {
+    if (typeof XLSX === 'undefined' || !XLSX.utils || XLSX.utils.__xmlDecodePatched) return;
+    const u = XLSX.utils;
+    const a2s = u.aoa_to_sheet;
+    const j2s = u.json_to_sheet;
+    u.aoa_to_sheet = function (data, opts) {
+        const d = Array.isArray(data) ? data.map(r => Array.isArray(r) ? r.map(xmlDecode) : r) : data;
+        return a2s.call(this, d, opts);
+    };
+    if (j2s) {
+        u.json_to_sheet = function (data, opts) {
+            const d = Array.isArray(data) ? data.map(o => {
+                if (!o || typeof o !== 'object') return o;
+                const n = {};
+                Object.keys(o).forEach(k => { n[k] = xmlDecode(o[k]); });
+                return n;
+            }) : data;
+            return j2s.call(this, d, opts);
+        };
+    }
+    u.__xmlDecodePatched = true;
+}
+patchXlsxDecode();
+window.addEventListener('load', patchXlsxDecode);
+
+// عدد الحاويات للعرض في الملخصات: «3 (4 فترات)» إذا تكررت حاوية في أكثر من فترة
+function formatContainerCountLabel(uniqueCount, periodsCount) {
+    return periodsCount > uniqueCount ? `${uniqueCount} (${periodsCount} فترات)` : String(uniqueCount);
+}
+
+// ============================================
+// [تعديل] البحث بقائمة حاويات (مئات/آلاف الأرقام)
+// ============================================
+const containerListState = { set: null, label: '', missing: [] };
+
+// تقسيم نص إلى أرقام حاويات فريدة (مسافة / سطر / فاصلة / فاصلة منقوطة / |) بحروف كبيرة
+function parseContainerTokens(text) {
+    if (!text) return [];
+    const out = new Set();
+    const parts = String(text).split(/[\s,;،|]+/);
+    for (let i = 0; i < parts.length; i++) {
+        const t = parts[i].replace(/^["'`]+|["'`]+$/g, '').toUpperCase();
+        if (t.length >= 4) out.add(t);
+    }
+    return Array.from(out);
+}
+
+// هل في الفاتورة أي حاوية من القائمة؟ (تطابق تام)
+function matchContainerList(inv, list) {
+    const cs = inv.containers;
+    if (!cs) return false;
+    for (let i = 0; i < cs.length; i++) {
+        const c = cs[i];
+        if (list.has(c)) return true;
+        if (typeof c === 'string' && /[a-z]/.test(c) && list.has(c.toUpperCase())) return true;
+    }
+    return false;
+}
+
+// الحاويات من القائمة التي ظهرت في نتائج البحث
+function collectFoundContainers(results, list) {
+    const found = new Set();
+    for (let r = 0; r < results.length; r++) {
+        const cs = results[r].containers;
+        if (!cs) continue;
+        for (let i = 0; i < cs.length; i++) {
+            const c = typeof cs[i] === 'string' ? cs[i].toUpperCase() : cs[i];
+            if (list.has(c)) found.add(c);
+        }
+    }
+    return found;
+}
+
+function clearContainerList() {
+    containerListState.set = null;
+    containerListState.label = '';
+    containerListState.missing = [];
+}
+window.clearContainerList = clearContainerList;
+
+// إذا عدّل المستخدم الحقل يدوياً تُلغى القائمة
+document.addEventListener('input', (e) => {
+    if (e.target && e.target.id === 'searchContainer' && containerListState.set && e.target.value !== containerListState.label) {
+        clearContainerList();
+    }
+});
+
+function _copyText(text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+        return navigator.clipboard.writeText(text);
+    }
+    return new Promise((resolve, reject) => {
+        const ta = document.createElement('textarea');
+        ta.value = text;
+        ta.style.position = 'fixed'; ta.style.opacity = '0';
+        document.body.appendChild(ta);
+        ta.select();
+        try { document.execCommand('copy') ? resolve() : reject(new Error('copy failed')); }
+        catch (err) { reject(err); }
+        finally { document.body.removeChild(ta); }
+    });
+}
+
+window.openContainerListDialog = function () {
+    if (document.getElementById('containerListOverlay')) return;
+    const overlay = document.createElement('div');
+    overlay.id = 'containerListOverlay';
+    overlay.style.cssText = 'position:fixed;inset:0;z-index:10050;display:flex;align-items:center;justify-content:center;background:var(--modal-overlay,rgba(0,0,0,.55));padding:12px;';
+    const box = document.createElement('div');
+    box.style.cssText = 'width:min(580px,94vw);max-height:92vh;overflow:auto;background:var(--bg-card,#fff);color:var(--text,#111);border:1px solid var(--border,#ddd);border-radius:16px;padding:18px;direction:rtl;font-family:inherit;box-shadow:0 10px 40px rgba(0,0,0,.35);';
+
+    const title = document.createElement('h3');
+    title.textContent = '📋 البحث بقائمة حاويات';
+    title.style.cssText = 'margin:0 0 6px 0;font-size:18px;';
+    const hint = document.createElement('p');
+    hint.textContent = 'الصق الأرقام (سطر لكل حاوية، أو مفصولة بمسافة أو فاصلة). يُطابَق الرقم كاملاً بدون حساسية لحجم الحروف.';
+    hint.style.cssText = 'margin:0 0 10px 0;font-size:13px;color:var(--text-muted,#666);line-height:1.6;';
+
+    const ta = document.createElement('textarea');
+    ta.rows = 10;
+    ta.style.cssText = 'width:100%;box-sizing:border-box;direction:ltr;text-align:left;font-family:monospace;font-size:13px;padding:10px;border-radius:10px;border:1px solid var(--border,#ccc);background:var(--input-bg,#fff);color:var(--text,#111);resize:vertical;';
+    ta.placeholder = 'MSCU1234567\nCMAU7654321\n...';
+    if (containerListState.set) ta.value = Array.from(containerListState.set).join('\n');
+
+    const counter = document.createElement('div');
+    counter.style.cssText = 'margin:8px 0;font-size:13px;color:var(--text-muted,#666);';
+    const updateCount = () => { counter.textContent = `عدد الحاويات الفريدة: ${formatNumberWithCommas(parseContainerTokens(ta.value).length)}`; };
+    ta.addEventListener('input', updateCount);
+    updateCount();
+
+    const fileRow = document.createElement('div');
+    fileRow.style.cssText = 'margin:0 0 12px 0;font-size:13px;';
+    const fileLabel = document.createElement('span');
+    fileLabel.textContent = 'أو استيراد من ملف (txt / csv): ';
+    const fileInput = document.createElement('input');
+    fileInput.type = 'file';
+    fileInput.accept = '.txt,.csv,text/plain,text/csv';
+    fileInput.addEventListener('change', async () => {
+        const f = fileInput.files && fileInput.files[0];
+        if (!f) return;
+        try {
+            const text = await f.text();
+            ta.value = (ta.value ? ta.value + '\n' : '') + text;
+            updateCount();
+        } catch (err) { showNotification('تعذر قراءة الملف', 'error'); }
+    });
+    fileRow.appendChild(fileLabel);
+    fileRow.appendChild(fileInput);
+
+    const row = document.createElement('div');
+    row.style.cssText = 'display:flex;flex-wrap:wrap;gap:8px;';
+    const mkBtn = (text, primary) => {
+        const b = document.createElement('button');
+        b.type = 'button';
+        b.textContent = text;
+        b.style.cssText = 'padding:9px 16px;border-radius:10px;border:1px solid var(--border,#ccc);cursor:pointer;font-family:inherit;font-size:14px;' +
+            (primary ? 'background:var(--primary,#6366f1);color:#fff;border-color:var(--primary,#6366f1);' : 'background:transparent;color:var(--text,#111);');
+        return b;
+    };
+    const close = () => { document.removeEventListener('keydown', onKey); overlay.remove(); };
+    const onKey = (e) => { if (e.key === 'Escape') close(); };
+    document.addEventListener('keydown', onKey);
+
+    const applyBtn = mkBtn('تطبيق والبحث', true);
+    applyBtn.addEventListener('click', () => {
+        const tokens = parseContainerTokens(ta.value);
+        if (tokens.length === 0) { showNotification('لا توجد أرقام حاويات صالحة', 'warning'); return; }
+        containerListState.set = new Set(tokens);
+        containerListState.label = `📋 قائمة: ${tokens.length} حاوية`;
+        const input = document.getElementById('searchContainer');
+        if (input) input.value = containerListState.label;
+        close();
+        if (typeof window.applyAdvancedSearch === 'function') window.applyAdvancedSearch();
+    });
+    const clearBtn = mkBtn('مسح القائمة', false);
+    clearBtn.addEventListener('click', () => {
+        clearContainerList();
+        const input = document.getElementById('searchContainer');
+        if (input) input.value = '';
+        ta.value = '';
+        updateCount();
+    });
+    const cancelBtn = mkBtn('إغلاق', false);
+    cancelBtn.addEventListener('click', close);
+    row.appendChild(applyBtn);
+    row.appendChild(clearBtn);
+
+    if (containerListState.missing && containerListState.missing.length > 0) {
+        const missBtn = mkBtn(`نسخ غير الموجودة (${formatNumberWithCommas(containerListState.missing.length)})`, false);
+        missBtn.addEventListener('click', () => {
+            _copyText(containerListState.missing.join('\n'))
+                .then(() => showNotification('تم نسخ الحاويات غير الموجودة', 'success'))
+                .catch(() => showNotification('تعذر النسخ', 'error'));
+        });
+        row.appendChild(missBtn);
+    }
+    row.appendChild(cancelBtn);
+
+    overlay.addEventListener('click', (e) => { if (e.target === overlay) close(); });
+    box.appendChild(title);
+    box.appendChild(hint);
+    box.appendChild(ta);
+    box.appendChild(counter);
+    box.appendChild(fileRow);
+    box.appendChild(row);
+    overlay.appendChild(box);
+    document.body.appendChild(overlay);
+    ta.focus();
+};
+
 let filteredInvoices = [];
 let sortOrder = 'desc';
 let currentSortField = 'final-number';
@@ -1425,69 +1707,216 @@ async function autoConfigureDrive() {
 // ============================================
 // اكتشاف ملفات datatxt_Q من GitHub وترتيبها (الأحدث أولاً)
 // ============================================
-async function discoverDataFiles() {
-    console.log('🔍 بدء البحث عن ملفات datatxt_Q في مجلد data...');
-    
+// ============================================
+// [تعديل] اكتشاف ملفات البيانات: سلسلة طرق احتياطية
+//   1) files.json (طلب واحد، بلا حد GitHub API)  ← الأفضل
+//   2) GitHub API (حدّه 60 طلب/ساعة لكل IP)
+//   3) فحص محدود للأرقام التالية لآخر رقم معروف (لا يخفي الأخطاء الحقيقية)
+//   4) آخر قائمة محفوظة في المتصفح
+// ============================================
+const DISCOVERY_STORE_KEY = 'dchc_files_list_v1';
+const MANIFEST_MISSING_KEY = 'dchc_manifest_missing_v1';
+const DISCOVERY_FRESH_MS = 60 * 1000;
+const MANIFEST_RECHECK_MS = 60 * 60 * 1000;
+
+function _readStoredFileList() {
     try {
-        // 1. الاتصال بـ GitHub API لجلب محتويات المجلد
-        const response = await fetch(GITHUB_CONFIG.apiUrl);
-        
-        // 2. التحقق من نجاح الاتصال
-        if (!response.ok) {
-            console.error(`❌ فشل الاتصال: ${response.status}`);
-            return false;
-        }
-        
-        // 3. قراءة قائمة الملفات
-        const files = await response.json();
-        
-        // 4. تصفية الملفات: فقط الملفات التي تبدأ بـ datatxt_Q وتنتهي بـ .txt
-        const dataFiles = files.filter(file => {
-            return file.type === 'file' && 
-                   file.name.startsWith('datatxt_Q') && 
-                   file.name.endsWith('.txt');
-        });
-        
-        if (dataFiles.length === 0) {
-            console.warn('⚠️ لم يتم العثور على أي ملفات تبدأ بـ datatxt_Q');
-            return false;
-        }
-        
-        // 5. استخراج الرقم من اسم الملف (مثلاً: Q003 -> 3)
-        const filesWithNumbers = dataFiles.map(file => {
-            // استخراج الرقم باستخدام Regex
-            const match = file.name.match(/datatxt_Q(\d+)\.txt/);
-            const number = match ? parseInt(match[1]) : 0;
-            
-            return {
-                name: file.name,
-                url: GITHUB_CONFIG.rawBaseUrl + file.name,
-                number: number,
-                size: file.size,
-                downloadUrl: file.download_url
-            };
-        });
-        
-        // 6. الترتيب من الأحدث (أكبر رقم) إلى الأقدم (أصغر رقم)
-        filesWithNumbers.sort((a, b) => b.number - a.number);
-        
-        // 7. تخزين القائمة
-        GITHUB_CONFIG.filesList = filesWithNumbers;
-        
-        // 8. عرض النتائج في Console
-        console.log(`✅ تم اكتشاف ${GITHUB_CONFIG.filesList.length} ملف:`);
-        GITHUB_CONFIG.filesList.forEach((file, index) => {
-            console.log(`   ${index + 1}. ${file.name} (رقم ${file.number})`);
-        });
-        
-        return true;
-        
-    } catch (error) {
-        console.error('❌ خطأ في الاكتشاف:', error);
-        return false;
+        const r = JSON.parse(localStorage.getItem(DISCOVERY_STORE_KEY));
+        if (r && Array.isArray(r.files) && r.files.length > 0 && r.files.every(f => f && f.name && f.url && typeof f.number === 'number')) return r;
+    } catch (e) {}
+    return null;
+}
+
+function _storeFileList(files) {
+    try { localStorage.setItem(DISCOVERY_STORE_KEY, JSON.stringify({ time: Date.now(), files })); } catch (e) {}
+}
+
+async function _fetchWithTimeout(url, options = {}, ms = 15000) {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), ms);
+    try {
+        return await fetch(url, Object.assign({}, options, { signal: controller.signal }));
+    } finally {
+        clearTimeout(timer);
     }
 }
 
+function _makeFileEntry(name, size, sha) {
+    const m = /^datatxt_Q(\d+)\.txt$/.exec(name || '');
+    if (!m) return null;
+    return {
+        name: name,
+        url: GITHUB_CONFIG.rawBaseUrl + name,
+        number: parseInt(m[1], 10),
+        size: size === undefined ? null : size,
+        sha: sha || null,
+        downloadUrl: GITHUB_CONFIG.rawBaseUrl + name
+    };
+}
+
+// الطريقة 1: ملف files.json (يُولَّد تلقائياً بواسطة GitHub Action)
+async function _discoverViaManifest() {
+    try {
+        const missAt = Number(localStorage.getItem(MANIFEST_MISSING_KEY) || 0);
+        if (missAt && (Date.now() - missAt) < MANIFEST_RECHECK_MS) return null; // معروف أنه غير موجود
+    } catch (e) {}
+    try {
+        const res = await _fetchWithTimeout(GITHUB_CONFIG.rawBaseUrl + 'files.json?v=' + Date.now(), { cache: 'no-store' }, 10000);
+        if (res.status === 404) {
+            try { localStorage.setItem(MANIFEST_MISSING_KEY, String(Date.now())); } catch (e) {}
+            return null;
+        }
+        if (!res.ok) return null;
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : (data && data.files);
+        if (!Array.isArray(list)) return null;
+        const files = [];
+        for (const f of list) {
+            const entry = typeof f === 'string' ? _makeFileEntry(f) : (f && _makeFileEntry(f.name, f.size, f.sha));
+            if (entry) files.push(entry);
+        }
+        if (files.length === 0) return null;
+        try { localStorage.removeItem(MANIFEST_MISSING_KEY); } catch (e) {}
+        return files;
+    } catch (e) {
+        return null;
+    }
+}
+
+// الطريقة 2: GitHub API. تعيد {files} أو {empty:true} أو null عند الفشل
+async function _discoverViaApi() {
+    try {
+        const response = await _fetchWithTimeout(GITHUB_CONFIG.apiUrl, {}, 15000);
+        if (!response.ok) {
+            console.error(`❌ فشل GitHub API: ${response.status}`);
+            return null;
+        }
+        const items = await response.json();
+        if (!Array.isArray(items)) return null;
+        const files = [];
+        for (const f of items) {
+            if (f.type === 'file') {
+                const entry = _makeFileEntry(f.name, f.size, f.sha);
+                if (entry) { entry.downloadUrl = f.download_url || entry.downloadUrl; files.push(entry); }
+            }
+        }
+        return files.length === 0 ? { empty: true } : { files };
+    } catch (e) {
+        console.error('❌ خطأ في GitHub API:', e);
+        return null;
+    }
+}
+
+// فحص ملف واحد: يعيد entry أو 'missing' (404 فقط) أو 'error' (أي مشكلة أخرى لا تُعتبر غياباً)
+async function _probeOne(num) {
+    const name = `datatxt_Q${String(num).padStart(3, '0')}.txt`;
+    try {
+        const res = await _fetchWithTimeout(GITHUB_CONFIG.rawBaseUrl + name, { method: 'HEAD', cache: 'no-store' }, 10000);
+        if (res.status === 404) return 'missing';
+        if (!res.ok) return 'error';
+        const len = res.headers.get('Content-Length');
+        const etag = (res.headers.get('ETag') || '').replace(/^W\//, '').replace(/"/g, '');
+        return _makeFileEntry(name, len ? parseInt(len, 10) : null, etag || null) || 'error';
+    } catch (e) {
+        return 'error';
+    }
+}
+
+// الطريقة 3: فحص الأرقام التالية لآخر رقم معروف على دفعات صغيرة. يتوقف عند غياب متتالٍ أو عند أي خطأ غير 404
+async function _probeForFiles(known, opts = {}) {
+    const batchSize = opts.batchSize || 5;
+    const maxMiss = opts.maxMiss || (known.length ? 3 : 10);
+    const CAP = 500;
+    const found = new Map(known.map(f => [f.number, f]));
+    let n = known.length ? Math.max(...known.map(f => f.number)) + 1 : 1;
+    let misses = 0;
+    let aborted = false;
+
+    while (n <= CAP && misses < maxMiss) {
+        const nums = [];
+        for (let k = 0; k < batchSize && (n + k) <= CAP; k++) nums.push(n + k);
+        n += nums.length;
+        const results = await Promise.all(nums.map(_probeOne));
+        let trailing = 0;
+        for (const r of results) {
+            if (r === 'error') { aborted = true; break; }
+            if (r === 'missing') trailing++;
+            else { found.set(r.number, r); trailing = 0; }
+        }
+        if (aborted) break;
+        misses = trailing === results.length ? misses + trailing : trailing;
+    }
+    return { files: [...found.values()], aborted };
+}
+
+async function discoverDataFiles(force = false) {
+    console.log('🔍 بدء البحث عن ملفات datatxt_Q...');
+
+    const stored = _readStoredFileList();
+    // قائمة حديثة (أقل من دقيقة): لا حاجة لطلب جديد
+    if (!force && stored && (Date.now() - stored.time) < DISCOVERY_FRESH_MS) {
+        GITHUB_CONFIG.filesList = stored.files;
+        console.log(`✅ استخدام قائمة الملفات المحفوظة حديثاً (${stored.files.length} ملف)`);
+        return true;
+    }
+
+    let files = null;
+    let source = '';
+
+    // 1) files.json
+    files = await _discoverViaManifest();
+    if (files) {
+        source = 'files.json';
+        // احتياط: ملف رُفع قبل أن يتحدث files.json (فحص رقمين فقط)
+        try {
+            const extra = await _probeForFiles(files, { batchSize: 2, maxMiss: 2 });
+            if (extra.files.length > files.length) { files = extra.files; source = 'files.json + فحص'; }
+        } catch (e) {}
+    }
+
+    // 2) GitHub API
+    if (!files) {
+        const api = await _discoverViaApi();
+        if (api && api.empty) {
+            console.warn('⚠️ لم يتم العثور على أي ملفات تبدأ بـ datatxt_Q');
+            return false;
+        }
+        if (api) { files = api.files; source = 'GitHub API'; }
+    }
+
+    // 3) فحص محدود انطلاقاً من آخر قائمة معروفة
+    if (!files) {
+        const probed = await _probeForFiles(stored ? stored.files : []);
+        if (probed.files.length > 0 && (!probed.aborted || stored)) {
+            files = probed.files;
+            source = 'فحص مباشر';
+        }
+    }
+
+    // 4) آخر قائمة محفوظة
+    if (!files || files.length === 0) {
+        return _useStoredFileListOrFail(stored, 'تعذر اكتشاف الملفات بكل الطرق');
+    }
+
+    files.sort((a, b) => b.number - a.number);
+    GITHUB_CONFIG.filesList = files;
+    _storeFileList(files);
+
+    console.log(`✅ تم اكتشاف ${files.length} ملف (المصدر: ${source}):`);
+    files.forEach((file, index) => console.log(`   ${index + 1}. ${file.name} (رقم ${file.number})`));
+    return true;
+}
+
+// عند فشل كل الطرق: استخدم آخر قائمة ناجحة إن وُجدت بدل الفشل الكامل
+function _useStoredFileListOrFail(stored, reason) {
+    if (stored) {
+        GITHUB_CONFIG.filesList = stored.files;
+        console.warn(`⚠️ ${reason} - استخدام آخر قائمة ملفات محفوظة (${stored.files.length} ملف)`);
+        try { showNotification('تعذر فحص أحدث الملفات، يتم استخدام آخر قائمة معروفة', 'warning'); } catch (e) {}
+        return true;
+    }
+    return false;
+}
 
 // ✅ دالة جديدة: قراءة نطاق التاريخ من ملف
 async function discoverFileDateRange(fileIndex) {
@@ -1559,6 +1988,7 @@ async function loadUsersFromDrive() {
         }
         
         users = usersData;
+        lastLoadedUsersCount = users.length;
         localStorage.setItem('backupUsers', JSON.stringify(users));
         
         showProgress('تم التحميل', 100);
@@ -1576,6 +2006,19 @@ async function loadUsersFromDrive() {
 
 async function saveUsersToDrive() {
     if (!driveConfig.apiKey || !driveConfig.folderId || !driveConfig.usersFileId) return false;
+    // [تعديل] حماية من مسح ملف المستخدمين بالخطأ
+    if (!Array.isArray(users) || users.length === 0) {
+        showNotification('❌ أُلغي الحفظ: قائمة المستخدمين فارغة', 'error');
+        return false;
+    }
+    if (!users.some(u => u.userType === 'admin' && u.status === 'active')) {
+        showNotification('❌ أُلغي الحفظ: لا يوجد مدير نشط في القائمة', 'error');
+        return false;
+    }
+    if (lastLoadedUsersCount > 3 && users.length < Math.floor(lastLoadedUsersCount * 0.5)) {
+        showNotification('❌ أُلغي الحفظ: عدد المستخدمين أقل بكثير مما تم تحميله', 'error');
+        return false;
+    }
     try {
         showProgress('جاري حفظ المستخدمين...', 30);
         const metadata = { name: driveConfig.usersFileName, mimeType: 'application/json' };
@@ -1642,22 +2085,10 @@ async function loadUsers(forceRefresh = false) {
         return;
     }
     
-    // ✅ 3. إنشاء مدير احتياطي (في حالة عدم وجود أي بيانات)
-    console.error('❌ فشل تحميل المستخدمين. سيتم إنشاء مدير احتياطي.');
-    users = [{
-        id: 'user_admin_emergency',
-        username: 'admin',
-        email: 'admin@emergency.local',
-        taxNumber: decodeBase64('QURNSU4wMDE='),
-        contractCustomerId: decodeBase64('QURNSU4wMDE='),
-        customerIds: [],
-        userType: 'admin',
-        password: decodeBase64('YWRtaW4xMjM='),
-        status: 'active',
-        createdAt: new Date().toISOString(),
-        lastLogin: null
-    }];
-    showNotification('تم إنشاء مدير احتياطي بسبب فشل تحميل المستخدمين', 'warning');
+    // [تعديل أمني] تم حذف المدير الاحتياطي (admin/admin123). عند الفشل لا يُسمح بالدخول.
+    users = [];
+    console.error('❌ فشل تحميل المستخدمين ولا توجد نسخة احتياطية.');
+    showNotification('تعذر تحميل بيانات المستخدمين. تحقق من الاتصال ثم أعد المحاولة', 'error');
 }
 
 // تحديث المستخدمين يدوياً من Drive (للمدير فقط)
@@ -1689,18 +2120,18 @@ function renderUsersTable() {
     if (!tbody) return;
     tbody.innerHTML = users.map(u => `
         <tr>
-            <td>${u.username}</td>
-            <td>${u.email}</td>
-            <td>${u.taxNumber || '-'}</td>
-            <td>${u.contractCustomerId || '-'}</td>
-            <td>${(u.customerIds || []).join(', ') || '-'}</td>
-            <td>${{ admin: 'مدير', accountant: 'محاسب', customer: 'عميل' }[u.userType] || u.userType}</td>
-            <td><span class="status-badge ${u.status}">${u.status === 'active' ? 'نشط' : 'غير نشط'}</span></td>
+            <td>${escapeHtml(u.username)}</td>
+            <td>${escapeHtml(u.email)}</td>
+            <td>${escapeHtml(u.taxNumber || '-')}</td>
+            <td>${escapeHtml(u.contractCustomerId || '-')}</td>
+            <td>${escapeHtml((u.customerIds || []).join(', ') || '-')}</td>
+            <td>${escapeHtml({ admin: 'مدير', accountant: 'محاسب', customer: 'عميل' }[u.userType] || u.userType)}</td>
+            <td><span class="status-badge ${escapeHtml(u.status)}">${u.status === 'active' ? 'نشط' : 'غير نشط'}</span></td>
             <td>${u.lastLogin ? new Date(u.lastLogin).toLocaleString('ar-EG') : 'لم يسجل'}</td>
             <td>
-                <button class="action-btn edit" onclick="editUser('${u.id}')"><i class="fas fa-edit"></i></button>
-                <button class="action-btn reset" onclick="resetUserPassword('${u.id}')"><i class="fas fa-key"></i></button>
-                <button class="action-btn delete" onclick="deleteUser('${u.id}')"><i class="fas fa-trash"></i></button>
+                <button class="action-btn edit" data-uid="${escapeHtml(u.id)}" onclick="editUser(this.dataset.uid)"><i class="fas fa-edit"></i></button>
+                <button class="action-btn reset" data-uid="${escapeHtml(u.id)}" onclick="resetUserPassword(this.dataset.uid)"><i class="fas fa-key"></i></button>
+                <button class="action-btn delete" data-uid="${escapeHtml(u.id)}" onclick="deleteUser(this.dataset.uid)"><i class="fas fa-trash"></i></button>
             </td>
         </tr>
     `).join('');
@@ -1922,6 +2353,7 @@ window.handleLogin = async function() {
     const password = document.getElementById('loginPassword').value;
     if (!username || !password) return showLoginMessage('الرجاء إدخال البيانات', 'error');
     await loadUsers(true);
+    if (!users.length) return showLoginMessage('تعذر تحميل بيانات المستخدمين، حاول لاحقاً', 'error');
     const user = users.find(u => (u.username === username || u.email === username) && u.status === 'active' && u.password === password);
     if (!user) return showLoginMessage('بيانات غير صحيحة', 'error');
     user.lastLogin = new Date().toISOString();
@@ -1944,6 +2376,8 @@ window.handleGuestLogin = async function() {
     const taxNumber = document.getElementById('guestTaxNumber').value.trim();
     const blNumber = document.getElementById('guestBlNumber').value.trim();
     if (!taxNumber && !blNumber) return showLoginMessage('أدخل الرقم الضريبي أو البوليصة', 'error');
+    if (taxNumber && taxNumber.length < 4) return showLoginMessage('الرقم الضريبي غير صحيح', 'error');
+    if (!taxNumber && blNumber.length < 4) return showLoginMessage('رقم البوليصة قصير جداً', 'error');
     
     // ✅ التحقق إذا كان الرقم الضريبي مسجلاً لمستخدم
     if (taxNumber) {
@@ -2167,7 +2601,10 @@ function showNotification(message, type) {
         color: 'white', padding: '12px 24px', borderRadius: '50px', boxShadow: '0 4px 12px rgba(0,0,0,0.15)',
         zIndex: '100000000', display: 'flex', alignItems: 'center', gap: '10px', fontSize: '0.95em'
     });
-    notif.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : type === 'info' ? 'info-circle' : 'exclamation-circle'}"></i><span>${message}</span>`;
+    notif.innerHTML = `<i class="fas fa-${type === 'success' ? 'check-circle' : type === 'info' ? 'info-circle' : 'exclamation-circle'}"></i>`;
+    const _msgSpan = document.createElement('span');
+    _msgSpan.textContent = message; // [تعديل أمني] نص فقط وليس HTML
+    notif.appendChild(_msgSpan);
     document.body.appendChild(notif);
     setTimeout(() => { notif.style.animation = 'slideUp 0.3s ease'; setTimeout(() => notif.remove(), 300); }, 3000);
 }
@@ -2366,7 +2803,10 @@ function parseAttributesRegex(attrsString) {
     const regex = /([a-zA-Z][a-zA-Z0-9_-]*)="([^"]*)"/g;
     let match;
     while ((match = regex.exec(attrsString)) !== null) {
-        attrs[match[1]] = match[2];
+        if (SLIM_PARSED_ATTRIBUTES && !_KEEP_ATTRS.has(match[1])) { _attrStats.dropped++; continue; }
+        _attrStats.kept++;
+        // [تعديل أمني] تعطيل أي وسم HTML قادم من البيانات
+        attrs[match[1]] = (match[2].indexOf('<') === -1 && match[2].indexOf('>') === -1) ? match[2] : match[2].replace(/</g, '&lt;').replace(/>/g, '&gt;');
     }
     return attrs;
 }
@@ -2626,12 +3066,21 @@ const [final, draft, cust, vessel, bl, cont, viewedStatus, from, to, invType, co
     console.log('📌 قيمة viewedStatus في البحث:', viewedStatus);
     console.log('📌 عدد علامات المعاينة في الذاكرة:', viewedInvoices.size);
 
-    let tempInvoices = [...invoicesData];
+    // [تعديل] قائمة حاويات: من النافذة 📋 أو عدة أرقام مفصولة بمسافة/فاصلة في الحقل
+    let contList = null;
+    if (containerListState.set && containerListState.set.size > 0) {
+        contList = containerListState.set;
+    } else {
+        const toks = parseContainerTokens(document.getElementById('searchContainer')?.value || '');
+        if (toks.length > 1) contList = new Set(toks);
+    }
+
+    let tempInvoices = invoicesData;
     
     // ✅ التحقق: إذا كان هناك تاريخ بحث، تأكد من تحميل البيانات اللازمة
     if (from || to) {
         await ensureDataForDateRange(from, to);
-        tempInvoices = [...invoicesData]; // إعادة تحميل بعد التحديث
+        tempInvoices = invoicesData; // إعادة تحميل بعد التحديث
     }
 
     // تطبيق باقي الفلاتر...
@@ -2642,9 +3091,7 @@ const [final, draft, cust, vessel, bl, cont, viewedStatus, from, to, invType, co
             if (taxNumber) {
                 const num = inv['final-number'] || '';
                 if (num.startsWith('P') || num.startsWith('p')) return false;
-                const payeeMatch = (inv['payee-customer-id'] || '').toLowerCase().includes(taxNumber.toLowerCase());
-                const contractMatch = (inv['contract-customer-id'] || '').toLowerCase().includes(taxNumber.toLowerCase());
-                match = match && (payeeMatch || contractMatch);
+                match = match && (guestIdMatch(inv['payee-customer-id'], taxNumber) || guestIdMatch(inv['contract-customer-id'], taxNumber));
             }
             if (blNumber) match = match && (inv['key-word2'] || '').toLowerCase().includes(blNumber.toLowerCase());
             return match;
@@ -2687,9 +3134,13 @@ const [final, draft, cust, vessel, bl, cont, viewedStatus, from, to, invType, co
         }
         if (vessel && !(inv['key-word1'] || '').toLowerCase().includes(vessel)) return false;
         if (bl && !(inv['key-word2'] || '').toLowerCase().includes(bl)) return false;
-        if (cont) {
-            const found = inv.charges.some(c => (c['entity-id'] || '').toLowerCase().includes(cont));
-            if (!found) return false;
+        if (contList) {
+            if (!matchContainerList(inv, contList)) return false;
+        } else if (cont) {
+            const cs = inv.containers || [];
+            let hit = false;
+            for (let q = 0; q < cs.length; q++) { if (String(cs[q]).toLowerCase().includes(cont)) { hit = true; break; } }
+            if (!hit) return false;
         }
         if (contractCustomerId && !(inv['contract-customer-id'] || '').toLowerCase().includes(contractCustomerId)) return false;
         
@@ -2731,7 +3182,18 @@ const [final, draft, cust, vessel, bl, cont, viewedStatus, from, to, invType, co
     clearSelectedInvoices();
     renderData();
     
-    showNotification(`تم العثور على ${formatNumberWithCommas(filteredInvoices.length)} فاتورة`, filteredInvoices.length ? 'success' : 'info');
+    let listInfo = '';
+    containerListState.missing = [];
+    if (contList) {
+        const found = collectFoundContainers(searched, contList);
+        const missing = [];
+        contList.forEach(c => { if (!found.has(c)) missing.push(c); });
+        containerListState.missing = missing;
+        listInfo = ` | حاويات القائمة: وُجد ${formatNumberWithCommas(found.size)} من ${formatNumberWithCommas(contList.size)}`;
+        if (missing.length) listInfo += ` - غير موجودة ${formatNumberWithCommas(missing.length)} (افتح 📋 لنسخها)`;
+        if (_bgLoadingActive) listInfo += ' - ملاحظة: التحميل الخلفي لم ينتهِ، قد تظهر نتائج أكثر لاحقاً';
+    }
+    showNotification(`تم العثور على ${formatNumberWithCommas(filteredInvoices.length)} فاتورة${listInfo}`, filteredInvoices.length ? 'success' : 'info');
     setTimeout(() => { isSearching = false; }, 500);
 };
 
@@ -2883,6 +3345,7 @@ async function loadAllDataFiles() {
 
 window.resetAdvancedSearch = function() {
 	    isSearching = true;  // 👈 أضف هذا
+    clearContainerList();
 
     const searchFields = ['searchFinalNumber', 'searchDraftNumber', 'searchCustomer', 'searchVessel', 
                       'searchBlNumber', 'searchContainer', 'searchStatus', 'searchDateFrom', 
@@ -2907,9 +3370,9 @@ window.resetAdvancedSearch = function() {
 // ============================================
 // دوال عرض البيانات
 // ============================================
-function filterInvoicesByUser() {
+function filterInvoicesByUser(keepState) {
     if (!invoicesData.length) { filteredInvoices = []; renderData(); return; }
-    let temp = [...invoicesData];
+    let temp = invoicesData; // لا حاجة لنسخ المصفوفة (الفلترة تنشئ مصفوفة جديدة)
 
     if (currentUser?.isGuest) return filterInvoicesByGuest(currentUser.taxNumber, currentUser.blNumber);
 
@@ -2948,56 +3411,34 @@ function filterInvoicesByUser() {
     });
 
     filteredInvoices = temp;
-    currentPage = 1;
-    clearSelectedInvoices();
+    if (keepState !== true) { currentPage = 1; clearSelectedInvoices(); }
     renderData();
 }
 
-function filterInvoicesByGuest(taxNumber, blNumber) {
-    if (!invoicesData.length) { 
-        filteredInvoices = []; 
-        renderData(); 
-        showNotification('لا توجد بيانات', 'warning'); 
-        return; 
-    }
-    
+function filterInvoicesByGuest(taxNumber, blNumber, keepState) {
+    if (!invoicesData.length) { filteredInvoices = []; renderData(); if (keepState !== true) showNotification('لا توجد بيانات', 'warning'); return; }
+    const blLower = String(blNumber || '').toLowerCase();
     filteredInvoices = invoicesData.filter(inv => {
         let match = true;
-        
         if (taxNumber) {
             const num = inv['final-number'] || '';
-            // استبعاد الفواتير الآجلة في وضع الزائر
             if (num.startsWith('P') || num.startsWith('p')) return false;
-            
-            // ✅ مطابقة تامة (Exact Match) بدون تحويل لحروف صغيرة
-            const payee = (inv['payee-customer-id'] || '').trim();
-            const contract = (inv['contract-customer-id'] || '').trim();
-            
-            match = match && (payee === taxNumber || contract === taxNumber);
+            // [تعديل أمني] تطابق تام بدل includes
+            match = match && (guestIdMatch(inv['payee-customer-id'], taxNumber) || guestIdMatch(inv['contract-customer-id'], taxNumber));
         }
-        
-        if (blNumber) {
-            // ✅ مطابقة تامة للبوليصة
-            const bl = (inv['key-word2'] || '').trim();
-            match = match && (bl === blNumber);
-        }
-        
+        if (blNumber) match = match && (inv['key-word2'] || '').toLowerCase().includes(blLower);
         return match;
     });
-    
-    currentPage = 1;
-    clearSelectedInvoices();
+    if (keepState !== true) { currentPage = 1; clearSelectedInvoices(); }
     renderData();
-    
+    if (keepState === true) return;
     if (!filteredInvoices.length) {
         let msg = 'لم يتم العثور على فواتير';
         if (taxNumber && blNumber) msg += ` للضريبي ${taxNumber} والبوليصة ${blNumber}`;
         else if (taxNumber) msg += ` للضريبي ${taxNumber}`;
         else if (blNumber) msg += ` للبوليصة ${blNumber}`;
         showNotification(msg, 'warning');
-    } else {
-        showNotification(`تم العثور على ${formatNumberWithCommas(filteredInvoices.length)} فاتورة`, 'success');
-    }
+    } else showNotification(`تم العثور على ${formatNumberWithCommas(filteredInvoices.length)} فاتورة`, 'success');
 }
 
 function renderData() {
@@ -3139,7 +3580,7 @@ window.toggleSortOrder = function() {
 
 window.changeItemsPerPage = function() {
     const select = document.getElementById('itemsPerPage');
-    const newValue = select.value === 'all' ? Infinity : parseInt(select.value);
+    const newValue = select.value === 'all' ? 500 : parseInt(select.value); // [تعديل] سقف 500 صف بدل Infinity حتى لا يتجمد المتصفح
     itemsPerPage = newValue;
     currentPage = 1;
     clearSelectedInvoices();
@@ -3349,6 +3790,56 @@ function clearSelectedInvoices() {
 // ============================================
 
 // ============================================
+// [تعديل] سطر لكل (حاوية + فترة): يحافظ على الارتباط الصحيح بين الحاوية وتواريخها ومبلغها
+// (كانت قائمة الحاويات تُلغى تكراراتها بينما قائمة التواريخ لا، فتنزاح التواريخ عن حاوياتها)
+// ============================================
+function _pushChargeLine(group, c, storageDays) {
+    if (!c.containerNumbers || c.containerNumbers.length === 0) return;
+    if (!group.lines) group.lines = [];
+    group.lines.push({
+        container: c.containerNumbers[0],
+        from: c['event-performed-from'] || '-',
+        to: c['event-performed-to'] || '-',
+        days: storageDays,
+        amount: c.amount || 0,
+        rate: c['rate-billed'] || 0
+    });
+}
+
+function _fmtDay(v) {
+    return (v === undefined || v === null || v === '') ? '-' : String(v).split('T')[0];
+}
+
+// صفوف شاشة تفاصيل الحاويات: مرتبة بالحاوية ثم التاريخ (سطر لكل فترة)
+function buildContainerDetails(charge, isPostponed) {
+    // الفواتير الآجلة فقط: سطر لكل (حاوية + فترة). النقدية تبقى كما كانت تماماً
+    if (isPostponed === true && charge.lines && charge.lines.length > 0) {
+        const lines = charge.lines.slice().sort((a, b) =>
+            String(a.container).localeCompare(String(b.container)) || String(a.from).localeCompare(String(b.from)));
+        const rows = [];
+        let i = 0;
+        while (i < lines.length) {
+            let j = i;
+            while (j < lines.length && lines[j].container === lines[i].container) j++;
+            for (let k = i; k < j; k++) {
+                rows.push({ containerNumber: lines[k].container, eventFrom: _fmtDay(lines[k].from), eventTo: _fmtDay(lines[k].to), days: lines[k].days, amount: lines[k].amount, rate: lines[k].rate });
+            }
+            i = j;
+        }
+        return rows;
+    }
+    // السلوك الأصلي (النقدي، أو آجل بلا lines)
+    return (charge.containerNumbers || []).map((container, idx) => {
+        const dateInfo = charge.dates && charge.dates[idx] ? charge.dates[idx] : {
+            from: charge['event-performed-from'] || '-',
+            to: charge['event-performed-to'] || '-',
+            days: charge['storage-days'] || 1
+        };
+        return { containerNumber: container, eventFrom: dateInfo.from, eventTo: dateInfo.to, days: dateInfo.days };
+    });
+}
+
+// ============================================
 // دوال تجميع المصاريف للفواتير النقدية (العدد = عدد البنود)
 // ============================================
 function groupCashCharges(charges) {
@@ -3419,6 +3910,7 @@ function groupPostponedCharges(charges) {
         const storageDays = c['storage-days'] || 1;
         if (map.has(key)) {
             const ex = map.get(key);
+            _pushChargeLine(ex, c, storageDays);
             ex.quantity += c.quantity; // جمع الكميات الفعلية
             ex.totalStorageDays += storageDays;
             ex.amount += (c.amount || 0);
@@ -3426,6 +3918,7 @@ function groupPostponedCharges(charges) {
             if (c['event-performed-from'] || c['event-performed-to']) ex.dates.push({ from: c['event-performed-from'] || '-', to: c['event-performed-to'] || '-', days: storageDays });
         } else {
             const newC = { ...c, containerNumbers: [...(c.containerNumbers || [])], totalStorageDays: storageDays, dates: [] };
+            _pushChargeLine(newC, c, storageDays);
             if (c['event-performed-from'] || c['event-performed-to']) newC.dates.push({ from: c['event-performed-from'] || '-', to: c['event-performed-to'] || '-', days: storageDays });
             map.set(key, newC);
             grouped.push(newC);
@@ -3634,21 +4127,36 @@ window.exportContainerDetails = async function(groupIndex) {
     ];
 
     let totalAmount = 0;
-    charge.containerNumbers.forEach((container, idx) => {
-        const dateInfo = charge.dates?.[idx] || { from: charge['event-performed-from'] || '-', to: charge['event-performed-to'] || '-', days: charge['storage-days'] || 1 };
-        let amountPerContainer;
-        if (isPostponed && currency === 'USAD') amountPerContainer = (charge.amount / exRate / charge.containerNumbers.length).toFixed(2);
-        else amountPerContainer = (charge.amount / charge.containerNumbers.length).toFixed(2);
-        totalAmount += parseFloat(amountPerContainer);
-        exportData.push([
-            (idx + 1).toString(), container, dateInfo.from, dateInfo.to, dateInfo.days.toString(),
-            (charge['rate-billed'] || 0).toFixed(2), amountPerContainer,
-            (isPostponed && currency === 'USAD') ? 'USAD' : 'EGP'
-        ]);
-    });
+    const _isUsd = isPostponed && currency === 'USAD';
+    const _rate = Number(exRate) || 48.0215;
+    if (isPostponed && charge.lines && charge.lines.length > 0) {
+        // [تعديل] (آجل فقط) سطر لكل (حاوية + فترة) بمبلغه الفعلي
+        buildContainerDetails(charge, true).forEach((r, idx) => {
+            const line = { amount: r.amount, rate: r.rate };
+            const amt = _isUsd ? (line.amount || 0) / _rate : (line.amount || 0);
+            totalAmount += parseFloat(amt.toFixed(2));
+            exportData.push([
+                (idx + 1).toString(), r.containerNumber, r.eventFrom, r.eventTo, String(r.days),
+                (line.rate || 0).toFixed(2), amt.toFixed(2), _isUsd ? 'USAD' : 'EGP'
+            ]);
+        });
+    } else {
+        charge.containerNumbers.forEach((container, idx) => {
+            const dateInfo = charge.dates?.[idx] || { from: charge['event-performed-from'] || '-', to: charge['event-performed-to'] || '-', days: charge['storage-days'] || 1 };
+            let amountPerContainer;
+            if (isPostponed && currency === 'USAD') amountPerContainer = (charge.amount / exRate / charge.containerNumbers.length).toFixed(2);
+            else amountPerContainer = (charge.amount / charge.containerNumbers.length).toFixed(2);
+            totalAmount += parseFloat(amountPerContainer);
+            exportData.push([
+                (idx + 1).toString(), container, dateInfo.from, dateInfo.to, dateInfo.days.toString(),
+                (charge['rate-billed'] || 0).toFixed(2), amountPerContainer,
+                (isPostponed && currency === 'USAD') ? 'USAD' : 'EGP'
+            ]);
+        });
+    }
 
     exportData.push([], ['الإجمالي', '', '', '', '', '', totalAmount.toFixed(2), (isPostponed && currency === 'USAD') ? 'USAD' : 'EGP']);
-    exportData.push([], ['ملخص البند:'], ['الوصف:', charge.description || '-'], ['النوع:', charge['event-type-id'] || '-'], ['عدد الحاويات:', charge.containerNumbers.length.toString()], ['إجمالي المبلغ:', charge.amount.toFixed(2), 'جنيه']);
+    exportData.push([], ['ملخص البند:'], ['الوصف:', charge.description || '-'], ['النوع:', charge['event-type-id'] || '-'], ['عدد الحاويات:', formatContainerCountLabel(charge.containerNumbers.length, (charge.lines && charge.lines.length) || charge.containerNumbers.length)], ['إجمالي المبلغ:', charge.amount.toFixed(2), 'جنيه']);
     if (isPostponed && currency === 'USAD') exportData.push(['المبلغ بعد سعر الصرف:', (charge.amount / exRate).toFixed(2), 'USAD']);
 
     showProgress('جاري إنشاء ملف Excel...', 70);
@@ -4124,19 +4632,7 @@ if (isPostponed) {
         }
 
         if (containerCount > 0) {
-            const containerDetails = charge.containerNumbers.map((container, idx) => {
-                const dateInfo = charge.dates && charge.dates[idx] ? charge.dates[idx] : {
-                    from: charge['event-performed-from'] || '-',
-                    to: charge['event-performed-to'] || '-',
-                    days: charge['storage-days'] || 1
-                };
-                return {
-                    containerNumber: container,
-                    eventFrom: dateInfo.from,
-                    eventTo: dateInfo.to,
-                    days: dateInfo.days
-                };
-            });
+            const containerDetails = buildContainerDetails(charge, isPostponed);
             
             chargesRows += `<tr id="containers-${idx}" style="display:none; background:#f8f9fa;">
                 <td colspan="${isPostponed ? '7' : '8'}" style="padding:15px;">
@@ -4817,7 +5313,7 @@ window.exportInvoiceExcel = function() {
         const displayCurrency = (isPostponed && currency === 'USAD') ? 'USAD' : 'EGP';
         const date = c['paid-thru-day'] || c['created'] || '';
         const fmtDate = date ? new Date(date).toLocaleDateString('ar-EG') : '-';
-        csv += `"${c.description}","${c['event-type-id']}",${c.quantity},${c['storage-days']},${c['rate-billed']},${amountDisplay},"${displayCurrency}","${fmtDate}"\n`;
+        csv += `"${xmlDecode(c.description)}","${c['event-type-id']}",${c.quantity},${c['storage-days']},${c['rate-billed']},${amountDisplay},"${displayCurrency}","${fmtDate}"\n`;
     });
     
     let totalCharges, totalTaxes, totalFinal;
@@ -6143,7 +6639,7 @@ async function loadInvoicesFromDrive() {
 // ============================================
 // تحميل ملف واحد وتحليل محتواه (Regex سريع)
 // ============================================
-async function loadSingleDataFile(fileInfo) {
+async function loadSingleDataFileMainThread(fileInfo) {
     const fileName = fileInfo.name;
     console.log(`📥 جاري تحميل: ${fileName}`);
     
@@ -6172,6 +6668,112 @@ async function loadSingleDataFile(fileInfo) {
     }
 }
 
+
+// ============================================
+// [تعديل] Web Worker: الجلب والتحليل خارج الخيط الرئيسي حتى لا تتجمد الواجهة
+// ============================================
+let _workerPool = null;
+let _workerRR = 0;
+let _parserWorkerFailed = false;
+const _workerPending = new Map();
+let _workerSeq = 0;
+
+function _onWorkerMessage(e) {
+    const d = e.data;
+    const p = _workerPending.get(d.id);
+    if (!p) return;
+    if (d.error) { _workerPending.delete(d.id); p.reject(new Error(d.error)); return; }
+    if (d.part) { const acc = p.acc; for (let i = 0; i < d.part.length; i++) acc.push(d.part[i]); return; }
+    if (d.done) { _workerPending.delete(d.id); p.resolve({ invoices: p.acc, timings: d.timings }); }
+}
+
+function _onWorkerError(err) {
+    console.warn('⚠️ فشل الـ Worker، سيتم التحليل في الخيط الرئيسي', err && err.message);
+    _parserWorkerFailed = true;
+    if (_workerPool) _workerPool.forEach(w => { try { w.terminate(); } catch (e) {} });
+    _workerPool = null;
+    _workerPending.forEach(p => p.reject(new Error('worker-failed')));
+    _workerPending.clear();
+}
+
+// مجموعة Workers (2-3) لتتوازى عملية التحليل بدل طابور واحد
+function _getParserWorker() {
+    if (_parserWorkerFailed) return null;
+    if (!_workerPool) {
+        try {
+            const src = `
+                const SLIM_PARSED_ATTRIBUTES = ${SLIM_PARSED_ATTRIBUTES};
+                const _KEEP_ATTRS = new Set(${JSON.stringify(Array.from(_KEEP_ATTRS))});
+                const _attrStats = { kept: 0, dropped: 0 };
+                ${parseAttributesRegex.toString()}
+                ${parseChargesRegex.toString()}
+                ${parseInvoicesFromContent.toString()}
+                self.onmessage = async (e) => {
+                    const { id, url } = e.data;
+                    try {
+                        const t0 = performance.now();
+                        const res = await fetch(url);
+                        if (!res.ok) { self.postMessage({ id, error: 'HTTP ' + res.status }); return; }
+                        const text = await res.text();
+                        const t1 = performance.now();
+                        _attrStats.kept = 0; _attrStats.dropped = 0;
+                        const invoices = parseInvoicesFromContent(text);
+                        const t2 = performance.now();
+                        // إرسال النتيجة على قطع صغيرة حتى لا يتجمد الخيط الرئيسي عند الاستلام
+                        const STEP = 1500;
+                        for (let i = 0; i < invoices.length; i += STEP) {
+                            self.postMessage({ id, part: invoices.slice(i, i + STEP) });
+                        }
+                        self.postMessage({ id, done: true, timings: {
+                            fetch: Math.round(t1 - t0), parse: Math.round(t2 - t1),
+                            kb: Math.round(text.length / 1024), count: invoices.length,
+                            kept: _attrStats.kept, dropped: _attrStats.dropped } });
+                    } catch (err) { self.postMessage({ id, error: String(err && err.message || err) }); }
+                };`;
+            const blobUrl = URL.createObjectURL(new Blob([src], { type: 'text/javascript' }));
+            const size = Math.max(2, Math.min(3, (navigator.hardwareConcurrency || 4) - 1));
+            const pool = [];
+            for (let i = 0; i < size; i++) {
+                const w = new Worker(blobUrl);
+                w.onmessage = _onWorkerMessage;
+                w.onerror = _onWorkerError;
+                pool.push(w);
+            }
+            _workerPool = pool;
+        } catch (e) {
+            console.warn('⚠️ تعذر إنشاء Worker:', e);
+            _parserWorkerFailed = true;
+            return null;
+        }
+    }
+    return _workerPool[_workerRR++ % _workerPool.length];
+}
+
+async function loadSingleDataFile(fileInfo) {
+    const worker = _getParserWorker();
+    if (!worker) return loadSingleDataFileMainThread(fileInfo);
+    const t0 = performance.now();
+    try {
+        const out = await new Promise((resolve, reject) => {
+            const id = ++_workerSeq;
+            _workerPending.set(id, { resolve, reject, acc: [] });
+            worker.postMessage({ id, url: fileInfo.url });
+        });
+        const t = out.timings || {};
+        console.log(`⏱ ${fileInfo.name}: جلب ${t.fetch}ms | تحليل ${t.parse}ms | إجمالي ${Math.round(performance.now() - t0)}ms | ${t.kb}KB | ${out.invoices.length} فاتورة | خصائص: احتُفظ ${t.kept} / حُذف ${t.dropped}`);
+        return out.invoices;
+    } catch (err) {
+        console.warn(`⚠️ ${fileInfo.name}: فشل عبر Worker (${err.message})، إعادة المحاولة في الخيط الرئيسي`);
+        return loadSingleDataFileMainThread(fileInfo);
+    }
+}
+
+function computeFilesSignature() {
+    try {
+        return (GITHUB_CONFIG.filesList || []).map(f => `${f.name}:${f.sha || f.size}`).join('|');
+    } catch (e) { return ''; }
+}
+
 // ============================================
 // تحميل الفواتير - مرحلتان: سريع + خلفي
 // ============================================
@@ -6194,23 +6796,16 @@ async function loadAllInvoices() {
             const discovered = await discoverDataFiles();
             
             if (discovered && GITHUB_CONFIG.filesList.length > 0) {
-                const latestFile = GITHUB_CONFIG.filesList[0];
-                
                 showProgress('جاري فحص التحديثات...', 10);
-                const fileInfo = await checkFileUpdate(latestFile.url);
-                
-                // مقارنة معلومات الملف
+                // [تعديل] مقارنة بصمة كل الملفات (الاسم + sha) بدل فحص أحدث ملف فقط
                 const cachedInfo = cached.latestFile;
-                const isUpdated = !cachedInfo || 
-                                 !fileInfo ||
-                                 fileInfo.lastModified !== cachedInfo.lastModified ||
-                                 fileInfo.etag !== cachedInfo.etag ||
-                                 fileInfo.contentLength !== cachedInfo.size;
-                
+                const currentSignature = computeFilesSignature();
+                const isUpdated = !cachedInfo || !cachedInfo.signature || cachedInfo.signature !== currentSignature;
+
                 if (!isUpdated) {
                     // ✅ لا توجد تحديثات - استخدم Cache
                     console.log('✅ لا توجد تحديثات، استخدام Cache');
-                    invoicesData = cached.data;
+                    setInvoicesData(cached.data);
                     
                     showProgress('تم التحميل من الذاكرة المؤقتة!', 100);
                     
@@ -6259,7 +6854,10 @@ async function loadAllInvoices() {
     
     const allFiles = GITHUB_CONFIG.filesList;
     const totalFiles = allFiles.length;
-    const FAST_BATCH = Math.min(2, totalFiles);
+    // [تعديل] المرحلة الأولى حسب الحجم: ملف واحد إذا كان كبيراً (≥ 20MB)، وإلا ملفان (الحجم غير معروف = ملفان كما كان)
+    const FAST_SIZE_LIMIT = 20 * 1024 * 1024;
+    let FAST_BATCH = Math.min(2, totalFiles);
+    if (FAST_BATCH === 2 && allFiles[0] && Number(allFiles[0].size) >= FAST_SIZE_LIMIT) FAST_BATCH = 1;
     const fastFiles = allFiles.slice(0, FAST_BATCH);
     
     // ============================================
@@ -6273,7 +6871,8 @@ async function loadAllInvoices() {
         name: fastFiles[0].name,
         lastModified: null,
         size: null,
-        etag: null
+        etag: null,
+        signature: computeFilesSignature()
     };
     
     // جلب headers أحدث ملف
@@ -6298,7 +6897,7 @@ async function loadAllInvoices() {
         }
     });
     
-    invoicesData = removeDuplicateInvoices(initialInvoices);
+    setInvoicesData(initialInvoices);
     
     console.log(`✅ المرحلة 1: ${invoicesData.length} فاتورة`);
     showProgress('جاري العرض...', 50);
@@ -6342,64 +6941,76 @@ async function loadAllInvoices() {
 // ============================================
 async function loadRemainingFilesInBackground(remainingFiles, cacheKey, latestFileInfo) {
     if (!remainingFiles || remainingFiles.length === 0) return;
-    
-    console.log(`🔄 بدء التحميل الخلفي: ${remainingFiles.length} ملف`);
-    showBackgroundLoader(0, remainingFiles.length);
-    
-    let totalNewInvoices = 0;
+    if (_bgLoadingActive) { console.log('ℹ️ التحميل الخلفي يعمل بالفعل'); return; }
+    _bgLoadingActive = true;
+
+    const total = remainingFiles.length;
+    console.log(`🔄 بدء التحميل الخلفي: ${total} ملف`);
+    showBackgroundLoader(0, total);
+    const tStart = performance.now();
+
+    const CONCURRENCY = 4;            // عدد الملفات التي تُجلب معاً (كما كان قبل التعديل: 3 على الأقل)
+    const results = new Array(total); // النتائج تُدمج بترتيب الملفات حتى لو انتهت بترتيب مختلف
+    let nextToStart = 0;
+    let nextToMerge = 0;
     let processedCount = 0;
-    const BATCH_SIZE = 3;
-    
-    for (let i = 0; i < remainingFiles.length; i += BATCH_SIZE) {
-        const batch = remainingFiles.slice(i, i + BATCH_SIZE);
-        
-        let waitCount = 0;
-        while (isUserBusy() && waitCount < 30) {
-            await new Promise(resolve => setTimeout(resolve, 2000));
-            waitCount++;
+    let totalNewInvoices = 0;
+
+    // دمج النتائج المتاحة بالترتيب (الأحدث أولاً) كما كان سلوك إزالة التكرار
+    const mergeReady = () => {
+        while (nextToMerge < total && results[nextToMerge] !== undefined) {
+            const list = results[nextToMerge];
+            results[nextToMerge] = null;
+            if (list && list.length > 0) totalNewInvoices += appendUnique(list);
+            nextToMerge++;
         }
-        
-        try {
-            const results = await Promise.allSettled(
-                batch.map(file => loadSingleDataFile(file))
-            );
-            
-            let batchInvoices = [];
-            results.forEach(result => {
-                if (result.status === 'fulfilled' && result.value.length > 0) {
-                    batchInvoices = batchInvoices.concat(result.value);
-                }
-                processedCount++;
-            });
-            
-            if (batchInvoices.length > 0) {
-                const beforeCount = invoicesData.length;
-                invoicesData = removeDuplicateInvoices([...invoicesData, ...batchInvoices]);
-                const addedCount = invoicesData.length - beforeCount;
-                totalNewInvoices += addedCount;
-                console.log(`   📦 دفعة ${Math.floor(i/BATCH_SIZE) + 1}: +${addedCount}`);
+    };
+
+    const runner = async () => {
+        while (nextToStart < total) {
+            const idx = nextToStart++;
+            const file = remainingFiles[idx];
+
+            // لا نبدأ ملفاً جديداً أثناء بحث المستخدم أو فتح نافذة (بحد أقصى 20 ثانية)
+            let waitCount = 0;
+            while (isUserBusy() && waitCount < 20) {
+                await yieldToMain(1000);
+                waitCount++;
             }
-            
-            showBackgroundLoader(processedCount, remainingFiles.length);
-            await new Promise(resolve => setTimeout(resolve, 300));
-            
-        } catch (error) {
-            console.error(`❌ خطأ في دفعة:`, error);
-            processedCount += batch.length;
+
+            let list = [];
+            try {
+                list = await loadSingleDataFile(file);
+            } catch (error) {
+                console.error(`❌ خطأ في ${file.name}:`, error);
+            }
+            results[idx] = list || [];
+            mergeReady();
+            processedCount++;
+            showBackgroundLoader(processedCount, total);
+            await yieldToMain(0);
         }
-    }
-    
-    hideBackgroundLoader();
-    console.log(`✅ اكتمل التحميل الخلفي: +${totalNewInvoices}`);
-    
-    // ✅ حفظ في Cache مع معلومات الملف
-    if (invoicesData.length > 0) {
-        await saveToCache(cacheKey, invoicesData, latestFileInfo);
-    }
-    
-    if (totalNewInvoices > 0) {
-        showNotification(`📥 تم تحميل ${totalNewInvoices} فاتورة إضافية`, 'info');
-        refreshDataView();
+    };
+
+    try {
+        await Promise.all(Array.from({ length: Math.min(CONCURRENCY, total) }, runner));
+        mergeReady();
+
+        hideBackgroundLoader();
+        console.log(`✅ اكتمل التحميل الخلفي: +${totalNewInvoices} فاتورة خلال ${Math.round((performance.now() - tStart) / 1000)} ثانية`);
+
+        // حفظ الكاش على قطع صغيرة (لا يجمّد الواجهة)
+        if (invoicesData.length > 0) {
+            await saveToCache(cacheKey, invoicesData, latestFileInfo);
+        }
+
+        if (totalNewInvoices > 0) {
+            showNotification(`📥 تم تحميل ${totalNewInvoices} فاتورة إضافية`, 'info');
+            refreshDataViewKeepState();
+        }
+    } finally {
+        _bgLoadingActive = false;
+        hideBackgroundLoader();
     }
 }
 
@@ -6483,6 +7094,23 @@ function refreshDataView() {
     updateSummary();
 }
 
+// [تعديل] تحديث العرض بعد التحميل الخلفي مع الحفاظ على الصفحة الحالية والتحديد ونتائج البحث
+function refreshDataViewKeepState() {
+    if (!currentUser) return;
+    const searchIds = ['searchFinalNumber', 'searchDraftNumber', 'searchCustomer', 'searchVessel',
+        'searchBlNumber', 'searchContainer', 'searchStatus', 'searchDateFrom', 'searchDateTo',
+        'searchInvoiceType', 'searchContractCustomerId', 'searchViewedStatus'];
+    const hasActiveSearch = searchIds.some(id => { const el = document.getElementById(id); return el && el.value; });
+    try { convertCustomerFieldToSelect(); } catch (e) {}
+    if (hasActiveSearch) {
+        showNotification('تم تحميل بيانات إضافية - أعد البحث لتشمل النتائج الجديدة', 'info');
+        return;
+    }
+    if (typeof INVOICE_TYPES !== 'undefined' && currentInvoiceType === INVOICE_TYPES.CREDIT) return;
+    if (currentUser.isGuest) filterInvoicesByGuest(currentUser.taxNumber, currentUser.blNumber, true);
+    else filterInvoicesByUser(true);
+}
+
 // مؤشر التحميل الخلفي
 function showBackgroundLoader(current, total) {
     let loader = document.getElementById('backgroundLoader');
@@ -6531,7 +7159,10 @@ function hideBackgroundLoader() {
 // تحويل حقل العميل إلى قائمة منسدلة
 function convertCustomerFieldToSelect() {
     const inputElement = document.getElementById('searchCustomer');
-    if (!inputElement || inputElement.tagName === 'SELECT') return;
+    if (!inputElement) return;
+    const wasSelect = inputElement.tagName === 'SELECT';
+    // للمدير فقط: تحديث القائمة بعد وصول بيانات الخلفية
+    if (wasSelect && !(currentUser && currentUser.userType === 'admin')) return;
     
     const parent = inputElement.parentElement;
     const select = document.createElement('select');
@@ -6554,10 +7185,16 @@ function convertCustomerFieldToSelect() {
         }
         
         allowedCustomers.forEach(id => {
-            options += `<option value="${id.replace(/"/g, '&quot;')}">${id}</option>`;
+            options += `<option value="${escapeHtml(id)}">${escapeHtml(id)}</option>`;
         });
     }
     
+    if (wasSelect) {
+        const prev = inputElement.value;
+        inputElement.innerHTML = options;
+        inputElement.value = prev;
+        return;
+    }
     select.innerHTML = options;
     parent.replaceChild(select, inputElement);
 }
@@ -7813,7 +8450,7 @@ function buildInvoiceSearchUI() {
             </div>
             <div class="search-field">
                 <label><i class="fas fa-container-storage"></i> رقم الحاوية</label>
-                <input type="text" id="searchContainer" placeholder="رقم الحاوية...">
+                <div style="display:flex;gap:6px;align-items:stretch;"><input type="text" id="searchContainer" placeholder="رقم حاوية، أو عدة أرقام بينها مسافة..." style="flex:1;min-width:0;"><button type="button" onclick="openContainerListDialog()" title="لصق قائمة حاويات" style="padding:0 12px;border-radius:10px;border:1px solid var(--border,#ccc);background:var(--bg-card,#fff);cursor:pointer;font-size:16px;">📋</button></div>
             </div>
             <div class="search-field">
                 <label><i class="fas fa-check-square"></i> حالة المعاينة</label>
@@ -9620,7 +10257,6 @@ document.addEventListener('DOMContentLoaded', async () => {
         renderData();
     }
 });
-        document.getElementById('itemsPerPage')?.addEventListener('change', changeItemsPerPage);
         document.querySelectorAll('#searchFinalNumber, #searchDraftNumber, #searchCustomer, #searchVessel, #searchBlNumber, #searchContainer, #searchStatus, #searchDateFrom, #searchDateTo, #searchInvoiceType').forEach(input => input?.addEventListener('input', debounce(applyAdvancedSearch, 500)));
         window.addEventListener('click', e => { if (e.target === document.getElementById('invoiceModal')) window.closeModal(); });
         await loadSavedData();
@@ -9643,9 +10279,7 @@ function checkIfInvoiceBelongsToUser(invoice) {
     if (currentUser.isGuest) {
         const taxNumber = currentUser.taxNumber;
         if (!taxNumber) return false;
-        const payeeMatch = (invoice['payee-customer-id'] || '').toLowerCase().includes(taxNumber.toLowerCase());
-        const contractMatch = (invoice['contract-customer-id'] || '').toLowerCase().includes(taxNumber.toLowerCase());
-        return payeeMatch || contractMatch;
+        return guestIdMatch(invoice['payee-customer-id'], taxNumber) || guestIdMatch(invoice['contract-customer-id'], taxNumber);
     }
     
     // المستخدم العادي (محاسب أو عميل)
@@ -10676,31 +11310,61 @@ async function checkFileUpdate(fileUrl) {
     }
 }
 
-// حفظ في Cache مع معلومات الملف الأخير
+// ============================================
+// [تعديل] الكاش على قطع صغيرة: لا توجد كتابة/قراءة ضخمة واحدة تجمّد الواجهة
+// ============================================
+const CACHE_CHUNK_SIZE = 3000;
+
+function _idbGet(db, key) {
+    return new Promise((resolve, reject) => {
+        const req = db.transaction(CACHE_STORE, 'readonly').objectStore(CACHE_STORE).get(key);
+        req.onsuccess = () => resolve(req.result);
+        req.onerror = () => reject(req.error);
+    });
+}
+
+function _idbPut(db, record) {
+    return new Promise((resolve, reject) => {
+        const tx = db.transaction(CACHE_STORE, 'readwrite');
+        tx.objectStore(CACHE_STORE).put(record);
+        tx.oncomplete = () => resolve();
+        tx.onerror = () => reject(tx.error);
+        tx.onabort = () => reject(tx.error || new Error('aborted'));
+    });
+}
+
+// حفظ في Cache (قطع + سجل رئيسي يُكتب أخيراً)
 async function saveToCache(key, data, latestFileInfo = null) {
     try {
         const db = await openCacheDB();
-        const tx = db.transaction(CACHE_STORE, 'readwrite');
-        const store = tx.objectStore(CACHE_STORE);
-        
-        await new Promise((resolve, reject) => {
-            const req = store.put({
-                key: key,
-                data: data,
-                timestamp: Date.now(),
-                // ✅ حفظ معلومات أحدث ملف
-                latestFile: latestFileInfo ? {
-                    name: latestFileInfo.name,
-                    lastModified: latestFileInfo.lastModified,
-                    size: latestFileInfo.size,
-                    etag: latestFileInfo.etag
-                } : null
+        await deleteFromCache(key);
+
+        const total = data.length;
+        const chunks = Math.ceil(total / CACHE_CHUNK_SIZE);
+        for (let i = 0; i < chunks; i++) {
+            await _idbPut(db, {
+                key: `${key}__chunk_${i}`,
+                data: data.slice(i * CACHE_CHUNK_SIZE, (i + 1) * CACHE_CHUNK_SIZE)
             });
-            req.onsuccess = () => resolve();
-            req.onerror = () => reject(req.error);
+            await yieldToMain(5);
+        }
+
+        await _idbPut(db, {
+            key: key,
+            version: 2,
+            chunks: chunks,
+            count: total,
+            timestamp: Date.now(),
+            latestFile: latestFileInfo ? {
+                name: latestFileInfo.name,
+                lastModified: latestFileInfo.lastModified,
+                size: latestFileInfo.size,
+                etag: latestFileInfo.etag,
+                signature: latestFileInfo.signature || null
+            } : null
         });
-        
-        console.log(`💾 تم حفظ ${key} في Cache`);
+
+        console.log(`💾 تم حفظ ${key} في Cache (${total} فاتورة، ${chunks} قطعة)`);
         return true;
     } catch (error) {
         console.warn('⚠️ فشل الحفظ في Cache:', error);
@@ -10708,58 +11372,66 @@ async function saveToCache(key, data, latestFileInfo = null) {
     }
 }
 
-// قراءة بيانات من Cache
 // قراءة بيانات من Cache (إرجاع الكائن الكامل)
 async function loadFromCache(key) {
     try {
         const db = await openCacheDB();
-        const tx = db.transaction(CACHE_STORE, 'readonly');
-        const store = tx.objectStore(CACHE_STORE);
-        
-        const result = await new Promise((resolve, reject) => {
-            const req = store.get(key);
-            req.onsuccess = () => resolve(req.result);
-            req.onerror = () => reject(req.error);
-        });
-        
-        if (!result) return null;
-        
-        // التحقق من صلاحية البيانات
-        const age = Date.now() - result.timestamp;
+        const meta = await _idbGet(db, key);
+        if (!meta) return null;
+
+        const age = Date.now() - meta.timestamp;
         if (age > CACHE_TTL) {
-            console.log(`⏰ ${key} انتهت صلاحيته (عمر: ${Math.round(age/1000/60)} دقيقة)`);
+            console.log(`⏰ ${key} انتهت صلاحيته (عمر: ${Math.round(age / 1000 / 60)} دقيقة)`);
             await deleteFromCache(key);
             return null;
         }
-        
-        console.log(`✅ تم قراءة ${key} من Cache (عمر: ${Math.round(age/1000)} ثانية)`);
-        
-        // ✅ إرجاع الكائن الكامل (بدلاً من result.data)
-        return {
-            data: result.data,
-            timestamp: result.timestamp,
-            latestFile: result.latestFile || null
-        };
-        
+
+        let data;
+        if (meta.version === 2) {
+            data = [];
+            for (let i = 0; i < meta.chunks; i++) {
+                const rec = await _idbGet(db, `${key}__chunk_${i}`);
+                if (!rec || !Array.isArray(rec.data)) {
+                    console.warn(`⚠️ قطعة ناقصة في الكاش (${i})، سيتم تجاهله`);
+                    await deleteFromCache(key);
+                    return null;
+                }
+                for (let j = 0; j < rec.data.length; j++) data.push(rec.data[j]);
+                await yieldToMain(0);
+            }
+            if (data.length !== meta.count) {
+                await deleteFromCache(key);
+                return null;
+            }
+        } else {
+            data = meta.data; // صيغة قديمة (ستُعتبر قديمة وتُستبدل لأنها بلا بصمة)
+        }
+
+        console.log(`✅ تم قراءة ${key} من Cache (عمر: ${Math.round(age / 1000)} ثانية)`);
+        return { data, timestamp: meta.timestamp, latestFile: meta.latestFile || null };
     } catch (error) {
         console.warn('⚠️ فشل قراءة Cache:', error);
         return null;
     }
 }
 
-// حذف عنصر من Cache
+// حذف عنصر (وقطعه) من Cache
 async function deleteFromCache(key) {
     try {
         const db = await openCacheDB();
-        const tx = db.transaction(CACHE_STORE, 'readwrite');
-        const store = tx.objectStore(CACHE_STORE);
-        
+        const meta = await _idbGet(db, key);
+        const keys = [key];
+        if (meta && meta.chunks) {
+            for (let i = 0; i < meta.chunks; i++) keys.push(`${key}__chunk_${i}`);
+        }
         await new Promise((resolve, reject) => {
-            const req = store.delete(key);
-            req.onsuccess = () => resolve();
-            req.onerror = () => reject(req.error);
+            const tx = db.transaction(CACHE_STORE, 'readwrite');
+            const st = tx.objectStore(CACHE_STORE);
+            keys.forEach(k => st.delete(k));
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+            tx.onabort = () => reject(tx.error || new Error('aborted'));
         });
-        
         return true;
     } catch (error) {
         console.warn('⚠️ فشل حذف من Cache:', error);
@@ -10780,6 +11452,7 @@ async function clearAllCache() {
             req.onerror = () => reject(req.error);
         });
         
+        try { localStorage.removeItem(DISCOVERY_STORE_KEY); localStorage.removeItem(MANIFEST_MISSING_KEY); } catch (e) {}
         console.log('🗑️ تم مسح كل Cache');
         showNotification('تم مسح الذاكرة المؤقتة', 'success');
         return true;
